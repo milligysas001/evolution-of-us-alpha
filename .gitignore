@@ -5,6 +5,7 @@
 .env.local
 .env.*
 *.zip
+*backup*/
 app_backup*/
 app_backup_*/
 app_backup_before_*/
