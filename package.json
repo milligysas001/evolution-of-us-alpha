@@ -15,5 +15,7 @@
     "react-dom": "latest",
     "typescript": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2"
+  }
 }
