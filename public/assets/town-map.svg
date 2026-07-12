@@ -1,0 +1,95 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c9d8a5"/>
+      <stop offset="45%" stop-color="#94aa73"/>
+      <stop offset="100%" stop-color="#657957"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#2c2419" flood-opacity="0.32"/>
+    </filter>
+    <pattern id="grid" width="96" height="96" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+      <path d="M 96 0 L 0 0 0 96" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
+    </pattern>
+    <pattern id="field" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M0 8 H32 M0 18 H32 M0 28 H32" stroke="#6e8b51" stroke-width="3" opacity="0.65"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="900" fill="url(#grass)"/>
+  <rect width="1600" height="900" fill="url(#grid)" opacity="0.38"/>
+  <path d="M1260 0 C1210 120 1250 210 1180 330 C1110 455 1210 560 1130 700 C1080 795 1020 850 960 900 L1600 900 L1600 0 Z" fill="#6f99a7" opacity="0.5"/>
+  <path d="M1250 0 C1200 120 1240 220 1170 330 C1095 465 1208 560 1125 705" fill="none" stroke="#d7eadf" stroke-width="10" opacity="0.35"/>
+  <path d="M120 710 C300 610 420 610 570 530 C750 430 875 450 1030 355 C1150 280 1280 240 1450 210" fill="none" stroke="#c9b084" stroke-width="42" opacity="0.85"/>
+  <path d="M260 170 C390 300 510 410 670 500 C850 600 1030 680 1290 760" fill="none" stroke="#c9b084" stroke-width="34" opacity="0.78"/>
+  <path d="M120 710 C300 610 420 610 570 530 C750 430 875 450 1030 355 C1150 280 1280 240 1450 210" fill="none" stroke="#8d7351" stroke-width="5" opacity="0.45"/>
+  <g opacity="0.95">
+    <polygon points="105,520 330,455 430,610 195,690" fill="url(#field)" stroke="#e4d9b8" stroke-width="4"/>
+    <polygon points="260,295 470,245 560,380 350,430" fill="url(#field)" stroke="#e4d9b8" stroke-width="4"/>
+    <polygon points="1040,520 1245,470 1330,600 1115,665" fill="url(#field)" stroke="#e4d9b8" stroke-width="4"/>
+    <polygon points="1000,260 1160,210 1255,315 1095,370" fill="url(#field)" stroke="#e4d9b8" stroke-width="4"/>
+  </g>
+  <g opacity="0.9">
+    <circle cx="105" cy="120" r="42" fill="#3f6642"/>
+    <circle cx="155" cy="95" r="36" fill="#416b47"/>
+    <circle cx="210" cy="145" r="44" fill="#355b3b"/>
+    <circle cx="1350" cy="145" r="50" fill="#375e3d"/>
+    <circle cx="1420" cy="105" r="44" fill="#416b47"/>
+    <circle cx="1455" cy="180" r="48" fill="#355b3b"/>
+    <circle cx="1350" cy="785" r="46" fill="#375e3d"/>
+    <circle cx="1430" cy="735" r="55" fill="#416b47"/>
+    <circle cx="1500" cy="805" r="44" fill="#355b3b"/>
+  </g>
+  <ellipse cx="805" cy="470" rx="210" ry="112" fill="#bfa06f" opacity="0.35"/>
+  <ellipse cx="805" cy="470" rx="155" ry="78" fill="#e1cc9c" opacity="0.42"/>
+  <g filter="url(#softShadow)">
+    <g transform="translate(415 195)">
+      <polygon points="0,95 120,45 240,95 120,150" fill="#b9a075" stroke="#735d3d" stroke-width="4"/>
+      <polygon points="55,78 120,20 185,78 120,115" fill="#e9dfc8" stroke="#735d3d" stroke-width="4"/>
+      <rect x="82" y="70" width="76" height="70" fill="#f7f0df" stroke="#735d3d" stroke-width="4"/>
+      <polygon points="112,20 130,20 130,-45 112,-45" fill="#5b4630"/>
+      <polygon points="95,-45 147,-45 120,-92" fill="#d19a36"/>
+      <rect x="110" y="102" width="22" height="38" fill="#5b4630"/>
+    </g>
+    <g transform="translate(710 310)">
+      <g><polygon points="0,70 70,30 140,70 70,105" fill="#cba36a" stroke="#6f5737" stroke-width="3"/><rect x="30" y="60" width="80" height="55" fill="#e6d6b8" stroke="#6f5737" stroke-width="3"/><polygon points="22,56 70,18 118,56" fill="#6e4b35"/></g>
+      <g transform="translate(120 45)"><polygon points="0,70 70,30 140,70 70,105" fill="#cba36a" stroke="#6f5737" stroke-width="3"/><rect x="30" y="60" width="80" height="55" fill="#e6d6b8" stroke="#6f5737" stroke-width="3"/><polygon points="22,56 70,18 118,56" fill="#6e4b35"/></g>
+      <g transform="translate(-90 65)"><polygon points="0,70 70,30 140,70 70,105" fill="#cba36a" stroke="#6f5737" stroke-width="3"/><rect x="30" y="60" width="80" height="55" fill="#e6d6b8" stroke="#6f5737" stroke-width="3"/><polygon points="22,56 70,18 118,56" fill="#6e4b35"/></g>
+    </g>
+    <g transform="translate(1110 455)">
+      <polygon points="0,75 92,25 184,75 92,125" fill="#aa7a4b" stroke="#513b26" stroke-width="4"/>
+      <rect x="36" y="64" width="112" height="75" fill="#d7c09b" stroke="#513b26" stroke-width="4"/>
+      <polygon points="26,61 92,15 158,61" fill="#4e3728"/>
+      <rect x="132" y="28" width="20" height="55" fill="#4e3728"/>
+      <path d="M152 20 C185 -20 210 -8 195 22" fill="none" stroke="#e9e0d1" stroke-width="12" opacity="0.7"/>
+      <rect x="72" y="92" width="35" height="47" fill="#49321f"/>
+    </g>
+    <g transform="translate(880 620)">
+      <polygon points="0,70 85,22 170,70 85,118" fill="#c99b50" stroke="#674c25" stroke-width="4"/>
+      <rect x="30" y="62" width="110" height="65" fill="#e4c47f" stroke="#674c25" stroke-width="4"/>
+      <polygon points="22,58 85,16 148,58" fill="#7b5930"/>
+      <path d="M50 76 H120 M50 94 H120 M50 112 H120" stroke="#674c25" stroke-width="4" opacity="0.7"/>
+    </g>
+    <g transform="translate(545 575)">
+      <polygon points="0,64 80,22 160,64 80,105" fill="#d0a74d" stroke="#715329" stroke-width="4"/>
+      <rect x="22" y="58" width="116" height="68" fill="#efe2bd" stroke="#715329" stroke-width="4"/>
+      <path d="M20 57 H140" stroke="#b94d3d" stroke-width="12"/>
+      <path d="M42 57 V126 M78 57 V126 M114 57 V126" stroke="#715329" stroke-width="3" opacity="0.55"/>
+    </g>
+    <g transform="translate(220 555)">
+      <rect x="0" y="40" width="44" height="92" fill="#8a6b44" stroke="#4d3b25" stroke-width="4"/>
+      <rect x="120" y="40" width="44" height="92" fill="#8a6b44" stroke="#4d3b25" stroke-width="4"/>
+      <path d="M15 40 L82 0 L149 40" fill="#5d4430" stroke="#4d3b25" stroke-width="4"/>
+      <rect x="57" y="70" width="50" height="62" fill="#3c2b1e"/>
+    </g>
+  </g>
+  <g opacity="0.85">
+    <circle cx="745" cy="510" r="8" fill="#2f422f"/>
+    <circle cx="795" cy="535" r="7" fill="#4c3426"/>
+    <circle cx="860" cy="505" r="7" fill="#2f422f"/>
+    <circle cx="665" cy="560" r="7" fill="#4c3426"/>
+    <circle cx="990" cy="545" r="7" fill="#2f422f"/>
+    <circle cx="1045" cy="600" r="7" fill="#4c3426"/>
+    <circle cx="520" cy="650" r="7" fill="#2f422f"/>
+  </g>
+  <rect width="1600" height="900" fill="rgba(20,20,10,0.06)"/>
+</svg>
