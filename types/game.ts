@@ -1,0 +1,10 @@
+// Portable interfaces for the future Godot port.
+// The running web prototype still keeps the live implementation in app/game/page.tsx,
+// but every new system should mirror its shape here before it is moved into a pure engine.
+export type WeatherKind = "ปกติ" | "ฝนหลงฤดู" | "แล้งจัด" | "หนาวยาว" | "พายุเข้าเร็ว" | "หมอกชื้น";
+export type WeatherState = { kind: WeatherKind; severity: number; monthsLeft: number; forecast: string; lastYearPattern: string };
+export type CampPolicies = { autoFoodShift: boolean; autoMaintenance: boolean; protectChildren: boolean; reserveWater: boolean; rationMode: "เท่าเทียม" | "ให้แรงงานหนักก่อน" | "ประหยัดเสบียง" };
+export type EndgameCrisisKind = "none" | "long_winter" | "bandit_host" | "great_plague";
+export type EndgameCrisis = { kind: EndgameCrisisKind; yearsUntil: number; warningLevel: number; active: boolean; resolved: boolean };
+export type BuildingCondition<T extends string = string> = Partial<Record<T, number>>;
+export type SkillXP<T extends string = string> = Partial<Record<T, number>>;
