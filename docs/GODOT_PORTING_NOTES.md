@@ -41,3 +41,9 @@ Godot should treat `data/game/terrain.json` and `data/game/people_passives.json`
 - Added exploration target state and location progress/status model for future node-map porting.
 - Migrant event now generates a concrete candidate list and applies actual named migrants based on the chosen policy instead of adding anonymous population.
 - Flow check: named labor -> explore target -> monthly event choice -> resolve production -> resolve exploration -> realism risks -> next event.
+
+## v0.9.21 Porting Notes
+- ProjectCrewStatus ควรถูกพอร์ตเป็น component กลางใน Godot ใช้กับ construction/research/crafting/animal care ได้
+- Work output ต้องแยก `assigned people count` และ `effective labor` เพื่อรองรับอายุ สุขภาพ passive และ skill
+- Herb gathering เป็น job เริ่มต้น แต่ herbal medicine เป็น unlock/efficiency layer
+- Animal simulation ใช้ทั้ง feed/food และ water จึงควรอยู่ใน monthly resolution engine ไม่ใช่ UI

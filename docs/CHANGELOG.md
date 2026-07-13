@@ -17,3 +17,11 @@
 - Added exploration target state and location progress/status model for future node-map porting.
 - Migrant event now generates a concrete candidate list and applies actual named migrants based on the chosen policy instead of adding anonymous population.
 - Flow check: named labor -> explore target -> monthly event choice -> resolve production -> resolve exploration -> realism risks -> next event.
+
+## v0.9.21 — System Coherence, Project Crews & Herbal Flow
+- เพิ่มสถานะทีมก่อสร้างและทีมวิจัย แสดงจำนวนคน/ผลผลิตจริง/รายชื่อคน
+- ปรับงานเก็บสมุนไพรให้เริ่มใช้ได้ตั้งแต่ต้นเกม และดีขึ้นหลังวิจัย
+- ปรับผู้นำนำหาอาหารให้ buff ผลผลิตอาหารรายเดือนจริง
+- เพิ่มการใช้น้ำของสัตว์เลี้ยงและเชื่อมกับสุขภาพ/ความหิวของฝูง
+- ลดการรบกวนจาก modal เหตุการณ์ประจำเดือน กระดิ่งใช้เฉพาะแจ้งเตือนสำคัญ
+- เพิ่ม data/game/system_coherence.json และ data/game/herbal_flow.json

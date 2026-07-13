@@ -259,8 +259,8 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.20";
-const BUILD_LABEL = "Compact Labor, Quiet Events & Flow Polish";
+const GAME_VERSION = "0.9.21";
+const BUILD_LABEL = "System Coherence, Project Crews & Herbal Flow";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -314,7 +314,7 @@ const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string
   { id: "water", icon: "💧", title: "ตักน้ำ / ดูแลน้ำสะอาด", category: "พื้นฐาน", text: "งานพื้นฐานตั้งแต่เริ่มเกม: ตักน้ำจากลำธาร เก็บน้ำค้าง และต้มน้ำใช้ในค่าย เมื่อวิจัยหรือมีบ่อน้ำจะมีประสิทธิภาพและปลอดภัยขึ้น" },
   { id: "preserve", icon: "🥫", title: "ถนอมอาหาร", category: "อาหาร", text: "ลดอาหารเสีย เตรียมค่ายก่อนฤดูหนาว ใช้ฟืนเล็กน้อย", unlock: (game) => game.researchDone.foodPreservation || game.buildings.storage > 0, lockedText: "ต้องวิจัยการถนอมอาหาร หรือสร้างคลังอาหาร" },
   { id: "craft", icon: "🛠️", title: "ซ่อม / ผลิตเครื่องมือ", category: "งานช่าง", text: "ซ่อมเครื่องมือพังและผลิตเครื่องมือหยาบ ใช้ไม้กับหิน", unlock: (game) => game.researchDone.simpleCraft || game.buildings.workshop > 0, lockedText: "ต้องวิจัยงานช่างง่าย ๆ หรือสร้างเพิงช่าง" },
-  { id: "herbs", icon: "🍃", title: "เก็บสมุนไพร / ต้มยา", category: "สุขภาพ", text: "เพิ่มสมุนไพร ช่วยรักษา และลดโรคในค่าย", unlock: (game) => game.researchDone.herbalCare || game.buildings.healerHut > 0, lockedText: "ต้องวิจัยสมุนไพรพื้นบ้าน หรือมีกระท่อมหมอยา" },
+  { id: "herbs", icon: "🍃", title: "เก็บสมุนไพร", category: "สุขภาพ", text: "เก็บสมุนไพรพื้นฐานได้ตั้งแต่เริ่มเกม ส่วนการต้มยา/ใช้รักษาอย่างปลอดภัยจะดีขึ้นเมื่อวิจัยสมุนไพรพื้นบ้านหรือมีกระท่อมหมอยา" },
   { id: "feed", icon: "🌿", title: "ตัดหญ้า / ทำอาหารสัตว์", category: "สัตว์เลี้ยง", text: "ผลิตอาหารสัตว์จากหญ้า เศษฟาง และพืชอาหาร เพื่อลดการแย่งอาหารคน", unlock: (game) => game.researchDone.fodderPrep || game.buildings.animalPen > 0, lockedText: "ต้องวิจัยการทำอาหารสัตว์ หรือสร้างคอกสัตว์" },
   { id: "patrol", icon: "🪤", title: "ลาดตระเวน / วางกับดัก", category: "ความปลอดภัย", text: "ลดสัตว์ป่า โจร และภัยภายนอก มีโอกาสได้อาหารเล็กน้อย", unlock: (game) => game.researchDone.watchRoutine || game.buildings.watchPost > 0 || game.buildings.palisade > 0, lockedText: "ต้องมีเวรยามเป็นระบบ ป้อมยาม หรือรั้วไม้" },
   { id: "explore", icon: "🧭", title: "สำรวจพื้นที่รอบค่าย", category: "สำรวจ", text: "ส่งคนออกอ่านทาง น้ำ ป่า ถนนเก่า และร่องรอยภัย ยิ่งสำรวจมากยิ่งเปิดพื้นที่ ข่าวสาร และทรัพยากรใหม่", unlock: (game) => true, lockedText: "" },
@@ -729,6 +729,40 @@ function waterNeedFor(game: GameState) {
 }
 function assignmentSummary(game: GameState) {
   return (Object.keys(emptyLabor()) as LaborKey[]).map((key) => ({ key, people: (game.laborAssignments?.[key] ?? []).map((id) => game.people.find((p) => p.id === id)).filter(Boolean) as Person[] })).filter((row) => row.people.length > 0);
+}
+function assignmentPeople(game: GameState, job: LaborKey): Person[] {
+  const ids = normalizeLaborAssignments(game, game.laborAssignments ?? {})[job] ?? [];
+  return ids.map((id) => game.people.find((p) => p.id === id)).filter(Boolean) as Person[];
+}
+function assignmentPeopleForJobs(game: GameState, jobs: LaborKey[]): Person[] {
+  const seen = new Set<string>();
+  const people: Person[] = [];
+  jobs.forEach((job) => {
+    assignmentPeople(game, job).forEach((p) => {
+      if (!seen.has(p.id)) { seen.add(p.id); people.push(p); }
+    });
+  });
+  return people;
+}
+function projectCrewStatus(game: GameState, jobs: LaborKey[]) {
+  const people = assignmentPeopleForJobs(game, jobs);
+  const effective = jobs.reduce((sum, job) => sum + (game.labor[job] ?? 0), 0);
+  const labels = jobs.map((job) => laborMeta.find((item) => item.id === job)?.title ?? job).join(" / ");
+  return { people, count: people.length, effective: Math.round(effective * 10) / 10, labels };
+}
+function crewNameList(people: Person[]) {
+  if (!people.length) return "ยังไม่มีคนถูกจัดเข้าหมวดนี้";
+  return people.map((p) => `${p.name} ${skillIcon(p.skill)}${p.injured ? " บาดเจ็บ" : p.age < 15 ? " เด็กช่วยงาน" : p.age >= 60 ? " ผู้เฒ่า" : ""}`).join(" · ");
+}
+function animalWaterNeed(game: GameState) {
+  const a = normalizeAnimalState(game.animalState).animals;
+  return Math.ceil(a.goats * 1.2 + a.chickens * 0.12 + a.dogs * 0.75);
+}
+function animalSystemNote(game: GameState) {
+  if (animalCount(game) <= 0) return "ยังไม่มีสัตว์เลี้ยง ระบบสัตว์จะเริ่มมีผลเมื่อพบสัตว์หรือรับสัตว์จากเหตุการณ์";
+  const feedText = game.researchDone.fodderPrep ? "ใช้อาหารสัตว์เป็นหลัก" : "ยังไม่มีอาหารสัตว์ สัตว์จะแบ่งอาหารคน/เศษพืช";
+  const waterText = animalWaterNeed(game) > 0 ? `และใช้น้ำประมาณ ${animalWaterNeed(game)} หน่วย/เดือน` : "";
+  return `${feedText} ${waterText} หากขาดอาหารหรือน้ำ สุขภาพสัตว์จะลด หนีง่ายขึ้น และอาจล้มตาย`;
 }
 function recommendedAssignments(game: GameState): LaborAssignments {
   const jobs = unlockedLaborOptions(game).map((j) => j.id);
@@ -1260,7 +1294,7 @@ function resourceLedger(game: GameState) {
   const woodRate = (5 + (game.origin === "builder" ? 1.2 : 0) + (game.researchDone.stoneTools ? 1 : 0) + (game.buildings.workshop ? 1.2 : 0) + skillCount(game, "builder") * 0.25) * (1 + terrain.wood);
   const stoneRate = (2.5 + (game.researchDone.stoneTools ? 0.8 : 0) + (game.buildings.workshop ? 0.7 : 0) + skillCount(game, "builder") * 0.15) * (1 + terrain.stone);
   const researchRate = 4 + (game.origin === "keeper" ? 1.8 : 0) + (game.leaderFocus === "study" ? 2 : 0) + skillCount(game, "keeper") * 0.35;
-  const foodProd = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5);
+  const foodProd = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5 + (game.leaderFocus === "leadForage" ? Math.max(3, l.forage * 2) : 0));
   const woodProd = Math.round(l.wood * woodRate);
   const stoneProd = Math.round(l.stone * stoneRate);
   const knowledgeProd = Math.round(l.research * researchRate + l.teach * 4 + l.intel * 2 + (game.leaderFocus === "study" ? 4 : 0));
@@ -1268,9 +1302,9 @@ function resourceLedger(game: GameState) {
   const fuelProd = Math.floor(l.wood * 1.4);
   const toolsProd = Math.floor(l.craft * (game.buildings.workshop ? 1.5 : 0.8));
   const toolInputs = l.craft > 0 ? Math.min(game.resources.wood, l.craft * 2) : 0;
-  const herbsProd = Math.round(l.herbs * ((game.researchDone.herbalCare ? 3 : 2) + (game.origin === "healer" ? 0.8 : 0)) + (game.buildings.healerHut ? 1 : 0));
+  const herbsProd = Math.round(l.herbs * ((game.researchDone.herbalCare ? 3 : 1.4) + (game.origin === "healer" ? 0.8 : 0)) + (game.buildings.healerHut ? 1 : 0));
   const foodUse = foodNeedFor(game);
-  const waterUse = waterNeedFor(game);
+  const waterUse = waterNeedFor(game) + animalWaterNeed(game);
   const fuelUse = season === "ฤดูหนาว" ? Math.ceil(alivePeople(game).length * 0.7) + Math.max(0, alivePeople(game).length - shelterCapacity(game)) + l.preserve : l.preserve;
   const tradeFood = l.trade ? Math.min(Math.max(0, game.resources.food - foodNeedFor(game) * 2), l.trade * 3) : 0;
   const tradeHides = l.trade ? Math.min(game.resources.hides, l.trade) : 0;
@@ -1298,6 +1332,17 @@ function resolveAnimals(game: GameState): { game: GameState; changes: string[] }
   const total = animalCount(g);
   if (total <= 0) return { game: { ...g, animalState: state }, changes };
   const need = animalNeed(g);
+  const waterNeed = animalWaterNeed(g);
+  let watered = Math.min(g.resources.water, waterNeed);
+  if (waterNeed > 0) {
+    g = { ...g, resources: changeResources(g.resources, { water: -watered }) };
+    changes.push(`ให้น้ำสัตว์ -${watered}`);
+    if (watered < waterNeed) {
+      const missingWater = waterNeed - watered;
+      state = { ...state, hunger: clamp(state.hunger + missingWater * 4), health: clamp(state.health - missingWater * 6) };
+      changes.push(`น้ำสัตว์ไม่พอ ขาด ${missingWater} หน่วย สุขภาพฝูงลดลง`);
+    }
+  }
   let fed = 0;
   if (g.researchDone.fodderPrep) {
     fed = Math.min(g.resources.feed, need);
@@ -1330,6 +1375,11 @@ function resolveAnimals(game: GameState): { game: GameState; changes: string[] }
   if (g.animalAction === "release") {
     if (a.goats > 0) { a.goats -= 1; state = { ...state, hunger: clamp(state.hunger - 8) }; changes.push("ปล่อยแพะที่เลี้ยงไม่ไหว 1 ตัว ลดภาระอาหารสัตว์"); }
     else if (a.chickens > 0) { a.chickens -= 1; state = { ...state, hunger: clamp(state.hunger - 4) }; changes.push("ปล่อยไก่ 1 ตัว ลดภาระอาหารสัตว์"); }
+  }
+  if (g.animalAction === "protect") {
+    state = { ...state, health: clamp(state.health + 3), hunger: clamp(state.hunger - 3) };
+    g = { ...g, metrics: changeMetrics(g.metrics, { security: 1 }) };
+    changes.push("จัดเวรดูคอก ลดโอกาสสัตว์หนีและถูกขโมย");
   }
   const penBonus = g.buildings.animalPen > 0 ? 0.18 : 0;
   const breedChance = (g.animalAction === "breed" ? 0.22 : 0.08) + penBonus + (state.health > 75 && state.hunger < 30 ? 0.08 : 0);
@@ -2042,7 +2092,7 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   const woodRate = (5 + (g.researchDone.stoneTools ? 1 : 0) + (g.buildings.workshop ? 1.2 : 0) + skillCount(g, "builder") * 0.25) * (1 + terrain.wood);
   const stoneRate = (2.5 + (g.researchDone.stoneTools ? 0.8 : 0) + (g.buildings.workshop ? 0.7 : 0) + skillCount(g, "builder") * 0.15) * (1 + terrain.stone);
   const researchRate = 4 + (g.origin === "keeper" ? 1 : 0) + (g.leaderFocus === "study" ? 2 : 0) + skillCount(g, "keeper") * 0.35;
-  const foodGain = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5);
+  const foodGain = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5 + (g.leaderFocus === "leadForage" ? Math.max(3, l.forage * 2) : 0));
   const woodGain = Math.round(l.wood * woodRate);
   const stoneGain = Math.round(l.stone * stoneRate);
   const knowledgeGain = Math.round(l.research * researchRate + l.teach * 4 + l.intel * 2 + (g.leaderFocus === "study" ? 4 : 0));
@@ -2181,7 +2231,7 @@ function applyLeaderFocus(game: GameState, changes: string[]): GameState {
   if (f === "mediate") { g = { ...g, metrics: changeMetrics(g.metrics, { fairness: 4, trust: 2, cohesion: 2 }) }; changes.push("ไกล่เกลี่ยข้อขัดแย้ง +ความยุติธรรม"); }
   if (f === "rationPlan") { g = { ...g, metrics: changeMetrics(g.metrics, { fairness: 2, morale: -1 }), resources: changeResources(g.resources, { food: 2 }) }; changes.push("วางแผนเสบียง ลดสูญเสียอาหาร"); }
   if (f === "inspectRations") { g = { ...g, metrics: changeMetrics(g.metrics, { fairness: 4, trust: 2, morale: -1 }), resources: changeResources(g.resources, { food: 1 }) }; changes.push("ผู้นำเปิดคลังและนับเสบียงต่อหน้าทุกคน +ความยุติธรรม"); }
-  if (f === "leadForage") { g = { ...g, resources: changeResources(g.resources, { food: 7, hides: Math.random() < 0.25 ? 1 : 0 }), metrics: changeMetrics(g.metrics, { trust: 2, health: -1 }), threat: clamp(g.threat + 1, 0, 100) }; changes.push("ผู้นำนำคนออกหาอาหารด้วยตนเอง +อาหาร แต่เพิ่มความเสี่ยงจากป่า"); if (Math.random() < 0.14) { g = woundSomeone(g, "ผู้นำพาคนออกหาอาหารแล้วเกิดอุบัติเหตุในป่า"); changes.push("การออกหาอาหารนำบาดแผลกลับมาด้วย"); } }
+  if (f === "leadForage") { g = { ...g, resources: changeResources(g.resources, { food: 7, hides: Math.random() < 0.25 ? 1 : 0 }), metrics: changeMetrics(g.metrics, { trust: 2, health: -1 }), threat: clamp(g.threat + 1, 0, 100) }; changes.push("ผู้นำนำคนออกหาอาหารด้วยตนเอง บัฟงานหาอาหารของเดือนนี้และเพิ่มอาหารโดยตรง แต่เพิ่มความเสี่ยงจากป่า"); if (Math.random() < 0.14) { g = woundSomeone(g, "ผู้นำพาคนออกหาอาหารแล้วเกิดอุบัติเหตุในป่า"); changes.push("การออกหาอาหารนำบาดแผลกลับมาด้วย"); } }
   if (f === "boilHerbs") { if (g.resources.herbs < 2 && g.buildings.healerHut === 0) { changes.push("ตั้งใจจะต้มสมุนไพร แต่สมุนไพรไม่พอ จึงช่วยได้เพียงเฝ้าดูอาการ"); } else { const cost = g.resources.herbs >= 2 ? 2 : 0; g = { ...g, resources: changeResources(g.resources, { herbs: -cost }), metrics: changeMetrics(g.metrics, { health: 6, morale: 1 }) }; changes.push(cost ? "ต้มสมุนไพรแจกทั้งค่าย -สมุนไพร +สุขภาพ" : "หมอยาประคองไข้ด้วยความรู้ที่มี +สุขภาพ"); } }
   if (f === "isolateSick") { g = { ...g, metrics: changeMetrics(g.metrics, { health: 5, trust: 1, morale: -1 }) }; changes.push("แยกผู้ป่วยออกจากที่พักรวม ลดโอกาสโรคแพร่"); }
   if (f === "nightPatrol") { g = { ...g, metrics: changeMetrics(g.metrics, { security: 7, morale: -1 }), threat: clamp(g.threat - 5, 0, 100) }; changes.push("ผู้นำเดินเวรยามกลางคืน +ความปลอดภัย"); }
@@ -2358,9 +2408,10 @@ export default function GamePage() {
   const [noticeOpen, setNoticeOpen] = useState(false);
 
   useEffect(() => {
-    if (!game || game.summaryModal || game.gameOver) return;
-    const ev = getEvent(game.currentEventId);
-    if (isPriorityEvent(ev)) setEventPopupOpen(true);
+    // Event ประจำเดือนและการกระทำผู้นำจะไม่เด้งกลางจออัตโนมัติ เพื่อให้ flow เงียบและไม่รบกวนการเล่น
+    // เหตุการณ์สำคัญยังถูกเก็บในกระดิ่ง และผู้เล่นเปิดอ่าน/ตัดสินใจจาก panel ได้เอง
+    if (!game) return;
+    setEventPopupOpen(false);
   }, [game?.currentEventId]);
 
   useEffect(() => {
@@ -3160,14 +3211,23 @@ function SettlementGrowthPanel({ game }: { game: GameState }) {
 function ProjectView({ game }: { game: GameState }) {
   return <ActiveProjectsPanel game={game} />;
 }
+function ProjectCrewCard({ game, title, jobs, hint }: { game: GameState; title: string; jobs: LaborKey[]; hint: string }) {
+  const crew = projectCrewStatus(game, jobs);
+  return <div className="crew-status-card">
+    <div className="split"><b>{title}</b><span className="badge green">{crew.count} คน · ผลจริง {crew.effective}</span></div>
+    <small className="muted">งานที่นับ: {crew.labels}</small>
+    <p className="small">{crewNameList(crew.people)}</p>
+    <small className="muted">{hint}</small>
+  </div>;
+}
 function BuildView({ game, startConstruction, pauseConstruction, cancelConstruction }: { game: GameState; startConstruction: (id: BuildingKey) => void; pauseConstruction: () => void; cancelConstruction: (id?: BuildingKey) => void }) {
   const monthsLeft = game.construction ? Math.max(1, Math.ceil(Math.max(0, buildingData[game.construction.id].work - game.construction.progress) / Math.max(1, game.labor.build * 10))) : 0;
-  return <section className="panel pad"><h2 className="title">ก่อสร้าง</h2><p className="muted">ก่อสร้างสามารถพักงานไว้ก่อนเพื่อโยกแรงงานไปเรื่องเร่งด่วนได้ ความคืบหน้าจะถูกเก็บไว้ แต่ถ้ายกเลิกจะคืนทรัพยากรเพียงบางส่วนตามความสมจริง</p><SettlementGrowthPanel game={game} />{game.construction && <div className="log good"><b>กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากยังมีแรงงานก่อสร้างเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseConstruction}>พักงานนี้ไว้ก่อน</button><button className="danger" onClick={() => cancelConstruction()}>ยกเลิกและคืนบางส่วน</button></div></div>}{(game.pausedConstruction ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานก่อสร้างที่พักไว้</h3><div className="work-grid">{(game.pausedConstruction ?? []).map((p) => p && <div className="work-card" key={`paused-build-${p.id}`}><b>{buildingData[p.id].icon} {buildingData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{buildingData[p.id].work}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / buildingData[p.id].work * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startConstruction(p.id)}>กลับมาทำต่อ</button><button className="danger" onClick={() => cancelConstruction(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(buildingData) as BuildingKey[]).map((id) => { const b = buildingData[id]; const unlocked = buildingUnlocked(game, id); const already = game.construction?.id === id; const paused = (game.pausedConstruction ?? []).some((p) => p?.id === id); const affordable = hasCost(game, b.cost) || paused || already; return <article key={id} className="building-card"><div className="split"><div><b>{b.icon} {b.title}</b><p className="muted small">{b.text}</p></div><span className="badge">มี {game.buildings[id]}</span></div><table className="report-table"><tbody><tr><td>ใช้ทรัพยากร</td><td>{Object.entries(b.cost).map(([k,v]) => `${k} ${v}`).join(" · ")}</td></tr><tr><td>แรงงานที่ต้องใช้</td><td>{b.work}</td></tr><tr><td>สถานะ</td><td>{already ? "กำลังทำอยู่" : paused ? "พักไว้ กลับมาทำต่อได้" : unlocked ? affordable ? "พร้อมสร้าง" : "ทรัพยากรไม่พอ" : "ยังไม่ปลดล็อก"}</td></tr></tbody></table><button className="primary" disabled={!unlocked || !affordable || already} onClick={() => startConstruction(id)} style={{ width: "100%", marginTop: 10, opacity: !unlocked || !affordable || already ? .55 : 1 }}>{already ? "กำลังทำอยู่" : paused ? "กลับมาทำต่อ" : game.construction ? "พักงานเดิมแล้วเริ่มงานนี้" : "เริ่มสร้าง"}</button></article>; })}</div></section>;
+  return <section className="panel pad"><h2 className="title">ก่อสร้าง</h2><p className="muted">งานก่อสร้างสามารถพักไว้เพื่อโยกคนไปเรื่องเร่งด่วนได้ ความคืบหน้าจะถูกเก็บไว้ ส่วนการยกเลิกจะคืนทรัพยากรเพียงบางส่วนตามความสมจริง</p><ProjectCrewCard game={game} title="สถานะทีมก่อสร้างเดือนนี้" jobs={["build"]} hint="ถ้าต้องการเร่งงาน ให้ไปแท็บคนแล้วจัดคนเข้าหมวดก่อสร้าง โดยช่างไม้/ผู้มีมือหนักจะช่วยให้ความคืบหน้าสูงกว่า" /><SettlementGrowthPanel game={game} />{game.construction && <div className="log good"><b>กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากทีมก่อสร้างยังมีกำลังเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseConstruction}>พักงานนี้ไว้ก่อน</button><button className="danger" onClick={() => cancelConstruction()}>ยกเลิกและคืนบางส่วน</button></div></div>}{(game.pausedConstruction ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานก่อสร้างที่พักไว้</h3><div className="work-grid">{(game.pausedConstruction ?? []).map((p) => p && <div className="work-card" key={`paused-build-${p.id}`}><b>{buildingData[p.id].icon} {buildingData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{buildingData[p.id].work}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / buildingData[p.id].work * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startConstruction(p.id)}>กลับมาทำต่อ</button><button className="danger" onClick={() => cancelConstruction(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(buildingData) as BuildingKey[]).map((id) => { const b = buildingData[id]; const unlocked = buildingUnlocked(game, id); const already = game.construction?.id === id; const paused = (game.pausedConstruction ?? []).some((p) => p?.id === id); const affordable = hasCost(game, b.cost) || paused || already; return <article key={id} className="building-card"><div className="split"><div><b>{b.icon} {b.title}</b><p className="muted small">{b.text}</p></div><span className="badge">มี {game.buildings[id]}</span></div><table className="report-table"><tbody><tr><td>ใช้ทรัพยากร</td><td>{Object.entries(b.cost).map(([k,v]) => `${k} ${v}`).join(" · ")}</td></tr><tr><td>แรงงานที่ต้องใช้</td><td>{b.work}</td></tr><tr><td>สถานะ</td><td>{already ? "กำลังทำอยู่" : paused ? "พักไว้ กลับมาทำต่อได้" : unlocked ? affordable ? "พร้อมสร้าง" : "ทรัพยากรไม่พอ" : "ยังไม่ปลดล็อก"}</td></tr></tbody></table><button className="primary" disabled={!unlocked || !affordable || already} onClick={() => startConstruction(id)} style={{ width: "100%", marginTop: 10, opacity: !unlocked || !affordable || already ? .55 : 1 }}>{already ? "กำลังทำอยู่" : paused ? "กลับมาทำต่อ" : game.construction ? "พักงานเดิมแล้วเริ่มงานนี้" : "เริ่มสร้าง"}</button></article>; })}</div></section>;
 }
 
 function ResearchView({ game, startResearch, pauseResearch, cancelResearch }: { game: GameState; startResearch: (id: ResearchKey) => void; pauseResearch: () => void; cancelResearch: (id?: ResearchKey) => void }) {
-  const monthsLeft = game.activeResearch ? Math.max(1, Math.ceil(Math.max(0, researchData[game.activeResearch.id].cost - game.activeResearch.progress) / Math.max(1, game.labor.research * 8 + 2))) : 0;
-  return <section className="panel pad"><h2 className="title">ภูมิปัญญาและการวิจัย</h2><p className="muted">งานวิจัยสามารถพักไว้เพื่อรับมือเหตุเร่งด่วนได้ เช่น ขาดน้ำ ขาดอาหาร หรือมีภัยนอกค่าย การสลับหัวข้อจะเก็บความคืบหน้าเดิมไว้</p>{game.activeResearch && <div className="log good"><b>กำลังศึกษา: {researchData[game.activeResearch.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากยังมีแรงงานเรียนรู้เท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.activeResearch.progress / researchData[game.activeResearch.id].cost * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseResearch}>พักงานวิจัยนี้</button><button className="danger" onClick={() => cancelResearch()}>ยกเลิกหัวข้อนี้</button></div></div>}{(game.pausedResearch ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานวิจัยที่พักไว้</h3><div className="work-grid">{(game.pausedResearch ?? []).map((p) => p && <div className="work-card" key={`paused-research-${p.id}`}><b>{researchData[p.id].icon} {researchData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{researchData[p.id].cost}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / researchData[p.id].cost * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startResearch(p.id)}>กลับมาศึกษาต่อ</button><button className="danger" onClick={() => cancelResearch(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(researchData) as ResearchKey[]).map((id) => { const r = researchData[id]; const done = game.researchDone[id]; const unlocked = researchUnlocked(game, id); const already = game.activeResearch?.id === id; const paused = (game.pausedResearch ?? []).some((p) => p?.id === id); return <article key={id} className="building-card"><div className="split"><div><b>{r.icon} {r.title}</b><p className="muted small">{r.text}</p></div><span className={done ? "badge green" : "badge"}>{done ? "สำเร็จ" : `${r.cost}`}</span></div><p className="small muted">เงื่อนไขก่อนศึกษา: {r.prereq?.map((p) => researchData[p].title).join(" · ") ?? "ไม่มี"}</p><button className="primary" disabled={done || !unlocked || already} onClick={() => startResearch(id)} style={{ width: "100%", opacity: done || !unlocked || already ? .55 : 1 }}>{done ? "เรียนรู้แล้ว" : already ? "กำลังศึกษา" : paused ? "กลับมาศึกษาต่อ" : game.activeResearch ? "พักหัวข้อเดิมแล้วเริ่มหัวข้อนี้" : unlocked ? "เริ่มศึกษา" : "ยังไม่ปลดล็อก"}</button></article>; })}</div></section>;
+  const monthsLeft = game.activeResearch ? Math.max(1, Math.ceil(Math.max(0, researchData[game.activeResearch.id].cost - game.activeResearch.progress) / Math.max(1, game.labor.research * 8 + game.labor.teach * 4 + 2))) : 0;
+  return <section className="panel pad"><h2 className="title">ภูมิปัญญาและการวิจัย</h2><p className="muted">งานวิจัยสามารถพักไว้เพื่อรับมือเหตุเร่งด่วนได้ การสลับหัวข้อจะเก็บความคืบหน้าเดิมไว้ เหมาะกับช่วงที่ต้องโยกคนไปหาอาหาร น้ำ หรือดูแลผู้ป่วยก่อน</p><ProjectCrewCard game={game} title="สถานะทีมความรู้เดือนนี้" jobs={["research", "teach"]} hint="แรงงานทดลอง/เรียนรู้เป็นกำลังหลัก ส่วนการสอนเด็กช่วยต่อยอดความรู้และเพิ่มความสามัคคี ผู้จดจำ/เรียนรู้ไวจะเร่งงานนี้ได้ดี" />{game.activeResearch && <div className="log good"><b>กำลังศึกษา: {researchData[game.activeResearch.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากทีมความรู้ยังมีกำลังเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.activeResearch.progress / researchData[game.activeResearch.id].cost * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseResearch}>พักงานวิจัยนี้</button><button className="danger" onClick={() => cancelResearch()}>ยกเลิกหัวข้อนี้</button></div></div>}{(game.pausedResearch ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานวิจัยที่พักไว้</h3><div className="work-grid">{(game.pausedResearch ?? []).map((p) => p && <div className="work-card" key={`paused-research-${p.id}`}><b>{researchData[p.id].icon} {researchData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{researchData[p.id].cost}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / researchData[p.id].cost * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startResearch(p.id)}>กลับมาศึกษาต่อ</button><button className="danger" onClick={() => cancelResearch(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(researchData) as ResearchKey[]).map((id) => { const r = researchData[id]; const done = game.researchDone[id]; const unlocked = researchUnlocked(game, id); const already = game.activeResearch?.id === id; const paused = (game.pausedResearch ?? []).some((p) => p?.id === id); return <article key={id} className="building-card"><div className="split"><div><b>{r.icon} {r.title}</b><p className="muted small">{r.text}</p></div><span className={done ? "badge green" : "badge"}>{done ? "สำเร็จ" : `${r.cost}`}</span></div><p className="small muted">เงื่อนไขก่อนศึกษา: {r.prereq?.map((p) => researchData[p].title).join(" · ") ?? "ไม่มี"}</p><button className="primary" disabled={done || !unlocked || already} onClick={() => startResearch(id)} style={{ width: "100%", opacity: done || !unlocked || already ? .55 : 1 }}>{done ? "เรียนรู้แล้ว" : already ? "กำลังศึกษา" : paused ? "กลับมาศึกษาต่อ" : game.activeResearch ? "พักหัวข้อเดิมแล้วเริ่มหัวข้อนี้" : unlocked ? "เริ่มศึกษา" : "ยังไม่ปลดล็อก"}</button></article>; })}</div></section>;
 }
 
 
@@ -3187,7 +3247,7 @@ function AnimalsView({ game, setAnimalAction }: { game: GameState; setAnimalActi
     { id: "release", icon: "🌿", title: "ปล่อยสัตว์ที่เลี้ยงไม่ไหว", text: "ลดภาระอาหารสัตว์โดยไม่ฆ่า เหมาะเมื่ออาหารใกล้หมด", disabled: total <= 0 },
     { id: "protect", icon: "🛡️", title: "เฝ้าคอกเป็นพิเศษ", text: "ลดโอกาสถูกขโมยหรือสัตว์หนี โดยเฉพาะเมื่อภัยภายนอกสูง", disabled: total <= 0 },
   ];
-  return <section className="panel pad"><div className="split"><div><h2 className="title">สัตว์เลี้ยงและฝูงอาหาร</h2><p className="muted">สัตว์ไม่ใช่ตัวเลขนิ่ง ๆ พวกมันกินอาหาร หนีได้ ถูกขโมยได้ ป่วยหรือตายได้ แต่ถ้าเลี้ยงดีจะเป็นอาหาร นม ไข่ หนัง และความมั่นคงระยะยาวของถิ่นฐาน</p></div><span className="badge green">แผนเดือนนี้: {animalActionLabel(game.animalAction ?? "keep")}</span></div><div className="dashboard-grid"><div className="panel kpi"><span className="muted">🐐 แพะ</span><b>{state.animals.goats}</b><small>ให้เนื้อ หนัง และมีโอกาสออกลูก</small></div><div className="panel kpi"><span className="muted">🐔 ไก่</span><b>{state.animals.chickens}</b><small>เพิ่มอาหารเล็กน้อยและออกลูกง่ายกว่า</small></div><div className="panel kpi"><span className="muted">🐕 สุนัข</span><b>{state.animals.dogs}</b><small>ช่วยเตือนภัยและเฝ้าค่าย แต่กินอาหาร</small></div><div className="panel kpi"><span className="muted">ความหิว / สุขภาพ</span><b>{pct(state.hunger)} / {pct(state.health)}</b><small>ต้องใช้ {needs} หน่วยจาก{animalFoodSource(game)}</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ระบบอาหารสัตว์</h3><table className="report-table"><tbody><tr><td>สถานะอาหารสัตว์</td><td>{feedUnlocked ? "วิจัยแล้ว แสดงในทรัพยากรและผลิตได้จากงานตัดหญ้า" : "ยังไม่วิจัย สัตว์จะกินอาหารคน/เศษพืชก่อน"}</td></tr><tr><td>งานที่เกี่ยวข้อง</td><td>{feedUnlocked ? "ตัดหญ้า / ทำอาหารสัตว์" : "วิจัยการทำอาหารสัตว์ก่อน"}</td></tr><tr><td>คอกสัตว์</td><td>{game.buildings.animalPen > 0 ? `มี ${game.buildings.animalPen} หลัง ลดหนี/ขโมย` : "ยังไม่มี ควรวิจัยการเลี้ยงสัตว์พื้นฐาน"}</td></tr></tbody></table></div><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ความเสี่ยงสมจริง</h3><ul className="muted"><li>อาหารไม่พอ → ความหิวสัตว์เพิ่ม และมีโอกาสสัตว์หิวตาย</li><li>ไม่มีคอก/เวรยาม → สัตว์หนีหรือถูกขโมยง่ายขึ้น</li><li>เลือกขยายฝูง → ได้ผลดีระยะยาว แต่กินอาหารมากขึ้น</li><li>เลือกฆ่าเพื่ออาหาร → ช่วยวิกฤตทันที แต่ทำลายอนาคตของฝูง</li></ul></div></div><h3 className="section-title" style={{ marginTop: 16 }}>เลือกแผนสัตว์เลี้ยงเดือนนี้</h3><div className="work-grid">{actionCards.map((a) => <button key={a.id} className={game.animalAction === a.id ? "work-card active-step" : "work-card"} disabled={a.disabled} onClick={() => setAnimalAction(a.id)} style={{ textAlign: "left", opacity: a.disabled ? .55 : 1 }}><b>{a.icon} {a.title}</b><p className="muted small">{a.text}</p></button>)}</div><h3 className="section-title" style={{ marginTop: 16 }}>บันทึกสัตว์ล่าสุด</h3>{state.log.length ? <div className="timeline compact">{state.log.slice(0, 8).map((l, i) => <div className="log" key={`animal-log-${i}`}>{l}</div>)}</div> : <div className="empty">ยังไม่มีสัตว์เลี้ยงในค่าย ลองสำรวจหรือรอเหตุการณ์พบสัตว์หลง</div>}</section>;
+  return <section className="panel pad"><div className="split"><div><h2 className="title">สัตว์เลี้ยงและฝูงอาหาร</h2><p className="muted">สัตว์ไม่ใช่ตัวเลขนิ่ง ๆ พวกมันกินอาหาร หนีได้ ถูกขโมยได้ ป่วยหรือตายได้ แต่ถ้าเลี้ยงดีจะเป็นอาหาร นม ไข่ หนัง และความมั่นคงระยะยาวของถิ่นฐาน</p></div><span className="badge green">แผนเดือนนี้: {animalActionLabel(game.animalAction ?? "keep")}</span></div><div className="dashboard-grid"><div className="panel kpi"><span className="muted">🐐 แพะ</span><b>{state.animals.goats}</b><small>ให้เนื้อ หนัง และมีโอกาสออกลูก</small></div><div className="panel kpi"><span className="muted">🐔 ไก่</span><b>{state.animals.chickens}</b><small>เพิ่มอาหารเล็กน้อยและออกลูกง่ายกว่า</small></div><div className="panel kpi"><span className="muted">🐕 สุนัข</span><b>{state.animals.dogs}</b><small>ช่วยเตือนภัยและเฝ้าค่าย แต่กินอาหาร</small></div><div className="panel kpi"><span className="muted">ความหิว / สุขภาพ</span><b>{pct(state.hunger)} / {pct(state.health)}</b><small>ต้องใช้ {needs} หน่วยจาก{animalFoodSource(game)} · น้ำ {animalWaterNeed(game)}</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ระบบอาหารสัตว์และน้ำ</h3><table className="report-table"><tbody><tr><td>สถานะอาหารสัตว์</td><td>{feedUnlocked ? "วิจัยแล้ว แสดงในทรัพยากรและผลิตได้จากงานตัดหญ้า" : "ยังไม่วิจัย สัตว์จะกินอาหารคน/เศษพืชก่อน"}</td></tr><tr><td>งานที่เกี่ยวข้อง</td><td>{feedUnlocked ? "ตัดหญ้า / ทำอาหารสัตว์" : "วิจัยการทำอาหารสัตว์ก่อน"}</td></tr><tr><td>คอกสัตว์</td><td>{game.buildings.animalPen > 0 ? `มี ${game.buildings.animalPen} หลัง ลดหนี/ขโมย` : "ยังไม่มี ควรวิจัยการเลี้ยงสัตว์พื้นฐาน"}</td></tr><tr><td>น้ำสัตว์</td><td>{animalWaterNeed(game)} หน่วย/เดือน หากน้ำไม่พอสุขภาพฝูงจะลด</td></tr></tbody></table></div><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ความเสี่ยงสมจริง</h3><ul className="muted"><li>อาหารไม่พอ → ความหิวสัตว์เพิ่ม และมีโอกาสสัตว์หิวตาย</li><li>ไม่มีคอก/เวรยาม → สัตว์หนีหรือถูกขโมยง่ายขึ้น</li><li>เลือกขยายฝูง → ได้ผลดีระยะยาว แต่กินอาหารมากขึ้น</li><li>เลือกฆ่าเพื่ออาหาร → ช่วยวิกฤตทันที แต่ทำลายอนาคตของฝูง</li></ul></div></div><h3 className="section-title" style={{ marginTop: 16 }}>เลือกแผนสัตว์เลี้ยงเดือนนี้</h3><div className="work-grid">{actionCards.map((a) => <button key={a.id} className={game.animalAction === a.id ? "work-card active-step" : "work-card"} disabled={a.disabled} onClick={() => setAnimalAction(a.id)} style={{ textAlign: "left", opacity: a.disabled ? .55 : 1 }}><b>{a.icon} {a.title}</b><p className="muted small">{a.text}</p></button>)}</div><h3 className="section-title" style={{ marginTop: 16 }}>บันทึกสัตว์ล่าสุด</h3>{state.log.length ? <div className="timeline compact">{state.log.slice(0, 8).map((l, i) => <div className="log" key={`animal-log-${i}`}>{l}</div>)}</div> : <div className="empty">ยังไม่มีสัตว์เลี้ยงในค่าย ลองสำรวจหรือรอเหตุการณ์พบสัตว์หลง</div>}</section>;
 }
 
 function ChronicleView({ game }: { game: GameState }) {

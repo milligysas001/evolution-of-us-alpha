@@ -1,0 +1,16 @@
+{
+  "version": "0.9.21",
+  "principles": [
+    "ทุกการเลือกของผู้นำต้องส่งผลกับ resource, metric, risk หรือ event chain จริง",
+    "งานแรงงานต้องสะท้อนจำนวนคนจริงและผลผลิตจริงหลังรวมอายุ/สุขภาพ/passive",
+    "ระบบสัตว์เลี้ยงต้องกินอาหารและน้ำ และเชื่อมกับคอก เวรยาม ความเสี่ยงขโมย/หนี",
+    "การวิจัยและก่อสร้างต้องพัก/สลับได้โดยไม่ทำให้ flow ค้าง",
+    "เหตุการณ์สำคัญต้องแจ้งเตือนพอเหมาะ ไม่รบกวนทุกเดือน"
+  ],
+  "projectCrewViews": {
+    "construction": ["build"],
+    "research": ["research", "teach"],
+    "animalSupport": ["feed", "guard", "patrol"]
+  },
+  "godotPortingHint": "ระบบนี้ควรย้ายเป็น UI component แยกสำหรับ Work Assignment และ Project Crew Status ใน Godot"
+}
