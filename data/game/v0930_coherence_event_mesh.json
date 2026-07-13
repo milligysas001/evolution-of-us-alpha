@@ -1,0 +1,29 @@
+{
+  "version": "0.9.30",
+  "title": "System Coherence & Era Event Mesh",
+  "purpose": "Connect new era progression, outposts, guilds, factions, policies, logistics, water reserves, industry, and crises to event choices and monthly resolution.",
+  "audit": {
+    "policyGate": "Camp Policies are hidden and inactive until campPolicies/projectPlanning research or meetingHall exists.",
+    "stageGoals": "Stages after Small Town now have explicit prerequisites instead of auto-progressing on generic logs.",
+    "researchGate": "signalNetwork and advanced research now unlock by stage rank, not exact stage only.",
+    "outpostLoop": "Discovered locations can become outposts, outposts produce monthly yield, and low security triggers risks/events.",
+    "guildLoop": "Trade Hub uses guild halls and macro production alongside existing micro labor.",
+    "factionLoop": "City-State updates faction approval monthly and can trigger rebellion warning events.",
+    "crisisLoop": "Kingdom-level pressure connects steel, influence, threat, siege materials, manpower, and defensive choices."
+  },
+  "newEventGroups": [
+    "tradeHubMarket",
+    "supplyLines",
+    "outpostRisks",
+    "mineDiscovery",
+    "regionalResources",
+    "guildPetitions",
+    "senateAndFactions",
+    "industrialHazards",
+    "waterPolicy",
+    "macroDisease",
+    "kingdomDiplomacy",
+    "siegePreparation"
+  ],
+  "godotPortNote": "Events in this layer should eventually become data-driven scenario nodes keyed by requiredStage, requiredBuilding, requiredResearch, resourceBand, factionApproval, and mapNode."
+}

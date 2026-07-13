@@ -1,27 +1,33 @@
-# Evolution of Us v0.9.29 — Era Progression & Exploration Economy
+# Evolution of Us — v0.9.30
 
-เวอร์ชันนี้ปรับระบบให้ต่อสเกลจาก “เมืองเล็ก” ไปสู่ “เมืองการค้า / นครรัฐ / อาณาจักร” โดยยังคงแกนเกมเอาชีวิตรอดรายคนในช่วงต้น และค่อย ๆ เปิดระบบบริหารมหภาคเมื่อเมืองโตขึ้น
+System Coherence Audit & Era Event Mesh.
 
-## สิ่งที่เพิ่ม
-
-- เพิ่ม Stage ใหม่: เมืองการค้า, นครรัฐ, อาณาจักร
-- เพิ่มทรัพยากรขั้นสูง: แร่เหล็ก, ถ่านหิน, ไม้แปรรูป, อิฐเผา, ผ้าทอ, เกลือ, เครื่องเทศ, อิทธิพล, เหล็กกล้า, สินค้าฟุ่มเฟือย, ม้ารบ, กำลังพล, วัสดุสงคราม
-- เพิ่มรากระบบสมาคม: Hunters / Builders / Merchants Guild
-- เพิ่ม Outpost จากพื้นที่สำรวจครบ 100% เพื่อส่งทรัพยากรกลับเมืองรายเดือน
-- เพิ่มสิ่งปลูกสร้างยุคใหม่ เช่น ลานตลาดถาวร, สถานีคาราวาน, สมาคม, โรงเลื่อย, เตาเผาอิฐ, สภาเมือง, โรงถลุง, ปราการกลาง
-- เพิ่มวิจัยยุคใหม่ เช่น ธรรมเนียมบริหารค่าย, ใบอนุญาตตั้งสมาคม, การผลิตเหรียญ, ระบบฐานที่มั่นรอง, ระบบราชการ, การถลุงเหล็ก, การสืบทอดสายเลือด
-- ซ่อนแท็บ “นโยบาย” จนกว่าจะวิจัยหรือมีโครงสร้างที่เหมาะสม เพื่อไม่ให้เกมช่วงต้นรกเกินไป
-
-ติดตั้ง:
+## Install
 
 ```powershell
 cd "C:\Users\phass\Desktop\game\New folder (2)"
-powershell -ExecutionPolicy Bypass -File .\apply-v0929-era-progression.ps1
+powershell -ExecutionPolicy Bypass -File .\apply-v0930-coherence-events.ps1
 ```
 
-ตรวจระบบ:
+## Check
 
 ```powershell
 cd "C:\Users\phass\evolution-of-us"
 npm run check
 ```
+
+## Push to Vercel
+
+```powershell
+git add -A
+git commit -m "update v0.9.30 system coherence events"
+git push
+```
+
+## Highlights
+
+- Fixed stage progression after Small Town.
+- Policy automation hidden and inactive before unlock.
+- Added event consequences for Trade Hub, Outposts, Guilds, Factions, Industries, Water Reserve disputes, Plague, Diplomacy, and Siege pressure.
+- Added monthly faction approval drift and rebellion warning trigger.
+- Added coherence notes for future Godot data-driven port.

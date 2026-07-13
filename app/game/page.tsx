@@ -285,8 +285,8 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.29";
-const BUILD_LABEL = "Era Progression · Outposts · Guild Gates";
+const GAME_VERSION = "0.9.30";
+const BUILD_LABEL = "Coherence Audit · Era Event Mesh · Policy Gates";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -953,7 +953,7 @@ function applyWaterReserve(game: GameState, changes: string[]): GameState {
   const cap = waterStorageCapacity(g);
   if (cap <= 0) return g;
   const reserve = g.resources.waterReserve ?? 0;
-  if (g.policies.reserveWater && g.resources.water > waterNeedFor(g) * 2.2 && reserve < cap) {
+  if ((canUsePolicies(g) ? g.policies.reserveWater : g.researchDone.waterStorage) && g.resources.water > waterNeedFor(g) * 2.2 && reserve < cap) {
     const moved = Math.min(Math.floor(g.resources.water - waterNeedFor(g) * 1.5), cap - reserve, 12 + g.buildings.cistern * 8);
     if (moved > 0) {
       g = { ...g, resources: changeResources(g.resources, { water: -moved, waterReserve: moved }) };
@@ -980,7 +980,7 @@ function resolveBuildingMaintenance(game: GameState, changes: string[]): GameSta
   const seasonWear = normalizeWeatherState(g.weather).kind === "พายุเข้าเร็ว" ? 9 : seasonOf(g.month) === "ฤดูหนาว" || seasonOf(g.month) === "ฤดูฝน" ? 5 : 3;
   builtKeys.forEach((key) => { cond[key] = clamp((cond[key] ?? 100) - seasonWear + (g.researchDone.maintenanceRoutine ? 1 : 0)); });
   const damaged = builtKeys.filter((key) => (cond[key] ?? 100) < 72);
-  if ((g.policies.autoMaintenance || g.labor.build > 0) && damaged.length > 0) {
+  if (((canUsePolicies(g) && g.policies.autoMaintenance) || g.labor.build > 0) && damaged.length > 0) {
     const canRepair = damaged.slice(0, Math.max(1, g.buildings.repairShed + Math.floor(g.labor.build / 2)));
     let woodCost = 0, stoneCost = 0, repaired = 0;
     canRepair.forEach((key) => {
@@ -1046,6 +1046,7 @@ function processGriefRecovery(game: GameState, changes: string[]) {
 }
 function applyCampPolicies(game: GameState, changes: string[]): GameState {
   let g = normalizeAdvancedSystems(game);
+  if (!canUsePolicies(g)) return g;
   const p = normalizePolicies(g.policies);
   if (p.autoFoodShift && g.resources.food < foodNeedFor(g) * 1.5) {
     const free = eligibleWorkers(g).filter((person) => !assignedJobOf(g, person.id)).slice(0, 2);
@@ -1360,7 +1361,10 @@ function payCost(game: GameState, cost: Partial<Resources>): GameState {
   return { ...game, resources: changeResources(game.resources, Object.fromEntries(Object.entries(cost).map(([k, v]) => [k, -(v ?? 0)])) as Partial<Resources>) };
 }
 function researchUnlocked(game: GameState, id: ResearchKey) {
-  if (id === "signalNetwork" && game.stage !== "เมืองเล็ก") return false;
+  if (id === "signalNetwork" && stageRank(game.stage) < stageRank("เมืองเล็ก")) return false;
+  if (["guildCharters", "currencyMinting", "caravanContracts", "outpostLogistics"].includes(id) && stageRank(game.stage) < stageRank("เมืองเล็ก")) return false;
+  if (["bureaucracy", "ironSmelting", "smelteryOps", "diplomacyProtocol"].includes(id) && stageRank(game.stage) < stageRank("เมืองการค้า")) return false;
+  if (["dynasticSuccession", "siegeEngineering"].includes(id) && stageRank(game.stage) < stageRank("นครรัฐ")) return false;
   const prereq = researchData[id].prereq ?? [];
   return prereq.every((p) => game.researchDone[p]);
 }
@@ -1369,30 +1373,54 @@ function buildingUnlocked(game: GameState, id: BuildingKey) {
   return test ? test(game) : true;
 }
 function stageเป้าหมายs(game: GameState): Array<{ text: string; done: boolean }> {
+  const pop = alivePeople(game).length;
+  const guildHallCount = game.buildings.huntersGuildHall + game.buildings.buildersGuildHall + game.buildings.merchantsGuildHall;
   if (game.stage === "ค่ายพักแรม") return [
-    { text: "ประชากรยังมีชีวิตอย่างน้อย 8 คน", done: alivePeople(game).length >= 8 },
+    { text: "ประชากรยังมีชีวิตอย่างน้อย 8 คน", done: pop >= 8 },
     { text: "อาหารสำรอง 45+", done: game.resources.food >= 45 },
     { text: "ที่พักรองรับอย่างน้อย 10 คน", done: shelterCapacity(game) >= 10 },
     { text: "กองไฟกลาง 1", done: game.buildings.campfire >= 1 },
     { text: "ความปลอดภัย 35+", done: game.metrics.security >= 35 },
   ];
   if (game.stage === "ชุมชนแรกเริ่ม") return [
-    { text: "ประชากร 15+", done: alivePeople(game).length >= 15 },
+    { text: "ประชากร 15+", done: pop >= 15 },
     { text: "บ่อน้ำ 1", done: game.buildings.well >= 1 },
     { text: "คลังอาหาร 1", done: game.buildings.storage >= 1 },
     { text: "แปลงเพาะปลูก 2", done: game.buildings.farmPlot >= 2 },
     { text: "ความไว้ใจ 50+", done: game.metrics.trust >= 50 },
   ];
   if (game.stage === "หมู่บ้านถาวร") return [
-    { text: "ประชากร 30+", done: alivePeople(game).length >= 30 },
+    { text: "ประชากร 30+", done: pop >= 30 },
     { text: "เพิงช่าง 1", done: game.buildings.workshop >= 1 },
     { text: "หอเฝ้ายามหรือรั้วไม้", done: game.buildings.watchPost >= 1 || game.buildings.palisade >= 1 },
     { text: "ศาลาประชุม 1", done: game.buildings.meetingHall >= 1 },
     { text: "สุขภาพชุมชน 60+", done: game.metrics.health >= 60 },
   ];
+  if (game.stage === "เมืองเล็ก") return [
+    { text: "ประชากร 100+", done: pop >= 100 },
+    { text: "ทองในคลัง 200+", done: game.resources.gold >= 200 },
+    { text: "ศาลาประชุม 1", done: game.buildings.meetingHall >= 1 },
+    { text: "วิจัยเครือข่ายสายข่าวสำเร็จ", done: game.researchDone.signalNetwork },
+    { text: "ลานตลาดถาวร 1", done: game.buildings.marketSquare >= 1 },
+  ];
+  if (game.stage === "เมืองการค้า") return [
+    { text: "ประชากร 300+", done: pop >= 300 },
+    { text: "สมาคมครบ 3 ประเภท", done: guildHallCount >= 3 },
+    { text: "สภาเมือง 1", done: game.buildings.senateHouse >= 1 },
+    { text: "ความไว้ใจ 70+", done: game.metrics.trust >= 70 },
+    { text: "ความยุติธรรม 70+", done: game.metrics.fairness >= 70 },
+  ];
+  if (game.stage === "นครรัฐ") return [
+    { text: "ประชากร 1,000+", done: pop >= 1000 },
+    { text: "อิทธิพล 500+", done: game.resources.influence >= 500 },
+    { text: "เหล็กกล้า 200+", done: game.resources.steel >= 200 },
+    { text: "วิจัยการสืบทอดสายเลือด", done: game.researchDone.dynasticSuccession },
+    { text: "ปราการกลาง 1", done: game.buildings.castleKeep >= 1 },
+  ];
   return [
-    { text: "เมืองยังยืนอยู่", done: alivePeople(game).length > 0 },
-    { text: "พงศาวดารมีบันทึก 50+ รายการ", done: game.logs.length >= 50 },
+    { text: "อาณาจักรยังมีประชากร 1,000+", done: pop >= 1000 },
+    { text: "อิทธิพลยังไม่ต่ำกว่า 300", done: game.resources.influence >= 300 },
+    { text: "พงศาวดารมีบันทึก 120+ รายการ", done: game.logs.length >= 120 },
   ];
 }
 function maybeAdvanceStage(game: GameState): GameState {
@@ -1404,7 +1432,16 @@ function maybeAdvanceStage(game: GameState): GameState {
   let g = { ...game, stage: nextStage, metrics: changeMetrics(game.metrics, { morale: 10, trust: 7, cohesion: 5 }), milestones: [...game.milestones, `stage-${nextStage}`] };
   const plan = currentStagePlan(g);
   const unlockText = plan.unlocked.join(" · ");
-  g = { ...g, pendingEvents: ["merchant_arrival", nextStage === "เมืองเล็ก" ? "bandit_scouts" : "wandering_family", ...g.pendingEvents].filter(Boolean) };
+  const stageEventMap: Record<Stage, string[]> = {
+    "ค่ายพักแรม": [],
+    "ชุมชนแรกเริ่ม": ["wandering_family"],
+    "หมู่บ้านถาวร": ["clear_stream", "tracks_near_camp"],
+    "เมืองเล็ก": ["bandit_scouts", "merchant_arrival"],
+    "เมืองการค้า": ["great_caravan_market_request", "trade_hub_price_shock"],
+    "นครรัฐ": ["senate_first_session", "faction_first_petition"],
+    "อาณาจักร": ["neighbor_emissary_recognizes_power", "kingdom_siege_scouts"],
+  };
+  g = { ...g, pendingEvents: [...(stageEventMap[nextStage] ?? []), ...g.pendingEvents].filter(Boolean) };
   g = addLog(g, `ก้าวสู่${nextStage}`, `ผู้คนไม่เรียกที่นี่ว่าแค่ค่ายอีกต่อไป เงื่อนไขพื้นฐานถูกเติมเต็ม และชื่อของ House ${g.houseName} เริ่มผูกกับผืนดินนี้อย่างช้า ๆ
 
 สิ่งที่เปิดตามมา: ${unlockText}`, "milestone", ["Stage", "ปลดล็อก"]);
@@ -2927,7 +2964,246 @@ function buildExpandedContentEvents(): GameEvent[] {
   ];
 }
 const expandedContentEvents: GameEvent[] = buildExpandedContentEvents();
-const allEvents: GameEvent[] = [...events, ...expandedContentEvents];
+
+const systemIntegrationEvents: GameEvent[] = [
+  {
+    id: "great_caravan_market_request", title: "คาราวานใหญ่ขอตั้งตลาดถาวร", category: "เมืองการค้า",
+    text: "คาราวานสามขบวนหยุดนอกเมืองพร้อมผ้า เกลือ และข่าวจากเมืองไกล พวกเขาไม่ได้ขอแค่แลกของ แต่ขอพื้นที่ถาวรให้การค้าเป็นส่วนหนึ่งของเมือง",
+    rare: true,
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองเล็ก") && g.buildings.meetingHall > 0,
+    weight: (g) => stageRank(g.stage) === stageRank("เมืองเล็ก") ? 18 + (g.resources.gold >= 120 ? 6 : 0) + (g.researchDone.signalNetwork ? 8 : 0) : 3,
+    choices: [
+      choice("grant_market_ground", "🏛️", "จัดพื้นที่ตลาดและตั้งกฎชั่งตวง", "เปิดเมือง", "เพิ่มทองและอิทธิพล แต่ต้องดูแลความเป็นธรรม", { resources: { gold: 22, influence: 10, wood: -10 }, metrics: { trust: 3, fairness: 2, morale: 3 }, path: { trade: 3 } }, ["เสาไม้ถูกปักเป็นแนวลานตลาด เสียงค้อนในเช้าวันนั้นฟังต่างจากเสียงสร้างที่พัก เพราะมันคือเสียงของอนาคตที่เริ่มมีราคา", "พ่อค้าได้ที่จอดเกวียน เมืองได้ข่าวสารและเหรียญก้อนแรก ๆ ที่หมุนผ่านมือคนมากขึ้น"], { addPending: "trade_hub_price_shock", setFlag: "great_caravan_seen" }),
+      choice("strict_toll", "⚖️", "เก็บค่าผ่านทางเข้มงวด", "ควบคุม", "ได้ทองมากขึ้นแต่พ่อค้าไม่พอใจ", { resources: { gold: 38, influence: 4 }, metrics: { fairness: -2, trust: -1 }, threat: 2, path: { trade: 2 } }, ["ยามยืนตรงที่ทางเข้าเมืองและนับล้อเกวียนทุกคัน เหรียญเข้าคลังเร็วขึ้น แต่รอยยิ้มของคาราวานลดลง", "ข่าวการเก็บค่าผ่านทางจะเดินทางเร็วกว่าคนเสมอ"], { addPending: "merchant_guild_complaint" }),
+      choice("refuse_permanent_market", "🚧", "ให้ค้าชั่วคราวแล้วเดินทางต่อ", "ระวัง", "ลดความเสี่ยงคนนอกแต่เสียโอกาสเศรษฐกิจ", { resources: { gold: 8 }, metrics: { security: 3, morale: -2 }, path: { survival: 1 } }, ["คาราวานถูกต้อนรับด้วยอาหารร้อนแต่ไม่มีหลักปักถาวร พวกเขาขายของจนตะวันลับแล้วล้อเกวียนก็หายไปบนถนนเก่า", "เมืองยังปลอดภัยกว่าเดิมเล็กน้อย แต่ประตูสู่โลกกว้างปิดช้าลง"]),
+    ],
+  },
+  {
+    id: "trade_hub_price_shock", title: "ราคาเกลือขึ้นกลางตลาด", category: "เศรษฐกิจ",
+    text: "เกลือที่เคยแลกได้ด้วยหนังสัตว์ไม่กี่ผืนกลับแพงขึ้นสองเท่า พ่อค้าบอกว่าเส้นทางใต้ถูกปล้น และทุกเมืองกำลังแย่งของถนอมอาหารก่อนฤดูหนาว",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองเล็ก") && g.buildings.marketSquare > 0,
+    weight: (g) => 10 + (g.resources.salt < 4 ? 8 : 0) + (seasonOf(g.month) === "ฤดูใบไม้ร่วง" ? 7 : 0),
+    choices: [
+      choice("buy_salt_now", "🧂", "ซื้อเกลือแม้ราคาสูง", "กันวิกฤต", "ใช้ทอง แต่ช่วยถนอมอาหารและขวัญกำลังใจ", { resources: { gold: -16, salt: 6 }, metrics: { morale: 2, trust: 1 }, path: { trade: 1 } }, ["เหรียญถูกนับออกจากคลังช้า ๆ เหมือนเลือดไหลจากแผลเล็ก แต่กลิ่นเกลือในคลังทำให้คนครัวหายใจได้โล่งขึ้น"]),
+      choice("ration_without_salt", "🥣", "ลดการใช้เกลือและบันทึกสูตรเก็บอาหารใหม่", "ประหยัด", "เสียกำลังใจแต่ได้ความรู้", { resources: { knowledge: 5 }, metrics: { morale: -2, fairness: 2 }, path: { knowledge: 1 } }, ["อาหารเริ่มจืดลง แต่ผู้จดจำเขียนสูตรตากแห้งและรมควันไว้อย่างละเอียด เมืองอาจจนเกลือ แต่ไม่ควรจนปัญญา"]),
+      choice("send_trade_scouts", "🕊️", "ส่งสายข่าวหาต้นทางเกลืออื่น", "เสี่ยง", "เพิ่มอิทธิพลและข่าว แต่เปิดความเสี่ยงเส้นทาง", { resources: { influence: 5, knowledge: 3, gold: -5 }, threat: 2, metrics: { trust: 1 }, path: { trade: 2 } }, ["คนของเมืองเดินตามคาราวานออกไปพร้อมถุงเหรียญเล็ก ๆ และคำถามมากมาย บางครั้งราคาของของหนึ่งอย่างเปิดแผนที่ทั้งภูมิภาค"]),
+    ],
+  },
+  {
+    id: "outpost_supply_line_strain", title: "เส้นส่งเสบียงจากฐานนอกเมืองตึงตัว", category: "Outpost",
+    text: "คนเฝ้าฐานที่มั่นรองส่งข่าวกลับมาว่าเส้นทางเริ่มยาวเกินกว่าที่กองคาราวานเล็กจะรับไหว ล้อเกวียนแตกบ่อยขึ้น และคนคุ้มกันเริ่มบ่นเรื่องอาหารระหว่างทาง",
+    condition: (g) => normalizeOutposts(g.outposts).length > 0,
+    weight: (g) => 8 + normalizeOutposts(g.outposts).length * 3 + (g.resources.tools < 6 ? 5 : 0),
+    choices: [
+      choice("repair_supply_carts", "🛠️", "ซ่อมเกวียนและแบ่งเครื่องมือให้ฐาน", "บำรุง", "ใช้ไม้/เครื่องมือ ลดภัยเส้นทาง", { resources: { wood: -8, tools: -1 }, metrics: { security: 4, trust: 2 }, path: { trade: 1 } }, ["ช่างเลือกล้อที่ยังใช้ได้และผูกเหล็กเสริมด้วยมือที่ชินกับความขาดแคลน เส้นทางไม่สั้นลง แต่เดินได้มั่นคงขึ้น"]),
+      choice("escort_with_guards", "🛡️", "ส่งเวรยามคุ้มกันรอบถัดไป", "คุ้มกัน", "เพิ่มความปลอดภัย แต่ดึงแรงงานจากเมือง", { resources: { food: -4, water: -3 }, metrics: { security: 6, morale: 1 }, path: { fortress: 1 } }, ["เวรยามเดินนำหน้าเกวียนด้วยหอกและสุนัข เสียงล้อบนทางเก่าฟังเบากว่าเดิมเมื่อมีคนคุ้มกัน"]),
+      choice("let_outpost_endure", "🌫️", "ให้ฐานทนไปก่อน", "เสี่ยง", "ไม่ใช้ทรัพยากร แต่ฐานเสี่ยงเสียหาย", { metrics: { trust: -2, security: -3 }, threat: 4, risk: { conflict: 5 } }, ["จดหมายตอบกลับสั้นมาก: อดทนอีกเดือนหนึ่ง คนที่ฐานอ่านแล้วไม่มีใครพูดอะไรนานพอให้ไฟใกล้มอด"]),
+    ],
+  },
+  {
+    id: "mine_vein_discovery", title: "เส้นแร่เข้มในถ้ำเก่า", category: "แผนที่/เหมือง",
+    text: "คนสำรวจเคาะผนังถ้ำเก่าแล้วเสียงเปลี่ยนไป หินสีเข้มพาดผ่านชั้นดินเหมือนเส้นเลือดของภูเขา หากตั้งฐานได้ เมืองอาจมีแร่เหล็กจริงจังเป็นครั้งแรก",
+    condition: (g) => normalizeLocations(g.locations).oldCave.progress >= 70 || normalizeLocations(g.locations).rockyRidge.progress >= 80,
+    weight: (g) => 9 + (g.researchDone.outpostLogistics ? 9 : 0) + (g.resources.ironOre < 10 ? 5 : 0),
+    choices: [
+      choice("mark_mine_route", "⛏️", "ทำเครื่องหมายเส้นทางเหมือง", "สำรวจ", "ได้แร่เบื้องต้นและเปิดโอกาสตั้งฐาน", { resources: { ironOre: 8, stone: 4, knowledge: 3 }, metrics: { morale: 2 }, path: { knowledge: 1 } }, ["รอยถ่านถูกป้ายบนหินทุกช่วงทาง คนกลับมาพร้อมก้อนแร่หนักในถุงและแววตาที่เห็นเมืองในอนาคตแข็งแรงกว่าไม้"]),
+      choice("rush_excavation", "🪨", "ขุดทันทีด้วยคนที่มี", "เร่ง", "ได้แร่มาก แต่เสี่ยงถล่มและบาดเจ็บ", { resources: { ironOre: 18, coal: 4 }, metrics: { health: -2 }, casualtyChance: 8, risk: { accident: 10 }, path: { survival: 1 } }, ["ค้อนหินดังถี่กว่าที่ผู้เฒ่าพอใจ ฝุ่นลอยในคอเหมือนคำเตือน แต่ถุงแร่ที่ถูกแบกกลับมาก็หนักพอจะทำให้หลายคนเงียบ"]),
+      choice("wait_for_outpost_plan", "📜", "รอวางระบบฐานที่มั่นรองก่อน", "เป็นระบบ", "ช้ากว่า แต่ลดอุบัติเหตุและเพิ่มความรู้", { resources: { knowledge: 6 }, metrics: { security: 2, trust: 1 }, path: { knowledge: 2 } }, ["ผู้นำห้ามขุดลึกกว่านี้จนกว่าจะมีคนจดทาง ระยะพัก และเสบียง การไม่รีบวันนี้อาจช่วยให้เหมืองไม่กลายเป็นหลุมศพในวันหน้า"]),
+    ],
+  },
+  {
+    id: "flax_field_found", title: "ทุ่งป่านริมลม", category: "แผนที่/ผ้าทอ",
+    text: "คนสำรวจพบทุ่งพืชเส้นใยขึ้นเป็นแนวใต้ลม ถ้าเก็บอย่างรู้วิธี มันอาจกลายเป็นผ้าทอ เสื้อกันหนาว เต็นท์ และเชือกสำหรับเกวียน",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองเล็ก") && (normalizeLocations(g.locations).marshPools.progress >= 50 || normalizeLocations(g.locations).shallowStream.progress >= 60),
+    weight: (g) => 7 + (g.resources.textiles < 5 ? 6 : 0),
+    choices: [
+      choice("harvest_flax", "🧶", "เก็บและตากเส้นใยอย่างระวัง", "ผลิต", "ได้ผ้าทอเล็กน้อยและความรู้", { resources: { textiles: 5, knowledge: 2 }, metrics: { morale: 2 }, path: { trade: 1 } }, ["เส้นใยถูกแขวนตากเป็นแถวเหมือนธงของเมืองเล็ก ๆ เด็กบางคนเอานิ้วลูบแล้วถามว่ามันจะกลายเป็นผ้าห่มได้จริงหรือ"]),
+      choice("trade_flax_rights", "🪙", "ให้พ่อค้าช่วยจัดคนเก็บแลกส่วนแบ่ง", "ค้าขาย", "ได้ทองและอิทธิพล แต่เมืองได้วัตถุน้อย", { resources: { gold: 14, influence: 3, textiles: 2 }, metrics: { trust: -1 }, path: { trade: 2 } }, ["พ่อค้ารู้วิธีมัดเส้นใยเร็วกว่าเรา แต่ทุกเงื่อนที่เขาผูกก็ผูกผลประโยชน์ของเขาไว้ด้วย"]),
+      choice("protect_field", "🛡️", "กันพื้นที่ไว้ก่อน ไม่ให้ตัดหมด", "ระยะยาว", "เสียโอกาสเร็ว แต่เพิ่มเสถียรภาพอนาคต", { resources: { knowledge: 4 }, metrics: { fairness: 2, trust: 2 }, path: { family: 1 } }, ["ไม้เล็ก ๆ ถูกปักรอบทุ่งป่าน เป็นคำสัญญาว่าเมืองนี้จะไม่กินอนาคตของตัวเองจนหมดในเดือนเดียว"]),
+    ],
+  },
+  {
+    id: "merchant_guild_complaint", title: "พ่อค้ารวมเสียงหน้าโกดัง", category: "สมาคม/การค้า",
+    text: "เมื่อการค้าขยายตัว พ่อค้าหลายกลุ่มเริ่มถามหากฎเดียวกัน: ค่าผ่านทาง ค่าชั่ง และสิทธิ์ตั้งร้าน หากเมืองยังตอบทีละคน ข่าวลือเรื่องสองมาตรฐานจะโตเร็วกว่าโกดัง",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองการค้า") || g.buildings.marketSquare > 0,
+    weight: (g) => 8 + (g.metrics.fairness < 65 ? 8 : 0) + (g.buildings.merchantsGuildHall > 0 ? -4 : 0),
+    choices: [
+      choice("write_trade_charter", "📜", "เขียนกฎตลาดต่อหน้าทุกฝ่าย", "ยุติธรรม", "เพิ่มความยุติธรรมและอิทธิพล", { resources: { influence: 8, knowledge: 3 }, metrics: { fairness: 7, trust: 2 }, path: { trade: 2 } }, ["กฎตลาดถูกอ่านออกเสียงทีละข้อ คนที่ไม่ชอบก็ยังได้ยินพร้อมคนอื่น นั่นทำให้ความไม่พอใจยืนอยู่ใต้แสงเดียวกัน"]),
+      choice("favor_big_caravan", "🐪", "ให้สิทธิ์คาราวานใหญ่แลกภาษีมากขึ้น", "กำไร", "ได้ทองเร็ว แต่ลดความเป็นธรรม", { resources: { gold: 35, influence: 4 }, metrics: { fairness: -6, trust: -2 }, path: { trade: 2 }, risk: { conflict: 5 } }, ["คาราวานใหญ่ยิ้มกว้างเมื่อได้พื้นที่ดีที่สุด แม่ค้าเล็ก ๆ ไม่พูดอะไร แต่เก็บผ้าปูร้านช้ากว่าปกติ"]),
+      choice("delay_charter", "🌫️", "เลื่อนการตัดสินใจ", "หลีกเลี่ยง", "ไม่เสียของ แต่ความเชื่อมั่นลด", { metrics: { trust: -4, fairness: -4 }, threat: 1 }, ["ผู้นำบอกว่ายังต้องคิด พ่อค้าพยักหน้า แต่ไม่มีใครชอบคำว่า 'รอก่อน' เมื่อเกวียนของตนจอดอยู่ใต้ฝน"]),
+    ],
+  },
+  {
+    id: "guild_budget_shortfall", title: "งบสมาคมไม่พอจ่ายคนงาน", category: "สมาคม",
+    text: "หัวหน้าสมาคมนำบัญชีมาให้ดู จำนวนคนงานมากขึ้นกว่าทองที่จ่าย ถ้ายังให้ทำงานเต็มกำลังโดยไม่จ่าย เมืองอาจได้ผลผลิตเดือนนี้แต่เสียความไว้ใจในระยะยาว",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองการค้า") && (g.buildings.huntersGuildHall + g.buildings.buildersGuildHall + g.buildings.merchantsGuildHall > 0),
+    weight: (g) => 7 + (g.resources.gold < 40 ? 9 : 0) + (g.metrics.trust < 60 ? 4 : 0),
+    choices: [
+      choice("pay_guild_arrears", "🪙", "จ่ายย้อนหลังเท่าที่ทำได้", "รักษาคำ", "ใช้ทองแต่เพิ่มความไว้ใจ", { resources: { gold: -28 }, metrics: { trust: 7, morale: 2 }, path: { trade: 1 } }, ["เหรียญถูกเทลงบนโต๊ะสมาคมอย่างไม่พอใจนัก แต่เสียงเหรียญยังดีกว่าเสียงประตูปิดใส่กัน"]),
+      choice("reduce_guild_quota", "📉", "ลดโควต้างานเดือนหน้า", "ประคอง", "ผลผลิตลด แต่ลดแรงเสียดทาน", { metrics: { fairness: 3, morale: -1 }, resources: { knowledge: 2 } }, ["คำสั่งใหม่ไม่ได้ดังเหมือนชัยชนะ แต่มันทำให้คนงานรู้ว่าเมืองจะไม่บีบมือที่กำลังสร้างเมืองจนแตก"]),
+      choice("force_guild_work", "⚒️", "บังคับให้ทำต่อเพราะเมืองต้องรอด", "เข้มงวด", "ได้ทรัพยากร แต่เสี่ยงประท้วง", { resources: { food: 10, timber: 4, bricks: 2 }, metrics: { trust: -8, fairness: -5 }, risk: { conflict: 10 }, path: { fortress: 1 } }, ["งานยังเดินต่อ เสียงเลื่อยยังดัง แต่จากวันนั้นคนงานเริ่มนับคำสัญญาของเมืองอย่างละเอียดกว่าเดิม"], { addPending: "faction_first_petition" }),
+    ],
+  },
+  {
+    id: "senate_first_session", title: "การประชุมสภาเมืองครั้งแรก", category: "นครรัฐ/การเมือง",
+    text: "สภาเมืองเต็มไปด้วยเสียงที่เคยกระซิบรอบกองไฟ ตอนนี้พวกเขานั่งเป็นฝ่าย เป็นตระกูล เป็นอาชีพ และไม่มีใครต้องการให้ผู้นำตัดสินทุกอย่างเพียงลำพังอีกต่อไป",
+    rare: true,
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองการค้า") && g.buildings.senateHouse > 0,
+    weight: (g) => stageRank(g.stage) >= stageRank("นครรัฐ") ? 7 : 12,
+    choices: [
+      choice("share_authority", "⚖️", "แบ่งอำนาจให้สภาออกกฎรายเดือน", "สมดุล", "เพิ่มอิทธิพลและความยุติธรรม", { resources: { influence: 20 }, metrics: { fairness: 8, trust: 4 }, path: { faith: 1 } }, ["ผู้นำยืนขึ้นก่อนแล้วนั่งลงเมื่อถึงเวลาของคนอื่น เสียงในห้องเปลี่ยนจากคำสั่งเป็นการถกเถียง และเมืองใหญ่ขึ้นในวินาทีนั้น"]),
+      choice("keep_leader_veto", "👑", "ให้ผู้นำมีสิทธิ์ยับยั้งกฎสำคัญ", "รวมศูนย์", "เพิ่มความมั่นคง แต่บางฝ่ายไม่พอใจ", { resources: { influence: 8 }, metrics: { security: 5, fairness: -3, trust: -1 }, path: { fortress: 1 } }, ["สภาได้รับเสียง แต่บัลลังก์ยังเก็บคำสุดท้ายไว้ คนบางคนโล่งใจ คนบางคนเริ่มนับวันที่จะเปลี่ยนกฎนี้"]),
+      choice("tax_for_senate", "🪙", "เก็บภาษีตลาดเพื่อเลี้ยงสภา", "ระบบ", "ได้ทอง/อิทธิพล แต่พ่อค้าไม่พอใจ", { resources: { gold: 30, influence: 12 }, metrics: { morale: -2, fairness: 1 }, path: { trade: 1 }, risk: { conflict: 4 } }, ["ตราชั่งในตลาดถูกใช้วัดของและวัดความอดทนของพ่อค้าในเวลาเดียวกัน"]),
+    ],
+  },
+  {
+    id: "faction_first_petition", title: "ฝ่ายต่าง ๆ ยื่นคำร้องพร้อมกัน", category: "ฝ่ายอำนาจ",
+    text: "เวรยามต้องการอาวุธ ชาวไร่ต้องการน้ำ พ่อค้าต้องการถนน และช่างต้องการเครื่องมือ ทุกคำร้องฟังดูสมเหตุสมผล แต่เมืองไม่อาจให้ทุกอย่างในเดือนเดียว",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองการค้า") && (g.buildings.meetingHall > 0 || g.buildings.senateHouse > 0),
+    weight: (g) => 9 + (stageRank(g.stage) >= stageRank("นครรัฐ") ? 6 : 0) + (Object.values(normalizeFactions(g.factions)).some((f) => f.approval < 45) ? 7 : 0),
+    choices: [
+      choice("fund_guards", "🛡️", "ให้เวรยามก่อน", "มั่นคง", "เพิ่มความปลอดภัย แต่อาจทำให้ฝ่ายอื่นน้อยใจ", { resources: { gold: -12, tools: -1 }, metrics: { security: 8, fairness: -1 }, threat: -3, path: { fortress: 2 } }, ["เหล็กและไม้ถูกส่งไปยังเวรยามก่อน เสียงฝึกดาบทำให้บางคนอุ่นใจ และบางคนถามว่าแล้วจอบของพวกเขาอยู่ไหน"]),
+      choice("fund_farmers", "🌾", "ให้ชาวไร่และน้ำก่อน", "ยังชีพ", "เพิ่มอาหารและสุขภาพ", { resources: { food: 10, water: 8, gold: -10 }, metrics: { health: 4, trust: 2 }, path: { survival: 2 } }, ["คลองเล็กและถังน้ำถูกซ่อมก่อนกำแพง เสียงพึมพำของคนถือหอกเงียบลงเมื่อเห็นเด็กได้กินอิ่ม"]),
+      choice("balanced_fund", "⚖️", "แบ่งงบน้อย ๆ ให้ทุกฝ่าย", "สมดุล", "เพิ่มความยุติธรรม แต่ผลไม่แรง", { resources: { gold: -18, influence: 4 }, metrics: { fairness: 7, cohesion: 3 }, path: { faith: 1 } }, ["ไม่มีฝ่ายใดได้สิ่งที่ต้องการทั้งหมด แต่ไม่มีฝ่ายใดถูกทิ้งไว้ข้างหลัง นี่อาจไม่ใช่ความพอใจ แต่เป็นรากของสันติ"]),
+    ],
+  },
+  {
+    id: "faction_rebellion_warning", title: "ข่าวลือเรื่องการรวมตัวต่อต้าน", category: "กบฏ",
+    text: "คนในตลาดหยุดพูดเมื่อเวรยามเดินผ่าน กลุ่มแรงงานประชุมกันหลังโรงเลื่อย และมีชื่อผู้นำถูกพูดเบากว่าปกติ เมืองยังไม่แตก แต่รอยร้าวเริ่มมีทิศทาง",
+    condition: (g) => stageRank(g.stage) >= stageRank("นครรัฐ") && Object.values(normalizeFactions(g.factions)).some((f) => f.approval < 30),
+    weight: (g) => 18 + (g.metrics.trust < 50 ? 8 : 0),
+    choices: [
+      choice("open_reform_session", "⚖️", "เปิดสภาปฏิรูปและยอมแก้กฎบางข้อ", "เยียวยา", "ใช้อิทธิพล แต่ลดโอกาสกบฏ", { resources: { influence: -25 }, metrics: { trust: 8, fairness: 10, cohesion: 4 }, threat: -6, path: { faith: 2 } }, ["ประตูสภาถูกเปิดกว้างกว่าปกติ คนที่เคยยืนอยู่ข้างนอกได้พูดจนเสียงสั่น เมืองอาจยังไม่ไว้ใจกันทันที แต่อย่างน้อยก็เริ่มได้ยินกัน"]),
+      choice("arrest_agitators", "⛓️", "จับแกนนำก่อนเรื่องบาน", "แข็งกร้าว", "ลดภัยทันที แต่ความไว้ใจเสียหาย", { metrics: { security: 8, trust: -10, fairness: -8 }, threat: -3, risk: { conflict: 8 }, path: { fortress: 2 } }, ["ประตูบ้านบางหลังถูกเคาะก่อนฟ้าสาง เมืองเงียบลงเร็ว แต่ความเงียบนั้นหนักเหมือนฝาปิดหม้อเดือด"]),
+      choice("concession_with_luxuries", "💎", "ใช้สินค้าฟุ่มเฟือยและงานเลี้ยงประสานฝ่าย", "ประนีประนอม", "ใช้ของหายากเพิ่มกำลังใจ", { resources: { luxuries: -3, spices: -2 }, metrics: { morale: 8, trust: 4, fairness: 3 }, path: { trade: 1 } }, ["ไวน์ เครื่องเทศ และของหายากถูกนำขึ้นโต๊ะเดียวกันกับคำขอโทษ บางความแค้นไม่หาย แต่บางมือเริ่มวางอาวุธลงเพื่อหยิบถ้วย"]),
+    ],
+  },
+  {
+    id: "outpost_raided", title: "ฐานนอกเมืองถูกปล้น", category: "Outpost/ภัย",
+    text: "คนส่งข่าวกลับมาพร้อมแผลแตกที่คิ้ว ฐานที่มั่นรองถูกโจมตีตอนหมอกลง ไม่ใช่ภัยใหญ่พอจะเรียกว่าสงคราม แต่ใหญ่พอจะทำให้เสบียงเดือนนี้หายไปครึ่งทาง",
+    condition: (g) => normalizeOutposts(g.outposts).length > 0 && (g.threat > 35 || riskPreview(g).beast > 45 || riskPreview(g).conflict > 45),
+    weight: (g) => 5 + normalizeOutposts(g.outposts).length * 2 + Math.floor(g.threat / 10),
+    choices: [
+      choice("reinforce_outpost", "🛡️", "ส่งอาวุธและคนคุ้มกันไปเสริม", "ตั้งรับ", "ใช้เหล็ก/เครื่องมือ ลดภัยฐาน", { resources: { tools: -2, food: -8, water: -5 }, metrics: { security: 8, morale: 1 }, threat: -5, path: { fortress: 2 } }, ["คนคุ้มกันเดินออกจากเมืองพร้อมหอกใหม่และถุงอาหาร เส้นทางนอกเมืองจะไม่ดูเหมือนไม่มีเจ้าของอีกต่อไป"]),
+      choice("abandon_weak_line", "🚧", "ถอนคนจากเส้นทางที่ป้องกันไม่ไหว", "ตัดขาด", "ลดความเสี่ยงคนตาย แต่เสียผลผลิต", { metrics: { morale: -4, security: 2, trust: -2 }, resources: { food: -6 }, path: { survival: 1 } }, ["คำสั่งถอนตัวถูกเขียนด้วยมือที่หนักกว่าปกติ ฐานยังอยู่ในแผนที่ แต่ไม่อยู่ในชีวิตประจำเดือนนี้อีกแล้ว"]),
+      choice("track_raiders", "🏹", "ตามรอยผู้ปล้นกลับไป", "เสี่ยง", "อาจได้ของคืน แต่เสี่ยงเจ็บตาย", { resources: { gold: 12, food: 8 }, metrics: { security: 4, health: -2 }, casualtyChance: 14, path: { fortress: 2 } }, ["พรานและเวรยามตามรอยล้อเกวียนหักไปจนถึงร่องน้ำแห้ง พวกเขาได้ของคืนบางส่วน และได้ชื่อศัตรูใหม่กลับมาด้วย"], { addPending: "kingdom_siege_scouts" }),
+    ],
+  },
+  {
+    id: "brick_kiln_smoke", title: "ควันเตาเผาปกคลุมย่านพัก", category: "อุตสาหกรรม",
+    text: "อิฐเผาทำให้อาคารแข็งแรงขึ้น แต่ควันจากเตาเผาไหลต่ำกว่าที่คิด เด็กไอมากขึ้น และคนซักผ้าบ่นว่ากลิ่นไหม้ติดเสื้อทั้งวัน",
+    condition: (g) => g.buildings.brickKiln > 0,
+    weight: (g) => 6 + (g.metrics.health < 65 ? 5 : 0) + (g.buildings.smokeVent > 0 ? -3 : 0),
+    choices: [
+      choice("raise_kiln_stack", "🌬️", "ยกปล่องควันและย้ายจุดตากผ้า", "แก้ระบบ", "ใช้หิน/ไม้ ลดโรค", { resources: { stone: -6, wood: -4 }, metrics: { health: 6, trust: 2 }, path: { knowledge: 1 } }, ["ปล่องควันถูกต่อสูงขึ้นด้วยอิฐที่เพิ่งเผาเสร็จ เมืองเรียนรู้ว่าความก้าวหน้าต้องมีทางให้ควันออกด้วย"]),
+      choice("push_production", "🧱", "เร่งผลิตอิฐก่อนหยุดเตา", "เร่ง", "ได้อิฐเพิ่ม แต่สุขภาพลด", { resources: { bricks: 8, fuel: -4 }, metrics: { health: -5, morale: -1 }, risk: { disease: 6 } }, ["เตาเผาร้อนทั้งวัน อิฐเรียงสูงขึ้นพร้อมกับเสียงไอในย่านพัก คนงานรู้ว่ากำแพงจะแข็งแรง แต่ปอดของพวกเขาไม่ได้เป็นอิฐ"]),
+      choice("pause_kiln", "🕯️", "หยุดเตาให้ย่านพักฟื้น", "ถนอมคน", "เสียผลผลิตแต่เพิ่มขวัญ", { metrics: { health: 4, morale: 3 }, resources: { bricks: -2 } }, ["ควันบางลงในเช้าวันถัดมา เด็กออกมาวิ่งได้ไกลขึ้น และช่างก่อสร้างก็นั่งนับอิฐที่ยังไม่พออย่างเงียบ ๆ"]),
+    ],
+  },
+  {
+    id: "sawmill_injury_chain", title: "ใบเลื่อยกินไม้เร็วกว่าคน", category: "อุตสาหกรรม/อุบัติเหตุ",
+    text: "โรงเลื่อยทำให้ไม้แปรรูปออกจากท่อนซุงเร็วกว่าเดิมมาก แต่เสียงเลื่อยที่ดังขึ้นก็มาพร้อมนิ้วที่เกือบหายไปและคนงานที่เริ่มกลัวเครื่องจักรหยาบ ๆ ของตัวเอง",
+    condition: (g) => g.buildings.sawmill > 0,
+    weight: (g) => 5 + (g.resources.tools < 6 ? 5 : 0) + (riskPreview(g).accident > 45 ? 6 : 0),
+    choices: [
+      choice("safety_rules", "📜", "เขียนกฎโรงเลื่อยและฝึกมือใหม่", "ปลอดภัย", "ลดอุบัติเหตุ ได้ความรู้", { resources: { knowledge: 4, timber: -2 }, metrics: { health: 5, trust: 2 }, path: { knowledge: 1 } }, ["กฎถูกแขวนไว้ข้างใบเลื่อย ไม่ใช่เพื่อให้ไม้เชื่อฟัง แต่เพื่อให้มือคนยังกลับบ้านครบในตอนเย็น"]),
+      choice("meet_order_deadline", "🪚", "เร่งตัดไม้ตามคำสั่งก่อสร้าง", "เร่งงาน", "ได้ไม้แปรรูป แต่เสี่ยงบาดเจ็บ", { resources: { timber: 10 }, metrics: { health: -3 }, casualtyChance: 6, risk: { accident: 8 } }, ["ไม้แปรรูปเรียงสูงขึ้นข้างโรงเลื่อย และเสียงหัวเราะของคนงานลดลงทุกครั้งที่ใบเลื่อยสะบัด"]),
+      choice("close_sawmill_day", "🛖", "ปิดโรงเลื่อยหนึ่งวันให้คนพัก", "พักฟื้น", "ลดเหนื่อยและเพิ่มกำลังใจ", { metrics: { morale: 4, health: 2 }, resources: { timber: -1 } }, ["วันที่โรงเลื่อยเงียบ เมืองได้ยินเสียงอื่นกลับมาอีกครั้ง: เด็กวิ่ง คนแก่คุย และลมหายใจของคนที่ยังอยู่"]),
+    ],
+  },
+  {
+    id: "steel_first_pour", title: "เหล็กกล้าชุดแรกจากโรงถลุง", category: "เหล็กกล้า",
+    text: "แร่เหล็กและถ่านหินถูกกินด้วยไฟจนกลายเป็นโลหะที่แข็งกว่าสิ่งใดที่เมืองเคยมี เสียงค้อนบนเหล็กกล้าไม่เหมือนค้อนบนหิน มันเหมือนเสียงประตูสู่ยุคใหม่",
+    rare: true,
+    condition: (g) => g.buildings.smeltery > 0 && g.resources.steel > 0,
+    weight: (g) => g.flags.first_steel_pour ? 1 : 18,
+    choices: [
+      choice("forge_tools_first", "🛠️", "ทำเครื่องมือก่อนอาวุธ", "พัฒนา", "เพิ่มเครื่องมือและงานก่อสร้าง", { resources: { steel: -4, tools: 8, timber: 2 }, metrics: { trust: 3 }, path: { knowledge: 2 } }, ["เหล็กกล้าชุดแรกไม่ได้กลายเป็นดาบ แต่กลายเป็นเครื่องมือที่ทำให้มือคนเบาลงและงานหนักกลายเป็นไปได้มากขึ้น"], { setFlag: "first_steel_pour" }),
+      choice("forge_weapons_first", "⚔️", "ตีอาวุธให้เวรยาม", "ป้องกัน", "เพิ่มความปลอดภัย แต่ฝ่ายแรงงานอาจไม่พอใจ", { resources: { steel: -5, manpower: 6 }, metrics: { security: 9, fairness: -2 }, path: { fortress: 2 } }, ["ดาบและหัวหอกใหม่สะท้อนแสงไฟ คนบางคนเห็นความปลอดภัย คนบางคนเห็นเงาของสงคราม"], { setFlag: "first_steel_pour", addPending: "kingdom_siege_scouts" }),
+      choice("record_smelting_method", "📜", "จดขั้นตอนถลุงให้คนรุ่นหลัง", "ความรู้", "เพิ่มความรู้และอิทธิพล", { resources: { knowledge: 10, influence: 5 }, metrics: { morale: 2 }, path: { knowledge: 2 } }, ["ผู้จดจำนั่งใกล้เตาแม้ร้อนจนเหงื่อหยดบนกระดาษ เขารู้ว่าการค้นพบที่ไม่ถูกบันทึกคือไฟที่ดับได้"], { setFlag: "first_steel_pour" }),
+    ],
+  },
+  {
+    id: "neighbor_emissary_recognizes_power", title: "ทูตจากแคว้นข้างเคียงยอมรับอำนาจ", category: "อาณาจักร/ทูต",
+    text: "ทูตสวมเสื้อผ้าดีกว่าพ่อค้าทั่วไปและพูดน้อยกว่า เขาไม่ได้มาเพื่อซื้อเกลือ แต่มาเพื่อดูว่าเมืองของเรากลายเป็นอำนาจที่ต้องนับจริงหรือยัง",
+    rare: true,
+    condition: (g) => stageRank(g.stage) >= stageRank("นครรัฐ") && g.resources.influence >= 250,
+    weight: (g) => 9 + (g.resources.steel >= 100 ? 5 : 0) + (g.metrics.trust >= 70 ? 4 : 0),
+    choices: [
+      choice("receive_as_equal", "👑", "รับทูตในฐานะคู่เจรจาเท่าเทียม", "เกียรติ", "เพิ่มอิทธิพลและเปิดเส้นทางอาณาจักร", { resources: { influence: 60, luxuries: 3 }, metrics: { morale: 5, trust: 3 }, path: { trade: 2 } }, ["ผู้นำไม่ได้ก้มหน้าและไม่ได้ยกตนสูงเกินจริง โต๊ะเจรจาถูกวางเท่ากันสองฝั่ง และทูตกลับไปพร้อมคำว่า 'อำนาจใหม่' บนริมฝีปาก"], { addPending: "kingdom_siege_scouts", setFlag: "emissary_recognition" }),
+      choice("impress_with_steel", "⚔️", "แสดงเหล็กกล้าและกำลังทหาร", "ข่มขวัญ", "เพิ่มความเกรงใจ แต่เพิ่มภัยสงคราม", { resources: { steel: -8, influence: 80 }, metrics: { security: 4, fairness: -1 }, threat: 6, path: { fortress: 3 } }, ["เหล็กกล้าถูกวางบนผ้าดำ ไม่ต้องมีใครขู่มากไปกว่านั้น ทูตมองมันนานพอให้ทุกคนเข้าใจว่าเขาจะรายงานอะไรกลับไป"], { addPending: "kingdom_siege_scouts", setFlag: "emissary_recognition" }),
+      choice("offer_luxuries", "💎", "มอบของฟุ่มเฟือยเป็นไมตรี", "การทูต", "ใช้ของหายากลดภัยและเพิ่มความสัมพันธ์", { resources: { luxuries: -3, influence: 45 }, metrics: { morale: 3, trust: 2 }, threat: -4, path: { trade: 2 } }, ["ของหายากเปลี่ยนมืออย่างเงียบงาม บางครั้งสันติภาพไม่ได้เกิดจากคำพูด แต่เกิดจากของขวัญที่เลือกถูกเวลา"], { setFlag: "emissary_recognition" }),
+    ],
+  },
+  {
+    id: "kingdom_siege_scouts", title: "กองสอดแนมของศัตรูบนเนินไกล", category: "สงคราม/ล้อมเมือง",
+    text: "เวรยามเห็นแสงสะท้อนโลหะบนเนินไกล ไม่ใช่โจรหิวโซกลุ่มเล็กอีกต่อไป แต่เป็นคนมีระเบียบ มีม้า และมีคนวัดกำแพงของเราเหมือนช่างวัดไม้",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองการค้า") && (g.threat > 55 || g.resources.steel > 80 || g.resources.influence > 250),
+    weight: (g) => 6 + Math.floor(g.threat / 12) + (g.buildings.castleKeep > 0 ? -4 : 0),
+    choices: [
+      choice("fortify_with_steel", "🏰", "เสริมกำแพงและประตูด้วยเหล็ก", "ตั้งรับ", "ใช้เหล็กกล้า ลดภัยล้อมเมือง", { resources: { steel: -18, timber: -8 }, metrics: { security: 10, morale: 3 }, threat: -8, path: { fortress: 3 } }, ["ประตูเก่าได้แผ่นเหล็กกล้าทับลงไป เสียงค้อนที่ดังทั้งวันทำให้ศัตรูรู้ว่าเมืองนี้ไม่ได้รอถูกล้อมเฉย ๆ"]),
+      choice("negotiate_from_strength", "📜", "ส่งสารเจรจาพร้อมของกำนัล", "การทูต", "ใช้อิทธิพลและทอง ลดภัยทันที", { resources: { influence: -35, gold: -30 }, metrics: { trust: 2, morale: 1 }, threat: -12, path: { trade: 2 } }, ["สารเจรจาถูกส่งพร้อมตราประทับและถุงทองเล็ก ๆ ไม่ใช่การยอมแพ้ แต่เป็นการซื้อเวลาให้กำแพงสูงขึ้นอีกชั้น"]),
+      choice("raise_manpower", "🐎", "เกณฑ์กำลังพลและเตรียมม้า", "สงคราม", "เพิ่มกำลังรบ แต่ดึงแรงงานจากชีวิตประจำวัน", { resources: { manpower: 35, warhorses: -2, food: -18 }, metrics: { security: 12, morale: -4 }, path: { fortress: 3 }, risk: { conflict: 6 } }, ["ชื่อคนหนุ่มสาวถูกจดลงบัญชีกำลังพล บางบ้านภูมิใจ บางบ้านเงียบ และทุกบ้านเข้าใจว่าคำว่าเมืองใหญ่มีราคาของมัน"]),
+    ],
+  },
+  {
+    id: "water_reserve_dispute", title: "ข้อพิพาทเรื่องน้ำสำรอง", category: "น้ำ/นโยบาย",
+    text: "ถังเก็บน้ำมีน้ำอยู่จริง แต่คนเริ่มถามว่าใครมีสิทธิ์ตักก่อน เด็ก คนป่วย สัตว์ หรือเวรยามที่ต้องเดินไกล คำถามนี้ไม่ใช่เรื่องน้ำอย่างเดียว แต่เป็นเรื่องความเป็นเมือง",
+    condition: (g) => g.buildings.cistern > 0 && (g.resources.waterReserve ?? 0) > 12,
+    weight: (g) => 7 + (g.metrics.fairness < 60 ? 8 : 0) + (seasonOf(g.month) === "ฤดูร้อน" ? 4 : 0),
+    choices: [
+      choice("publish_water_rules", "⚖️", "ประกาศกฎใช้น้ำสำรองเป็นลายลักษณ์", "เป็นธรรม", "เพิ่มความยุติธรรมและลดโรค", { resources: { knowledge: 2 }, metrics: { fairness: 7, health: 2, trust: 2 }, path: { knowledge: 1 } }, ["กฎน้ำถูกเขียนไว้ข้างถัง ไม่ใช่เพราะน้ำฟังได้ แต่เพราะคนที่หิวน้ำต้องรู้ว่าเมืองยังเห็นพวกเขาเท่ากัน"]),
+      choice("prioritize_sick_children", "🌿", "ให้เด็กและคนป่วยก่อน", "เมตตา", "เพิ่มสุขภาพแต่แรงงานบางคนไม่พอใจ", { resources: { waterReserve: -6 }, metrics: { health: 7, morale: 2, fairness: 1, trust: -1 }, path: { family: 2 } }, ["น้ำเย็นถูกยกไปยังที่พักคนป่วยก่อน เสียงบ่นมีอยู่ แต่ไม่มีใครกล้าพูดดังต่อหน้าเด็กที่ริมฝีปากแตก"]),
+      choice("guard_reserve", "🛡️", "ตั้งเวรยามเฝ้าถังน้ำ", "ควบคุม", "ลดขโมยน้ำ แต่เพิ่มความตึงเครียด", { metrics: { security: 5, trust: -3, fairness: -2 }, risk: { conflict: 4 } }, ["ถังน้ำไม่หาย แต่ความไว้ใจรั่วออกจากรอยแตกที่มองไม่เห็น"]),
+    ],
+  },
+  {
+    id: "policy_before_people", title: "คำสั่งอัตโนมัติชนกับชีวิตจริง", category: "นโยบาย",
+    text: "นโยบายค่ายช่วยให้เมืองใหญ่ไม่ต้องรอคำสั่งทุกเรื่อง แต่เดือนนี้คนบางคนถูกโยกงานทั้งที่กำลังดูแลครอบครัวป่วย คำสั่งที่ดีบนกระดาษอาจบาดมือคนได้ถ้าไม่มีใครทบทวน",
+    condition: (g) => canUsePolicies(g) && alivePeople(g).length >= 30,
+    weight: (g) => 6 + (g.metrics.trust < 65 ? 6 : 0) + (g.people.some((p) => p.grief && p.grief > 35) ? 5 : 0),
+    choices: [
+      choice("policy_exception_board", "📋", "ตั้งข้อยกเว้นให้คนป่วยและครอบครัวไว้ทุกข์", "ละเอียดอ่อน", "เพิ่มความไว้ใจและลดบาดแผลใจ", { resources: { knowledge: 3 }, metrics: { trust: 6, cohesion: 3, fairness: 2 }, path: { family: 1 } }, ["นโยบายไม่ได้ถูกยกเลิก แต่มีช่องให้คนหายใจ เมืองเรียนรู้ว่าระบบที่ดีต้องมีมือมนุษย์แตะอยู่เสมอ"]),
+      choice("enforce_policy_strictly", "⚙️", "ยืนยันนโยบายเดิมเพื่อไม่ให้ระบบรวน", "เป็นระบบ", "เพิ่มผลผลิตแต่ลดความอบอุ่น", { resources: { food: 6, wood: 4 }, metrics: { trust: -5, morale: -3 }, path: { survival: 1 } }, ["คำสั่งเดินต่ออย่างแม่นยำกว่าเดิม และบางคนเริ่มรู้สึกว่าตัวเองเป็นเพียงช่องหนึ่งในบัญชีแรงงาน"]),
+      choice("pause_automation_month", "🕯️", "หยุดนโยบายอัตโนมัติหนึ่งเดือนแล้วให้ผู้นำจัดเอง", "ทบทวน", "ลดผลผลิต แต่ลดความตึงเครียด", { metrics: { morale: 5, trust: 3 }, resources: { food: -3 } }, ["เดือนนี้เมืองช้าลงเล็กน้อย แต่หลายคนได้ยินชื่อของตนเองแทนการถูกเรียกว่าแรงงานว่าง"]),
+    ],
+  },
+  {
+    id: "great_plague_at_gate", title: "คาราวานพาไข้ใหญ่ถึงประตูเมือง", category: "โรคระบาดใหญ่",
+    text: "คาราวานจากเมืองไกลขอเข้าตลาดตามปกติ แต่คนสองคนบนเกวียนมีไข้สูงและผื่นคล้ำ หมอยาเงียบลงทันที เพราะนี่ไม่ใช่ไข้ฤดูฝนธรรมดา",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองการค้า") && g.buildings.caravanPost > 0,
+    weight: (g) => 4 + (riskPreview(g).disease > 55 ? 10 : 0) + (g.resources.gold < 80 ? 3 : 0),
+    choices: [
+      choice("close_gate_quarantine", "🚧", "ปิดประตูและกักคาราวานนอกเมือง", "ปลอดภัย", "ลดโรคแต่เสียการค้า", { resources: { gold: -18, spices: -1 }, metrics: { health: 10, security: 3, morale: -2 }, threat: -2, path: { survival: 2 } }, ["ประตูตลาดปิดลงทั้งที่เหรียญอยู่แค่เอื้อม เสียงไออยู่ข้างนอก และเมืองได้เรียนรู้ว่าบางครั้งความมั่งคั่งต้องยืนรอหน้ากำแพง"]),
+      choice("controlled_market", "🌿", "เปิดค้าจำกัดพร้อมแยกผู้ป่วย", "สมดุล", "ยังได้ทองบางส่วน แต่มีความเสี่ยง", { resources: { gold: 12, salt: 2 }, metrics: { health: -3, trust: 2 }, risk: { disease: 8 }, path: { trade: 1 } }, ["ตลาดเปิดเพียงครึ่งวัน หมอยาเดินตามหลังพ่อค้าเหมือนเงา ทุกเหรียญที่เข้าคลังมีกลิ่นสมุนไพรและความกลัวติดมาด้วย"]),
+      choice("open_gate_for_economy", "🪙", "เปิดตลาดเต็มรูปแบบเพื่อไม่ให้เศรษฐกิจชะงัก", "เสี่ยง", "ได้ทองมาก แต่โรคอาจลาม", { resources: { gold: 38, spices: 3, salt: 3 }, metrics: { health: -12, morale: -4 }, casualtyChance: 10, risk: { disease: 18 }, path: { trade: 2 } }, ["เหรียญดังขึ้นทั้งวัน และคืนนั้นเสียงไอก็ดังขึ้นไม่แพ้กัน เมืองเลือกหายใจด้วยเศรษฐกิจ แต่ปอดของคนไม่เคยเป็นบัญชี"]),
+    ],
+  },
+  {
+    id: "great_drought_signal", title: "น้ำในบ่อถอยต่ำผิดฤดู", category: "ภัยแล้งใหญ่",
+    text: "คนตักน้ำเห็นรอยเปียกเดิมอยู่สูงกว่าผิวน้ำปัจจุบันหลายฝ่ามือ นกย้ายฝูงเร็ว และดินริมบ่อแตกลายก่อนถึงเดือนที่ควรแห้ง",
+    condition: (g) => stageRank(g.stage) >= stageRank("เมืองเล็ก") && (g.buildings.well > 0 || g.buildings.cistern > 0),
+    weight: (g) => 5 + (normalizeWeatherState(g.weather).kind === "แล้งจัด" ? 12 : 0) + ((g.resources.waterReserve ?? 0) < 30 ? 6 : 0),
+    choices: [
+      choice("ration_water_early", "💧", "เริ่มประหยัดน้ำก่อนคนตื่นตระหนก", "เตรียมตัว", "ลดความเสี่ยงระยะยาวแต่ขวัญลดเล็กน้อย", { resources: { waterReserve: 8 }, metrics: { trust: 2, morale: -1 }, path: { survival: 2 } }, ["กฎน้ำถูกประกาศก่อนบ่อแห้งจริง คนบางคนว่าเร็วเกินไป แต่คนที่เคยเห็นแล้งมาก่อนพยักหน้าอย่างเงียบ ๆ"]),
+      choice("dig_deeper_well", "🪨", "ขุดบ่อให้ลึกขึ้นทันที", "เร่งแก้", "ใช้หิน/เครื่องมือ เพิ่มน้ำแต่เสี่ยงอุบัติเหตุ", { resources: { stone: -10, tools: -1, water: 18 }, metrics: { health: 1 }, casualtyChance: 5, risk: { accident: 6 } }, ["เชือกถูกหย่อนลงไปในบ่อลึกกว่าเดิม เสียงคนขุดสะท้อนขึ้นมาพร้อมกลิ่นดินเย็น เมืองได้หยดน้ำเพิ่มจากความเหนื่อยของคน"]),
+      choice("pray_and_wait", "🕯️", "รอฝนและใช้ตามปกติ", "หวัง", "ไม่เสียของ แต่เสี่ยงมาก", { metrics: { morale: 1, trust: -3 }, risk: { weather: 12, conflict: 4 } }, ["ท้องฟ้าไม่ตอบคำถามในวันนั้น และรอยแตกบนดินก็ยาวขึ้นเหมือนประโยคที่ยังไม่จบ"]),
+    ],
+  },
+  {
+    id: "continental_luxury_shortage", title: "ขุนนางเริ่มเบื่อโต๊ะอาหารเดิม", category: "อาณาจักร/ชนชั้นนำ",
+    text: "เมื่อเมืองกลายเป็นอาณาจักร ความหิวไม่ได้มีแค่อาหาร ขุนนางและฝ่ายเมืองใหญ่ต้องการเครื่องเทศ ไวน์ ผ้า และของหายากเพื่อยืนยันว่าระเบียบใหม่นี้คุ้มค่าที่จะเชื่อฟัง",
+    condition: (g) => stageRank(g.stage) >= stageRank("นครรัฐ") && g.resources.luxuries < 8,
+    weight: (g) => 7 + (g.metrics.morale < 70 ? 6 : 0) + (Object.values(normalizeFactions(g.factions)).some((f) => f.approval < 50) ? 6 : 0),
+    choices: [
+      choice("buy_luxuries", "💎", "ซื้อสินค้าฟุ่มเฟือยจากคาราวานไกล", "ปลอบประโลม", "ใช้ทองเพิ่มขวัญและฝ่ายอำนาจ", { resources: { gold: -45, luxuries: 6 }, metrics: { morale: 7, trust: 2 }, path: { trade: 2 } }, ["ของหายากวางบนโต๊ะสภาเหมือนน้ำมันบนฟืนเปียก มันไม่ได้แก้ทุกอย่าง แต่ทำให้ไฟการเมืองติดง่ายขึ้นในทางที่ควบคุมได้"]),
+      choice("tax_luxury_consumption", "📜", "ออกกฎจำกัดของฟุ่มเฟือยอย่างเป็นธรรม", "เข้มงวด", "ลดความต้องการ แต่บางฝ่ายไม่พอใจ", { resources: { influence: 8 }, metrics: { fairness: 6, morale: -4 }, path: { faith: 1 } }, ["กฎใหม่บอกว่าความยิ่งใหญ่ไม่ควรถูกวัดด้วยเครื่องเทศบนโต๊ะเพียงอย่างเดียว คนบางคนเห็นด้วย คนบางคนซ่อนขวดไวน์ไว้ลึกกว่าเดิม"]),
+      choice("celebrate_common_festival", "🎶", "จัดเทศกาลของสามัญชนแทนงานขุนนาง", "ร่วมเมือง", "เพิ่มขวัญประชาชน ลดช่องว่างชนชั้น", { resources: { food: -18, spices: -1 }, metrics: { morale: 10, cohesion: 6, fairness: 3 }, path: { family: 2 } }, ["ลานเมืองเต็มไปด้วยเพลงของคนธรรมดา ขุนนางบางคนเรียกมันว่าสิ้นเปลือง แต่เด็กที่เต้นกลางลานจะจำคืนนี้นานกว่าเครื่องเทศบนโต๊ะใด ๆ"]),
+    ],
+  },
+];
+
+const allEvents: GameEvent[] = [...events, ...expandedContentEvents, ...systemIntegrationEvents];
 
 
 function getEvent(id: string): GameEvent {
@@ -3212,6 +3488,7 @@ function resolveMacroSystems(game: GameState, changes: string[]): GameState {
       if (o.security < 35 && Math.random() < 0.12) {
         g = { ...g, threat: clamp(g.threat + 4), metrics: changeMetrics(g.metrics, { security: -2 }) };
         changes.push(`${o.name} รายงานภัยบนเส้นทางส่งเสบียง`);
+        if (!g.pendingEvents.includes("outpost_raided")) g = { ...g, pendingEvents: ["outpost_raided", ...g.pendingEvents] };
       }
     }
     g = { ...g, resources: changeResources(g.resources, total) };
@@ -3227,6 +3504,16 @@ function resolveMacroSystems(game: GameState, changes: string[]): GameState {
     if (builderLevel > 0) { macro.timber = (macro.timber ?? 0) + builderLevel * 5; macro.bricks = (macro.bricks ?? 0) + builderLevel * 3; }
     if (merchantLevel > 0 && g.resources.gold >= 8 * merchantLevel) { macro.salt = (macro.salt ?? 0) + merchantLevel * 2; macro.spices = (macro.spices ?? 0) + merchantLevel; macro.influence = (macro.influence ?? 0) + merchantLevel * 2; g = { ...g, resources: changeResources(g.resources, { gold: -8 * merchantLevel }) }; }
     if (Object.keys(macro).length) { g = { ...g, resources: changeResources(g.resources, macro) }; changes.push(`สมาคมเมืองจัดผลผลิตมหภาค: ${Object.entries(macro).map(([k,v]) => `${resourceShortLabel(k as ResourceKey)} +${fmt(v ?? 0)}`).join(" · ")}`); }
+  }
+  if (stageRank(g.stage) >= stageRank("นครรัฐ")) {
+    const factions = normalizeFactions(g.factions);
+    factions.guards = { ...factions.guards, approval: clamp(factions.guards.approval + (g.metrics.security >= 65 ? 1 : -2) + (g.threat > 60 ? -3 : 0)) };
+    factions.farmers = { ...factions.farmers, approval: clamp(factions.farmers.approval + (g.resources.food > foodNeedFor(g) * 2 ? 1 : -2) + (g.resources.water > waterNeedFor(g) * 1.5 ? 1 : -1)) };
+    factions.merchants = { ...factions.merchants, approval: clamp(factions.merchants.approval + (g.buildings.marketSquare > 0 ? 1 : -1) + (g.resources.gold > 120 ? 1 : -2)) };
+    factions.builders = { ...factions.builders, approval: clamp(factions.builders.approval + (Object.values(normalizeBuildingCondition(g)).some((hp) => hp < 55) ? -2 : 1) + (g.resources.tools > 8 ? 1 : -1)) };
+    g = { ...g, factions };
+    const lowFaction = Object.values(factions).some((f) => f.approval < 30);
+    if (lowFaction && !g.pendingEvents.includes("faction_rebellion_warning")) g = { ...g, pendingEvents: ["faction_rebellion_warning", ...g.pendingEvents] };
   }
   if (g.buildings.sawmill > 0 && g.resources.wood >= 10) { const make = Math.min(8 * g.buildings.sawmill, Math.floor(g.resources.wood / 5)); g = { ...g, resources: changeResources(g.resources, { wood: -make * 5, timber: make }) }; changes.push(`โรงเลื่อยแปรไม้เป็นไม้แปรรูป +${make}`); }
   if (g.buildings.brickKiln > 0 && g.resources.stone >= 8 && g.resources.fuel >= 4) { const make = Math.min(6 * g.buildings.brickKiln, Math.floor(g.resources.stone / 4), Math.floor(g.resources.fuel / 2)); g = { ...g, resources: changeResources(g.resources, { stone: -make * 4, fuel: -make * 2, bricks: make }) }; changes.push(`เตาเผาผลิตอิฐเผา +${make}`); }

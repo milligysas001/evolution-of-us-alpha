@@ -1,16 +1,18 @@
-# QUALITY CHECK v0.9.29
+# QUALITY CHECK — v0.9.30
 
-ตรวจแล้วในชุด ZIP:
+Checked in packaging environment:
 
-- JSON ใน `data/game/*.json` parse ได้
-- `app/game/page.tsx` และ `app/page.tsx` ผ่าน TypeScript transpile diagnostics
-- เพิ่ม Type/State สำหรับ guilds, outposts, factions, leaderAge, heir
-- เพิ่ม resource keys ใหม่ครบใน baseResources และ labels สำคัญ
-- ซ่อนแท็บนโยบายเมื่อยังไม่ปลดล็อก
-- ไม่มี backup folder ติด ZIP
+- `data/game/*.json` parse OK
+- `app/game/page.tsx` transpile diagnostics OK
+- `app/page.tsx` transpile diagnostics OK
+- Semantic TypeScript check OK after excluding missing local React/Next modules in the packaging container
+- Stage progression no longer uses generic fallback for all late stages
+- Policy automation is gated by unlock conditions
+- New era systems have linked event consequences
 
-หลังติดตั้งในเครื่องจริงให้รัน:
+Final local verification:
 
 ```powershell
+cd "C:\Users\phass\evolution-of-us"
 npm run check
 ```
