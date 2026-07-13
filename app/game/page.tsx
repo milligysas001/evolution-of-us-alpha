@@ -99,7 +99,7 @@ type SummaryModal = {
 } | null;
 
 type GameState = {
-  version: "0.9.12";
+  version: "0.9.13";
   leaderName: string;
   houseName: string;
   origin: Origin;
@@ -177,10 +177,12 @@ type GameEvent = {
 
 const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.12";
-const saveKey = "eou-v0912-save";
-const setupKey = "eou-v0912-setup";
-const tutorialKey = "eou-v0912-tutorial-seen";
+const GAME_VERSION = "0.9.13";
+const BUILD_LABEL = "Mega Systems Pack";
+const BUILD_DATE = "2026-07-13";
+const saveKey = "eou-v0913-save";
+const setupKey = "eou-v0913-setup";
+const tutorialKey = "eou-v0913-tutorial-seen";
 
 const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string; category: string; unlock?: (game: GameState) => boolean; lockedText?: string }> = [
   { id: "forage", icon: "🌾", title: "หาอาหาร / ล่าสัตว์", category: "พื้นฐาน", text: "อาหารมากขึ้น แต่เสี่ยงอุบัติเหตุในป่าและสัตว์ร้าย" },
@@ -666,6 +668,87 @@ function debugReport(game: GameState) {
   return JSON.stringify(report, null, 2);
 }
 
+type WarningItem = { icon: string; title: string; text: string; severity: "info" | "warn" | "danger" };
+type TradeOffer = { id: string; kind: "buy" | "sell"; icon: string; title: string; text: string; disabled?: boolean; disabledReason?: string; preview: string };
+
+function endMonthWarnings(game: GameState): WarningItem[] {
+  const risk = riskPreview(game);
+  const warnings: WarningItem[] = [];
+  const need = foodNeedFor(game);
+  if (laborTotal(game.labor) === 0) warnings.push({ icon: "🧑‍🌾", title: "ยังไม่ได้จัดแรงงาน", text: "ถ้าจบเดือนตอนนี้ ค่ายแทบไม่ผลิตอะไรเลย และความเสี่ยงจะไล่ตามเร็วมาก", severity: "danger" });
+  if (game.resources.food < need) warnings.push({ icon: "🍲", title: "อาหารไม่พอหลังจบเดือน", text: `มีอาหาร ${fmt(game.resources.food)} แต่ต้องใช้ประมาณ ${fmt(need)} หน่วย`, severity: "danger" });
+  if (seasonOf(game.month) === "ฤดูหนาว" && game.resources.fuel < alivePeople(game).length) warnings.push({ icon: "🪵", title: "ฟืนต่ำในฤดูหนาว", text: "เด็ก ผู้สูงอายุ และผู้ป่วยจะเสี่ยงมากขึ้นหากไม่มีฟืนพอ", severity: "danger" });
+  if (game.labor.guard + game.labor.patrol <= 0 && (risk.beast >= 48 || game.threat >= 45)) warnings.push({ icon: "🛡️", title: "ไม่มีคนดูแลความปลอดภัย", text: "ภัยสัตว์ป่า/คนภายนอกสูง แต่ยังไม่มีเวรยามหรือการลาดตระเวน", severity: "warn" });
+  if (woundedCount(game) > 0 && game.labor.care + game.labor.herbs <= 0) warnings.push({ icon: "🌿", title: "มีคนป่วยหรือบาดเจ็บแต่ไม่มีคนดูแล", text: "แผลติดเชื้อและโรคอาจเปลี่ยนเป็นการสูญเสียจริง", severity: "warn" });
+  if (risk.accident >= 60) warnings.push({ icon: "⚠️", title: "ความเสี่ยงอุบัติเหตุสูง", text: "งานหนัก เครื่องมือพัง หรือแรงงานล้าอาจทำให้มีคนบาดเจ็บ", severity: "warn" });
+  if (!game.leaderActionSelected) warnings.push({ icon: "👑", title: "ยังไม่ได้เลือกการกระทำผู้นำ", text: "ต้องเลือกก่อนจบเดือน เพราะผู้นำคือคำตอบหลักของสถานการณ์เดือนนี้", severity: "danger" });
+  if (!game.selectedChoiceId) warnings.push({ icon: "✦", title: "ยังไม่ได้ตอบเหตุการณ์", text: "ต้องเลือกวิธีตอบสนองเหตุการณ์ก่อนคำนวณผลลัพธ์", severity: "danger" });
+  return warnings.slice(0, 6);
+}
+
+function smartGuidance(game: GameState): WarningItem[] {
+  const risk = riskPreview(game);
+  const advice: WarningItem[] = [];
+  const need = foodNeedFor(game);
+  if (game.resources.food < need * 2) advice.push({ icon: "🍲", title: "เสริมอาหารก่อน", text: "เพิ่มแรงงานหาอาหาร/เพาะปลูก หรือรอพ่อค้าเพื่อซื้ออาหารฉุกเฉินเมื่อมีทอง", severity: "warn" });
+  const nextMonth = game.month + 1 > 12 ? 1 : game.month + 1;
+  if (seasonOf(nextMonth) === "ฤดูหนาว" && game.resources.fuel < alivePeople(game).length * 2) advice.push({ icon: "🪵", title: "เตรียมฟืนล่วงหน้า", text: "ใกล้ฤดูหนาว ควรตัดไม้หรือเลือกผู้นำวางแผนฟืนก่อนคนป่วยเพิ่ม", severity: "warn" });
+  if (!game.construction) {
+    const desired: BuildingKey | null = shelterCapacity(game) < alivePeople(game).length ? "shelter" : game.buildings.storage <= 0 ? "storage" : game.buildings.well <= 0 && game.researchDone.waterFinding ? "well" : null;
+    if (desired) advice.push({ icon: buildingData[desired].icon, title: `เริ่มก่อสร้าง: ${buildingData[desired].title}`, text: buildingData[desired].text, severity: "info" });
+  }
+  if (!game.activeResearch) {
+    const desired: ResearchKey | null = !game.researchDone.foodPreservation ? "foodPreservation" : !game.researchDone.waterFinding ? "waterFinding" : !game.researchDone.watchRoutine ? "watchRoutine" : null;
+    if (desired) advice.push({ icon: researchData[desired].icon, title: `ศึกษา: ${researchData[desired].title}`, text: researchData[desired].text, severity: "info" });
+  }
+  if (risk.disease >= 50) advice.push({ icon: "💧", title: "ลดโรคด้วยน้ำและการดูแล", text: "บ่อน้ำ งานดูแลน้ำสะอาด และคนดูแลผู้ป่วยช่วยลดการตายระยะยาว", severity: "warn" });
+  if (game.threat >= 55) advice.push({ icon: "🕊️", title: "ภัยภายนอกเริ่มชัด", text: "จัดเวรยาม ลาดตระเวน หรือพัฒนาเครือข่ายสายข่าว เพื่อไม่ให้โจรกลายเป็นเหตุการณ์ฉับพลัน", severity: "warn" });
+  if (!advice.length) advice.push({ icon: "🌿", title: "เดือนนี้พอมีพื้นที่หายใจ", text: "ใช้จังหวะนี้สะสมของสำรอง วิจัยพื้นฐาน หรือสร้างสิ่งที่ช่วยลดความเสี่ยงในฤดูหน้า", severity: "info" });
+  return advice.slice(0, 5);
+}
+
+function threatBreakdown(game: GameState) {
+  const risk = riskPreview(game);
+  return [
+    { icon: "🐺", title: "สัตว์ป่า", value: risk.beast, text: risk.beast >= 55 ? "พบรอยและเสียงใกล้ค่าย ควรมีเวรยามหรือกับดัก" : "ยังอยู่ในระดับควบคุมได้" },
+    { icon: "🗡️", title: "โจรและคนภายนอก", value: game.threat, text: game.threat >= 60 ? "ควันไฟและทรัพย์สินเริ่มดึงคนไม่หวังดี" : "ข่าวลือยังไม่กลายเป็นภัยเต็มรูปแบบ" },
+    { icon: "🦠", title: "โรคระบาด", value: risk.disease, text: risk.disease >= 55 ? "ผู้บาดเจ็บ/น้ำ/ฝนกำลังเพิ่มโอกาสป่วยหนัก" : "รักษาสุขอนามัยไว้ต่อเนื่อง" },
+    { icon: "❄️", title: "ภัยหนาวและอากาศ", value: risk.weather, text: risk.weather >= 55 ? "ที่พักและฟืนคือเรื่องเร่งด่วน" : "สภาพอากาศยังไม่ถึงขั้นกดดันสุด" },
+    { icon: "⚖️", title: "ความขัดแย้งในค่าย", value: risk.conflict, text: risk.conflict >= 55 ? "ความยุติธรรม/เสบียงอาจแตกเป็นข้อพิพาท" : "ยังคุยกันได้ก่อนกลายเป็นรอยร้าว" },
+  ];
+}
+
+function tradeOffers(game: GameState): TradeOffer[] {
+  const foodSurplus = Math.max(0, game.resources.food - foodNeedFor(game) * 3);
+  const merchantHere = getEvent(game.currentEventId).category.includes("การค้า") || getEvent(game.currentEventId).title.includes("พ่อค้า");
+  const marketOpen = merchantHere || game.labor.trade > 0 || game.stage !== "ค่ายพักแรม";
+  return [
+    { id: "sell_food", kind: "sell", icon: "🍲", title: "ขายอาหารส่วนเกิน 20 หน่วย", text: "เปลี่ยนเสบียงที่เกินความจำเป็นเป็นทอง แต่ไม่ควรขายเมื่อใกล้ฤดูหนาว", disabled: foodSurplus < 20 || !marketOpen, disabledReason: !marketOpen ? "ต้องมีพ่อค้า/งานแลกเปลี่ยน/ชุมชนโตขึ้น" : "อาหารส่วนเกินยังไม่พอ", preview: "+ทอง 6 · -อาหาร 20" },
+    { id: "sell_hides", kind: "sell", icon: "🦌", title: "ขายหนังสัตว์ 3 ผืน", text: "หนังสัตว์ขายได้ราคาดีเมื่อพ่อค้ามา แต่เป็นวัสดุช่วยทำที่พักด้วย", disabled: game.resources.hides < 3 || !marketOpen, disabledReason: !marketOpen ? "ยังไม่มีช่องทางค้า" : "หนังสัตว์ไม่พอ", preview: "+ทอง 9 · -หนังสัตว์ 3" },
+    { id: "sell_herbs", kind: "sell", icon: "🍃", title: "ขายสมุนไพร 4 กำ", text: "หมอยาจากที่อื่นมักให้ราคาดี แต่การขายมากเกินไปอาจทำให้รักษาคนยาก", disabled: game.resources.herbs < 4 || !marketOpen, disabledReason: !marketOpen ? "ยังไม่มีช่องทางค้า" : "สมุนไพรไม่พอ", preview: "+ทอง 8 · -สมุนไพร 4" },
+    { id: "buy_tools", kind: "buy", icon: "🛠️", title: "ซื้อเครื่องมือ 3 ชิ้น", text: "ลดความเสี่ยงงานหนักและช่วยเร่งก่อสร้าง/ผลิต", disabled: game.resources.gold < 10 || !marketOpen, disabledReason: !marketOpen ? "ต้องรอพ่อค้าหรือเปิดการค้า" : "ทองไม่พอ", preview: "-ทอง 10 · +เครื่องมือ 3" },
+    { id: "buy_food", kind: "buy", icon: "🥖", title: "ซื้ออาหารฉุกเฉิน 25 หน่วย", text: "แพง แต่ช่วยไม่ให้เดือนวิกฤตกลายเป็นหลุมศพ", disabled: game.resources.gold < 12 || !marketOpen, disabledReason: !marketOpen ? "ต้องรอพ่อค้าหรือเปิดการค้า" : "ทองไม่พอ", preview: "-ทอง 12 · +อาหาร 25" },
+    { id: "buy_medicine", kind: "buy", icon: "🧪", title: "ซื้อยาและผ้าพันแผล", text: "ช่วยผู้ป่วยและผู้บาดเจ็บในเดือนที่โรคสูง", disabled: game.resources.gold < 8 || !marketOpen, disabledReason: !marketOpen ? "ต้องรอพ่อค้าหรือเปิดการค้า" : "ทองไม่พอ", preview: "-ทอง 8 · +สมุนไพร 5 · +สุขภาพ" },
+    { id: "buy_intel", kind: "buy", icon: "🗺️", title: "ซื้อข่าวสารและแผนที่เส้นทาง", text: "เปิดข่าวลือ ลดความไม่แน่นอน และช่วยเห็นภัยภายนอกก่อนเกิด", disabled: game.resources.gold < 6 || !marketOpen, disabledReason: !marketOpen ? "ต้องรอพ่อค้าหรือเปิดการค้า" : "ทองไม่พอ", preview: "-ทอง 6 · +ข่าวลือ · ลดภัย" },
+  ];
+}
+
+function applyTradeOffer(game: GameState, offerId: string): GameState {
+  const offer = tradeOffers(game).find((o) => o.id === offerId);
+  if (!offer || offer.disabled) return { ...game, savedText: offer?.disabledReason ?? "ยังแลกเปลี่ยนไม่ได้" };
+  let g = game;
+  if (offerId === "sell_food") g = { ...g, resources: changeResources(g.resources, { food: -20, gold: 6 }), pathScores: { ...g.pathScores, trade: g.pathScores.trade + 2 } };
+  if (offerId === "sell_hides") g = { ...g, resources: changeResources(g.resources, { hides: -3, gold: 9 }), pathScores: { ...g.pathScores, trade: g.pathScores.trade + 2 } };
+  if (offerId === "sell_herbs") g = { ...g, resources: changeResources(g.resources, { herbs: -4, gold: 8 }), pathScores: { ...g.pathScores, trade: g.pathScores.trade + 2 } };
+  if (offerId === "buy_tools") g = { ...g, resources: changeResources(g.resources, { gold: -10, tools: 3 }), metrics: changeMetrics(g.metrics, { trust: 1 }) };
+  if (offerId === "buy_food") g = { ...g, resources: changeResources(g.resources, { gold: -12, food: 25 }), metrics: changeMetrics(g.metrics, { morale: 2 }) };
+  if (offerId === "buy_medicine") g = { ...g, resources: changeResources(g.resources, { gold: -8, herbs: 5 }), metrics: changeMetrics(g.metrics, { health: 4, morale: 1 }) };
+  if (offerId === "buy_intel") g = { ...g, resources: changeResources(g.resources, { gold: -6 }), threat: clamp(g.threat - 5, 0, 100), rumors: [{ id: uid("rumor"), title: "ข่าวจากเส้นทางค้า", detail: "พ่อค้าเล่าว่ามีถนนเก่าที่ยังพอใช้ได้ และเตือนว่าควันไฟของค่ายเล็ก ๆ เริ่มเห็นได้จากไกล", danger: "กลาง", discovered: false }, ...g.rumors].slice(0, 28) };
+  g = addLog(g, `การค้า: ${offer.title}`, `${offer.text}
+ผลลัพธ์: ${offer.preview}`, "good", ["การค้า", offer.kind === "buy" ? "ซื้อ" : "ขาย"]);
+  return { ...g, savedText: `ดำเนินการค้าแล้ว: ${offer.title}` };
+}
+
 function collapseReasonLines(game: GameState) {
   const need = foodNeedFor(game);
   const lines: string[] = [];
@@ -886,7 +969,7 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
   if (setup.origin === "mediator") { metrics.trust += 7; metrics.fairness += 7; }
   if (setup.origin === "hunter") metrics.security += 4;
   const base: GameState = {
-    version: "0.9.11", leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
+    version: GAME_VERSION, leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
     year: 1, month: 1, stage: "ค่ายพักแรม", resources: baseResources(setup.origin), buildings: emptyBuildings(), researchDone: emptyResearch(),
     construction: null, activeResearch: null, labor: emptyLabor(),
     leaderFocus: "workWithPeople", leaderActionSelected: false, selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [],
@@ -1348,6 +1431,38 @@ const events: GameEvent[] = [
       choice("honor_publicly", "🕯️", "กล่าวขอบคุณต่อหน้าชุมชน", "ยอมรับคุณค่า", "เพิ่มกำลังใจและความทรงจำ แต่ไม่ได้ลดงานโดยตรง", { metrics: { morale: 6, cohesion: 3 }, path: { family: 1 } }, ["ชื่อของคนผู้นั้นถูกกล่าวต่อหน้ากองไฟ ไม่ใช่ในฐานะมือทำงาน แต่ในฐานะคนที่ค่ายยังมีวันนี้เพราะเขา", "บางครั้งคำขอบคุณไม่ซ่อมแผลบนมือ แต่ช่วยให้คนยังยกมือนั้นขึ้นอีกครั้ง"], { addMemory: { title: "ชื่อที่ถูกกล่าวต่อหน้ากองไฟ", text: "ชุมชนเรียนรู้ว่าคนสำคัญควรถูกเห็นก่อนวันที่เขาล้มลง", effect: "+ขวัญกำลังใจเมื่อคนในค่ายได้รับการยอมรับ", kind: "pride" } }),
     ],
   }
+,
+  {
+    id: "merchant_price_surge", title: "พ่อค้าขึ้นราคาก่อนฤดูหนาว", category: "การค้า",
+    text: "พ่อค้าเร่บอกว่าถนนทางเหนือเริ่มมีหิมะและโจรดักปล้น ของจำเป็นจึงแพงขึ้น แต่เขายังยอมรับหนังสัตว์กับสมุนไพรเป็นค่าของ",
+    condition: (g) => g.stage !== "ค่ายพักแรม" || g.resources.gold > 0,
+    weight: (g) => (seasonOf(g.month) === "ฤดูหนาว" ? 12 : 5) + (g.resources.gold > 5 ? 5 : 0),
+    choices: [
+      choice("buy_food_expensive", "🥖", "ซื้ออาหารฉุกเฉินแม้ราคาแพง", "เอาชีวิตรอด", "ใช้ทองเพื่อกันอดอาหาร", { resources: { gold: -8, food: 15 }, metrics: { morale: 2 }, path: { survival: 2 } }, ["ทองที่สะสมไว้ถูกวางลงบนผ้า พ่อค้าไม่ได้ต่อรองมากนัก เพราะเขารู้ว่าคนหิวไม่มีเวลาต่อราคา", "อาหารที่ได้ไม่มาก แต่พอให้หม้อซุปเดือดต่ออีกหลายคืน"]),
+      choice("sell_herbs_high", "🍃", "ขายสมุนไพรในราคาดี", "การค้า", "ได้ทอง แต่ลดของรักษา", { resources: { herbs: -3, gold: 9 }, metrics: { trust: 1 }, path: { trade: 3 } }, ["สมุนไพรแห้งถูกมัดเป็นกำเล็ก ๆ พ่อค้ารับไปด้วยสีหน้าพอใจ", "ค่ายมีทองมากขึ้น แต่หมอยามองถุงยาที่เบาลงอย่างเงียบ ๆ"]),
+      choice("learn_route", "🗺️", "ซื้อข่าวเส้นทางแทนของใช้", "ข้อมูล", "ใช้ทองเล็กน้อย ลดภัยและเปิดข่าวลือ", { resources: { gold: -4, knowledge: 4 }, metrics: { security: 2 }, threat: -4, path: { knowledge: 2 } }, ["แผนที่หยาบบนหนังเก่าดูเหมือนรอยขีดข่วนมากกว่าทางเดิน แต่บางครั้งรอยขีดก็ช่วยให้คนไม่ตาย", "เวรยามเริ่มรู้ว่าควันไฟของค่ายมองเห็นได้จากเนินใด"]),
+    ],
+  },
+  {
+    id: "winter_raider_warning", title: "ข่าวลือโจรหน้าหนาว", category: "ภัยมนุษย์",
+    text: "คนเดินทางกระซิบว่าโจรป่าจะออกหาเสบียงก่อนหิมะหนา พวกเขาไม่โจมตีค่ายที่แข็งแรง แต่ชอบค่ายที่มีอาหารและเวรยามน้อย",
+    weight: (g) => (seasonOf(g.month) === "ฤดูใบไม้ร่วง" || seasonOf(g.month) === "ฤดูหนาว" ? 14 : 4) + (g.threat > 45 ? 9 : 0),
+    choices: [
+      choice("hide_supplies", "📦", "ซ่อนเสบียงและเครื่องมือสำคัญ", "ป้องกัน", "ลดความเสียหายจากโจร แต่ใช้แรงและทำให้คนกังวล", { metrics: { security: 4, morale: -1 }, threat: -5, path: { fortress: 2 } }, ["ถุงอาหารบางส่วนถูกย้ายไปใต้พื้นไม้และหลังกองหิน ไม่มีใครพูดเสียงดังเรื่องที่ซ่อน", "การซ่อนของทำให้ค่ายดูยากจนลง และบางครั้งความยากจนก็เป็นเกราะที่ดี"]),
+      choice("train_all", "🛡️", "ฝึกทุกคนให้รู้จุดหลบภัย", "ระเบียบ", "เพิ่มความปลอดภัยและลดความตื่นตระหนก", { metrics: { security: 6, cohesion: 3 }, resources: { wood: -2 }, threat: -3, path: { fortress: 3 } }, ["เด็ก ๆ ถูกสอนให้วิ่งไปหลังเนิน ส่วนผู้ใหญ่จำเสียงเคาะไม้สามครั้งเป็นสัญญาณภัย", "ความกลัวไม่ได้หายไป แต่ความกลัวที่มีแผนย่อมเบากว่าความกลัวที่ไร้ทางออก"]),
+      choice("ignore_raider_rumor", "🚫", "ไม่ทำอะไรจนกว่าจะเห็นภัยจริง", "ประหยัดแรง", "ไม่เสียทรัพยากร แต่ภัยเพิ่ม", { metrics: { trust: -2 }, threat: 8, risk: { conflict: 3 } }, ["บางคนโล่งใจที่ไม่ต้องเพิ่มงาน แต่บางคนกลับนอนไม่เต็มตา", "ข่าวลือถูกปล่อยให้ไหลผ่านค่ายเหมือนลมเย็นที่ไม่มีใครปิดช่องผนัง"]),
+    ],
+  },
+  {
+    id: "gifted_child", title: "เด็กคนหนึ่งจำตัวเลขเสบียงได้หมด", category: "คนในค่าย",
+    text: "เด็กที่ปกติช่วยขนฟืนกลับท่องจำนวนอาหาร น้ำ และเครื่องมือได้อย่างแม่นยำ ผู้จดจำในค่ายบอกว่าเด็กคนนี้อาจเหมาะกับการเรียนรู้มากกว่างานแบกของ",
+    weight: (g) => childrenCount(g) > 0 ? 8 + (g.researchDone.storyRecords ? 6 : 0) : 0,
+    choices: [
+      choice("teach_child", "📜", "ให้ผู้จดจำสอนเด็กคนนี้", "อนาคต", "เพิ่มความรู้และความหวังระยะยาว", { resources: { knowledge: 8 }, metrics: { morale: 3, cohesion: 2 }, path: { knowledge: 3 } }, ["เด็กคนนั้นนั่งข้างผู้จดจำและลากเส้นบนดินแทนตัวเลขในคลัง", "บางครั้งอนาคตไม่ได้เริ่มจากบ้านหลังใหญ่ แต่เริ่มจากเด็กคนหนึ่งที่จำได้ว่าเมื่อวานเรามีอะไรเหลืออยู่บ้าง"]),
+      choice("keep_child_chores", "🪵", "ให้เด็กช่วยงานเบาตามเดิม", "จำเป็น", "ได้ฟืนและไม่เสียแรงสอน", { resources: { fuel: 3 }, metrics: { trust: -1 }, path: { survival: 1 } }, ["เด็กยังถือฟืนเล็ก ๆ กลับมาที่กองไฟเหมือนเดิม", "บางครั้งความอยู่รอดวันนี้บังคับให้ความหวังวันหน้ารออยู่หลังควันไฟ"]),
+      choice("record_child_name", "🕯️", "บันทึกชื่อเด็กไว้ในพงศาวดาร", "ความทรงจำ", "เพิ่มความหวังและเปิดความทรงจำ", { metrics: { morale: 2, cohesion: 2 }, path: { family: 2 } }, ["ชื่อของเด็กถูกเขียนลงในบันทึกแรก ๆ ของค่าย", "การถูกจดจำก่อนโตเป็นผู้ใหญ่ ทำให้เด็กคนนั้นนั่งตัวตรงขึ้นเล็กน้อยในคืนถัดมา"], { addMemory: { title: "เด็กที่จำคลังได้", text: "ค่ายเริ่มมองเด็กไม่ใช่แค่ปากท้อง แต่เป็นความสามารถที่ยังรอเวลาเติบโต", effect: "+ขวัญกำลังใจเมื่อมีงานสอนเด็ก", kind: "pride" } }),
+    ],
+  }
 
 
 ];
@@ -1771,7 +1886,7 @@ export default function GamePage() {
     if (saveText) {
       try {
         const loaded = JSON.parse(saveText) as GameState;
-        if (loaded.version === "0.9.12") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
+        if (loaded.version === "0.9.13") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
       } catch {}
     }
     setGame(createInitialGame(setup));
@@ -1897,7 +2012,7 @@ export default function GamePage() {
           {view === "คน" && <PeopleView game={game} />}
           {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} />}
           {view === "วิจัย" && <ResearchView game={game} startResearch={startResearch} />}
-          {view === "ข่าวสาร" && <NewsView game={game} />}
+          {view === "ข่าวสาร" && <NewsView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
           {view === "พงศาวดาร" && <ChronicleView game={game} />}
           {view === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} />}
         </section>
@@ -2105,6 +2220,8 @@ function CityView({ game, adjustLabor, applyRecommendedLabor }: { game: GameStat
         <div className="panel kpi"><span className="muted">คุณภาพชีวิต</span><b>{pct(Math.round((quality.foodQuality + quality.waterQuality + quality.shelterQuality) / 3))}</b><small>อาหาร {pct(quality.foodQuality)} · น้ำ {pct(quality.waterQuality)} · ที่พัก {pct(quality.shelterQuality)}</small></div>
       </section>
       <ActiveProjectsPanel game={game} />
+      <GuidancePanel game={game} />
+      <EndWarningPanel game={game} />
       <section className="panel pad" style={{ marginBottom: 14 }}>
         <div className="split"><div><h2 className="title">จัดแรงงานรายเดือน</h2><p className="muted">แรงงานว่าง {laborLeft} คน · เริ่มเดือนด้วยการเลือกเองว่าจะส่งใครไปทำงานใด</p></div><div className="flex"><button className="secondary" onClick={applyRecommendedLabor}>จัดแรงงานแนะนำ</button><span className="badge green">ใช้แล้ว {laborTotal(game.labor)}/{adultWorkers(game)}</span></div></div>
         <div className="work-grid">
@@ -2113,10 +2230,19 @@ function CityView({ game, adjustLabor, applyRecommendedLabor }: { game: GameStat
       </section>
       <section className="two-col" style={{ marginBottom: 14 }}>
         <div className="panel pad"><h3 className="section-title">บัญชีทรัพยากรเดือนนี้</h3><table className="report-table"><thead><tr><th>รายการ</th><th>คงเหลือ</th><th>ผลิต</th><th>ใช้</th><th>สุทธิ</th></tr></thead><tbody>{resourceLedger(game).map((row) => <tr key={row.name}><td><b>{row.icon} {row.name}</b><br /><small className="muted">{row.note}</small></td><td>{fmt(row.stock)}</td><td className="good-text">+{fmt(row.produced)}</td><td className="danger-text">-{fmt(row.used)}</td><td className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</td></tr>)}</tbody></table></div>
-        <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{keyVillagers(game).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div>
+        <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{keyVillagers(game).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div>
       </section>
     </div>
   );
+}
+function GuidancePanel({ game }: { game: GameState }) {
+  const items = smartGuidance(game);
+  return <section className="panel pad guidance-panel" style={{ marginBottom: 14 }}><div className="split"><div><h3 className="section-title">คำแนะนำเดือนนี้</h3><p className="muted small">ระบบจะชี้เฉพาะเรื่องสำคัญ ไม่เปิดเผยทุกคำตอบ เพื่อให้การตัดสินใจยังเป็นของผู้เล่น</p></div><span className="badge green">Smart Guidance</span></div><div className="guidance-grid">{items.map((a, i) => <article key={`${a.title}-${i}`} className={`guidance-card ${a.severity}`}><b>{a.icon} {a.title}</b><small>{a.text}</small></article>)}</div></section>;
+}
+function EndWarningPanel({ game }: { game: GameState }) {
+  const items = endMonthWarnings(game);
+  if (!items.length) return null;
+  return <section className="panel pad warning-panel" style={{ marginBottom: 14 }}><div className="split"><h3 className="section-title">คำเตือนก่อนจบเดือน</h3><span className="badge red">ควรตรวจสอบ</span></div><div className="guidance-grid">{items.map((w, i) => <article key={`${w.title}-${i}`} className={`warning-card ${w.severity}`}><b>{w.icon} {w.title}</b><small>{w.text}</small></article>)}</div></section>;
 }
 function PeopleView({ game }: { game: GameState }) {
   const keys = keyVillagers(game);
@@ -2186,13 +2312,30 @@ function ChronicleView({ game }: { game: GameState }) {
   );
 }
 function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void }) {
+  const [importText, setImportText] = useState("");
+  const [importMessage, setImportMessage] = useState("");
   const exportText = JSON.stringify(game, null, 2);
   const compactDebug = debugReport(game);
   const copyText = (text: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
   };
-  const mailBody = encodeURIComponent(`Feedback Evolution of Us Alpha v${GAME_VERSION}\n\nวาง Debug Report หรือความเห็นตรงนี้:\n\n${compactDebug}`);
-  return <section className="panel pad"><h2 className="title">ตั้งค่าและเครื่องมือทดสอบ Alpha</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>Objectives · Trading · Threat · Named Villagers · Alpha tools</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ระบบกันใช้แรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ทองมาจากการขายของส่วนเกินและพ่อค้า</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>ลำดับการเล่นที่ตรวจแล้ว</h3><ol><li>ดูเป้าหมายระยะนี้และความเสี่ยง</li><li>จัดแรงงาน / เลือกก่อสร้าง / เลือกวิจัย</li><li>อ่านข่าวสาร พ่อค้า และระดับภัยภายนอก</li><li>เลือกการกระทำผู้นำแบบ Dynamic ตามสถานการณ์</li><li>ตอบเหตุการณ์หลักหรือเหตุการณ์พิเศษ</li><li>จบเดือน ระบบคำนวณผลผลิต บริโภค ความเสี่ยง บาดเจ็บ ตาย ความทรงจำ การค้า ภัย และเงื่อนไขแพ้</li></ol><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a></div></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ปุ่มนี้จะลบเซฟในเครื่องและกลับไปหน้าเริ่มเกม เหมาะสำหรับให้เพื่อนเริ่มทดสอบรอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div><details className="details-box"><summary>Export / Import Save ยังไม่เปิดเต็มระบบ</summary><p>ตอนนี้เปิด Export สำหรับส่งบัคก่อน รอบถัดไปจะทำ Import Save กลับเข้าระบบเพื่อช่วย debug จากเครื่องเพื่อนได้</p></details></div></div><details className="details-box" style={{ marginTop: 16 }}><summary>Debug Report แบบย่อ</summary><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details><details className="details-box" style={{ marginTop: 10 }}><summary>Full Save JSON สำหรับผู้พัฒนา</summary><textarea className="input" readOnly rows={10} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details></section>;
+  const importSave = () => {
+    try {
+      const parsed = JSON.parse(importText) as GameState;
+      if (!parsed || !parsed.version || !parsed.leaderName || !parsed.houseName) throw new Error("Invalid save");
+      window.localStorage.setItem(saveKey, JSON.stringify({ ...parsed, summaryModal: null, savedText: "นำเข้าเซฟแล้ว" }));
+      setImportMessage("นำเข้าเซฟสำเร็จ กำลังโหลดใหม่...");
+      window.setTimeout(() => window.location.reload(), 450);
+    } catch {
+      setImportMessage("นำเข้าไม่ได้: รูปแบบ JSON ไม่ถูกต้องหรือไม่ใช่เซฟของเกมนี้");
+    }
+  };
+  const mailBody = encodeURIComponent(`Feedback Evolution of Us Alpha v${GAME_VERSION}
+
+วาง Debug Report หรือความเห็นตรงนี้:
+
+${compactDebug}`);
+  return <section className="panel pad"><h2 className="title">ตั้งค่าและเครื่องมือทดสอบ Alpha</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>{BUILD_LABEL} · {BUILD_DATE}</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ตรวจแรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ซื้อขายผ่านพ่อค้า/ตลาด</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>เครื่องมือทดสอบ</h3><ol><li>Copy Debug Report เมื่อเจอบัค</li><li>ส่ง Feedback ทางอีเมล</li><li>Export Save เพื่อส่งให้ผู้พัฒนา</li><li>Import Save เพื่อเปิดเซฟที่เพื่อนส่งมา debug</li></ol><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a></div></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ใช้เมื่อต้องการเริ่มรอบทดสอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><details className="details-box" style={{ marginTop: 16 }} open><summary>Debug Report แบบย่อ</summary><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></section>;
 }
 
 function estimateBuildMonths(game: GameState): number | null {
@@ -2278,6 +2421,7 @@ function EventPanel({ game, event, setFocus, selectChoice, endTurn }: { game: Ga
       </div>
 
       {laborOver && <p className="danger-text small">ใช้แรงงานเกิน {laborTotal(game.labor) - adultWorkers(game)} คน กรุณาลดงานก่อนจบเดือน</p>}
+      <div className="mini-warning-list">{endMonthWarnings(game).slice(0, 4).map((w, i) => <span key={`${w.title}-${i}`} className={w.severity === "danger" ? "badge red" : "badge"}>{w.icon} {w.title}</span>)}</div>
       {actionMissing && <p className="danger-text small">ยังไม่ได้เลือกการกระทำของผู้นำ</p>}
       {eventMissing && <p className="danger-text small">ยังไม่ได้เลือกวิธีตอบสนองเหตุการณ์</p>}
       <button className="primary" disabled={blocked} onClick={endTurn} style={{ width: "100%", marginTop: 14, opacity: blocked ? .55 : 1 }}>ยืนยันและจบเดือน →</button>
@@ -2328,7 +2472,14 @@ function ThreatSystemPanel({ game }: { game: GameState }) {
   );
 }
 
-function NewsView({ game }: { game: GameState }) {
+function MarketPanel({ game, applyTrade }: { game: GameState; applyTrade: (offerId: string) => void }) {
+  const offers = tradeOffers(game);
+  return <section className="panel pad" style={{ boxShadow: "none" }}><div className="split"><div><h3 className="section-title">ตลาดและพ่อค้า</h3><p className="muted small">ทองใช้ซื้อทางรอดในเดือนยาก และได้จากการขายของส่วนเกินเมื่อมีช่องทางค้า</p></div><span className="badge green">🪙 {fmt(game.resources.gold)}</span></div><div className="market-grid expanded-market">{offers.map((o) => <article key={o.id} className={`market-card ${o.disabled ? "locked" : ""}`}><b>{o.icon} {o.title}</b><small>{o.text}</small><div className="split" style={{ marginTop: 8 }}><span className="badge">{o.preview}</span><button className="secondary" disabled={o.disabled} onClick={() => applyTrade(o.id)} style={{ opacity: o.disabled ? .55 : 1 }}>{o.kind === "buy" ? "ซื้อ" : "ขาย"}</button></div>{o.disabled && <small className="danger-text">{o.disabledReason}</small>}</article>)}</div></section>;
+}
+function ThreatMatrixPanel({ game }: { game: GameState }) {
+  return <section className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">แผนภาพภัยคุกคาม</h3><div className="threat-matrix">{threatBreakdown(game).map((t) => <article key={t.title} className="threat-box"><div className="split"><b>{t.icon} {t.title}</b><span className={t.value >= 65 ? "badge red" : t.value >= 45 ? "badge" : "badge green"}>{pct(t.value)}</span></div><div className="bar"><div className={t.value >= 65 ? "fill danger" : t.value >= 45 ? "fill warn" : "fill"} style={{ width: `${clamp(t.value)}%` }} /></div><small>{t.text}</small></article>)}</div></section>;
+}
+function NewsView({ game, applyTrade }: { game: GameState; applyTrade: (offerId: string) => void }) {
   const intelUnlocked = game.stage === "เมืองเล็ก" || game.researchDone.signalNetwork;
   const specialHints = [
     { icon: "🪙", title: "คาราวานและพ่อค้า", text: "เมื่อพ่อค้ามาถึง จะมีกรอบเหตุการณ์พิเศษให้ซื้อ ขาย หรือแลกเปลี่ยนของส่วนเกินเป็นทอง" },
@@ -2336,20 +2487,28 @@ function NewsView({ game }: { game: GameState }) {
     { icon: "🌲", title: "ร่องรอยในป่า", text: "การสำรวจและสายข่าวจะเปิดข่าวลือเกี่ยวกับลำธาร ถ้ำ ซากเก่า และทรัพยากรที่ยังไม่รู้จัก" },
   ];
   return (
-    <section className="panel pad">
-      <div className="split">
-        <div>
-          <h2 className="title">ข่าวสาร การค้า และภัยภายนอก</h2>
-          <p className="muted">ศูนย์รวมข่าวลือ เครือข่ายสายข่าว พ่อค้า และสัญญาณภัย เพื่อให้ผู้เล่นเห็นโอกาสและอันตรายก่อนมันกลายเป็นเหตุการณ์ใหญ่</p>
+    <div>
+      <section className="panel pad" style={{ marginBottom: 14 }}>
+        <div className="split">
+          <div>
+            <h2 className="title">ข่าวสาร การค้า และภัยภายนอก</h2>
+            <p className="muted">ศูนย์รวมข่าวลือ เครือข่ายสายข่าว พ่อค้า และสัญญาณภัย เพื่อให้ผู้เล่นเห็นโอกาสและอันตรายก่อนมันกลายเป็นเหตุการณ์ใหญ่</p>
+          </div>
+          <span className={intelUnlocked ? "badge green" : "badge"}>{intelUnlocked ? "เปิดระบบสายข่าวแล้ว" : "สายข่าวยังไม่ปลดล็อก"}</span>
         </div>
-        <span className={intelUnlocked ? "badge green" : "badge"}>{intelUnlocked ? "เปิดระบบสายข่าวแล้ว" : "สายข่าวยังไม่ปลดล็อก"}</span>
-      </div>
-      <div className="dashboard-grid" style={{ marginTop: 12 }}>
-        <div className="panel kpi"><span className="muted">ข่าวลือที่มี</span><b>{game.rumors.length}</b><small>เกิดจากการสำรวจ เหตุการณ์ และงานสายข่าว</small></div>
-        <div className="panel kpi"><span className="muted">ภัยภายนอก</span><b>{pct(game.threat)}</b><small>{threatTier(game).name}</small></div>
-        <div className="panel kpi"><span className="muted">คลังเมือง</span><b>🪙 {fmt(game.resources.gold)}</b><small>ใช้ซื้อเครื่องมือ อาหาร ยา และเมล็ดพันธุ์</small></div>
-        <div className="panel kpi"><span className="muted">มูลค่าขายโดยประมาณ</span><b>🪙 {fmt(marketReadiness(game).totalPotential)}</b><small>จากอาหารส่วนเกิน หนัง สมุนไพร และเครื่องมือ</small></div>
-      </div>
+        <div className="dashboard-grid" style={{ marginTop: 12 }}>
+          <div className="panel kpi"><span className="muted">ข่าวลือที่มี</span><b>{game.rumors.length}</b><small>เกิดจากการสำรวจ เหตุการณ์ และงานสายข่าว</small></div>
+          <div className="panel kpi"><span className="muted">ภัยภายนอก</span><b>{pct(game.threat)}</b><small>{threatTier(game).name}</small></div>
+          <div className="panel kpi"><span className="muted">คลังเมือง</span><b>🪙 {fmt(game.resources.gold)}</b><small>ใช้ซื้อเครื่องมือ อาหาร ยา และข้อมูล</small></div>
+          <div className="panel kpi"><span className="muted">มูลค่าขายโดยประมาณ</span><b>🪙 {fmt(marketReadiness(game).totalPotential)}</b><small>จากอาหารส่วนเกิน หนัง สมุนไพร และเครื่องมือ</small></div>
+        </div>
+      </section>
+
+      <section className="two-col" style={{ marginBottom: 14 }}>
+        <MarketPanel game={game} applyTrade={applyTrade} />
+        <ThreatMatrixPanel game={game} />
+      </section>
+
       <section className="two-col" style={{ marginTop: 14 }}>
         <div className="panel pad" style={{ boxShadow: "none" }}>
           <h3 className="section-title">ข่าวลือที่บันทึกไว้</h3>
@@ -2361,13 +2520,15 @@ function NewsView({ game }: { game: GameState }) {
           <details className="details-box" open><summary>การเรียนรู้สายข่าว</summary><p>เมื่อเข้าสู่ระยะเมืองเล็ก หรือเรียนรู้ “เครือข่ายสายข่าว” จะสามารถจัดแรงงานไปฟังข่าวจากพ่อค้า คนเดินทาง และครอบครัวรอบถิ่นฐาน เพื่อเพิ่มโอกาสเห็นเหตุการณ์ก่อนเกิดขึ้น</p></details>
         </div>
       </section>
+
       <section className="two-col" style={{ marginTop: 14 }}>
         <MerchantEconomyPanel game={game} />
         <ThreatSystemPanel game={game} />
       </section>
-    </section>
+    </div>
   );
 }
+
 function RumorPanel({ game }: { game: GameState }) {
   return <section className="panel pad"><h3 className="section-title">ข่าวลือ / สิ่งที่ยังไม่รู้</h3>{game.rumors.length ? <div className="timeline">{game.rumors.slice(0, 4).map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><span className="badge blue">อันตราย: {r.danger}</span></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ หากอยากเปิดเส้นทางเรื่องราว ลองให้ผู้นำออกสำรวจพื้นที่</div>}</section>;
 }
