@@ -47,3 +47,10 @@ Godot should treat `data/game/terrain.json` and `data/game/people_passives.json`
 - Work output ต้องแยก `assigned people count` และ `effective labor` เพื่อรองรับอายุ สุขภาพ passive และ skill
 - Herb gathering เป็น job เริ่มต้น แต่ herbal medicine เป็น unlock/efficiency layer
 - Animal simulation ใช้ทั้ง feed/food และ water จึงควรอยู่ใน monthly resolution engine ไม่ใช่ UI
+
+## v0.9.22 Porting Notes
+
+- `laborAssignments` should become the only authoritative labor source in Godot. Do not port old numeric labor as gameplay input.
+- Migrant selection should be a modal/list scene with selectable candidate IDs. Costs should be calculated from selected people, not from fixed event delta.
+- Animal feed has two layers: rough feed from pen/outdoor husbandry and researched fodder preparation. Godot data should preserve both.
+- Construction and research crews should display assigned people and effective output from the same labor calculation engine.

@@ -359,3 +359,9 @@ button { cursor: pointer; }
 
 /* v0.9.21 System Coherence + Project Crew Status */
 .crew-status-card{border:1px solid rgba(29,107,85,.22);background:linear-gradient(135deg,rgba(240,250,244,.9),rgba(255,250,239,.86));border-radius:18px;padding:14px;margin:12px 0;display:grid;gap:6px}.crew-status-card p{margin:0;color:#284b3f;line-height:1.55}.crew-status-card .badge{white-space:nowrap}.system-link-note{border:1px dashed rgba(129,97,45,.35);background:rgba(255,250,239,.6);border-radius:16px;padding:12px;margin-top:10px}.animal-flow-note{border-left:4px solid rgba(29,107,85,.55);background:rgba(235,248,240,.72);border-radius:14px;padding:10px 12px;color:#305043;line-height:1.65}@media(max-width:720px){.crew-status-card .split{align-items:flex-start}.crew-status-card .badge{margin-top:4px}}
+
+/* v0.9.22 Personal choice / long-run balance polish */
+.migrant-impact-strip { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 8px; }
+.migrant-card { cursor:pointer; }
+.migrant-card input { margin-right:6px; accent-color:#1d6b55; }
+.compact-filter button { white-space:nowrap; }

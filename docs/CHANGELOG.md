@@ -1,27 +1,14 @@
-# Changelog v0.9.19
+# CHANGELOG
 
-## Compact Labor & Quiet Event Flow
-- ปรับ Event Flow: เหตุการณ์ปกติอยู่ใน panel เดิม ไม่เด้ง modal อัตโนมัติ
-- Modal กลางจอใช้เฉพาะเหตุการณ์สำคัญจริง เช่น พ่อค้า, โจร, ขโมยเสบียง, ผู้อพยพ, เหตุการณ์หายาก
-- Bell notification กรองเฉพาะแจ้งเตือนสำคัญ ลด noise
-- หน้าแรงงานรายบุคคลเปลี่ยนจากการ์ดใหญ่เป็น compact rows พร้อม filter ตามความถนัด
-- แก้ overwork logic: เช็คจาก assignment load ไม่ใช่ productive output หลัง skill/passive bonus
-- เด็กช่วยงานและผู้สูงอายุมี base work factor ที่สมจริงขึ้น พร้อม boost จาก passive ที่เหมาะสม
+## v0.9.22 — Long Run Balance & Personal Choice Patch
 
-## Godot Porting Note
-ระบบแรงงานตอนนี้แยกแนวคิดเป็น `assignment load` และ `effective output` ชัดเจนขึ้น ซึ่งสำคัญต่อการพอร์ตไป Godot ในอนาคต
-
-
-## v0.9.20 Local Map & Migration Selection
-- Added Godot-ready location data: locations, exploration jobs, location events, travel risks and outposts.
-- Added exploration target state and location progress/status model for future node-map porting.
-- Migrant event now generates a concrete candidate list and applies actual named migrants based on the chosen policy instead of adding anonymous population.
-- Flow check: named labor -> explore target -> monthly event choice -> resolve production -> resolve exploration -> realism risks -> next event.
-
-## v0.9.21 — System Coherence, Project Crews & Herbal Flow
-- เพิ่มสถานะทีมก่อสร้างและทีมวิจัย แสดงจำนวนคน/ผลผลิตจริง/รายชื่อคน
-- ปรับงานเก็บสมุนไพรให้เริ่มใช้ได้ตั้งแต่ต้นเกม และดีขึ้นหลังวิจัย
-- ปรับผู้นำนำหาอาหารให้ buff ผลผลิตอาหารรายเดือนจริง
-- เพิ่มการใช้น้ำของสัตว์เลี้ยงและเชื่อมกับสุขภาพ/ความหิวของฝูง
-- ลดการรบกวนจาก modal เหตุการณ์ประจำเดือน กระดิ่งใช้เฉพาะแจ้งเตือนสำคัญ
-- เพิ่ม data/game/system_coherence.json และ data/game/herbal_flow.json
+- Added permanent `skillIcon()` helper.
+- Converted labor calculation to named-person assignments as source of truth.
+- Added custom migrant selection with checkboxes.
+- Migrant costs now derive from selected people: food, water, sickness, children, elders, working-age members.
+- Added explicit validation before ending month with custom migrant selection.
+- Updated animal feeding: animal pen enables rough feed; fodder research improves long-term feed reliability.
+- Added quick buttons from Construction/Research pages to People labor assignment.
+- Added People filters: free workers, assigned workers, sick/injured.
+- Quieted event flow: monthly/leader events stay in panel; important notices stay in bell.
+- Updated Godot notes and quality check.

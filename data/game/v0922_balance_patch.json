@@ -1,0 +1,12 @@
+{
+  "version": "0.9.22",
+  "systems": [
+    "named_labor_source_of_truth",
+    "migrant_checkbox_selection",
+    "dynamic_migrant_costs",
+    "rough_feed_from_animal_pen",
+    "quiet_event_flow",
+    "construction_research_team_shortcuts"
+  ],
+  "godot_porting_note": "Keep laborAssignments and migrant selection as data-first structures. UI can be replaced in Godot, but the selection/state schema should remain portable."
+}
