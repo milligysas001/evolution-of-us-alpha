@@ -9,10 +9,3 @@ node_modules/
 app_backup*/
 src_app_backup*/
 public_backup*/
-
-# local generated update packs
-*.zip
-backup_before_*
-app_backup_*
-public_backup_*
-src_app_backup*

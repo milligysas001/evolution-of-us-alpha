@@ -285,8 +285,8 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.30";
-const BUILD_LABEL = "Coherence Audit · Era Event Mesh · Policy Gates";
+const GAME_VERSION = "0.9.31";
+const BUILD_LABEL = "Labor Filter Audit · Rest Recovery Rates";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -728,8 +728,14 @@ function workAgeLabel(person: Person) {
 function helperTraitBoost(person: Person) {
   return person.traits.includes("ขยันเป็นพิเศษ") || person.traits.includes("ชอบช่วยงาน") || person.traits.includes("เรียนรู้ไว") || person.traits.includes("อดทน");
 }
+function personNeedsCare(person: Person) {
+  return person.alive && (person.injured || person.health < 45);
+}
+function personIsExhausted(person: Person) {
+  return person.alive && person.fatigue >= 70;
+}
 function baseWorkFactor(person: Person) {
-  if (!person.alive || person.injured || person.health <= 28) return 0;
+  if (!person.alive || person.injured || person.health < 45) return 0;
   if (person.age < 12) return 0;
   if (person.age < 15) return helperTraitBoost(person) ? 0.8 : 0.5;
   if (person.age < 60) return 1;
@@ -759,6 +765,38 @@ function woundedCount(game: GameState) { return alivePeople(game).filter((p) => 
 function shelterCapacity(game: GameState) {
   const base = game.buildings.shelter * (game.researchDone.woodShelter ? 8 : 6);
   return base + (game.buildings.meetingHall > 0 ? 4 : 0);
+}
+function restRecoveryRate(game: GameState, person?: Person) {
+  const alive = Math.max(1, alivePeople(game).length);
+  const cap = shelterCapacity(game);
+  const hasOwnShelter = cap >= alive;
+  const shelterPressure = Math.max(0, alive - cap);
+  let rate = hasOwnShelter ? 8 : game.buildings.shelter > 0 ? 5 : 3;
+  rate += Math.min(4, game.buildings.campfire * 2);
+  rate += Math.min(3, game.buildings.smokeVent * 2);
+  rate += game.researchDone.woodShelter ? 2 : 0;
+  rate += game.researchDone.shelterHygiene ? 3 : 0;
+  rate += game.buildings.meetingHall > 0 ? 1 : 0;
+  rate += game.leaderFocus === "quietRest" ? 8 : 0;
+  rate += game.leaderFocus === "restPlan" ? 5 : 0;
+  rate += game.leaderFocus === "shelterRounds" ? 3 : 0;
+  if (person?.age !== undefined && person.age >= 60) rate += 1;
+  if (person && personNeedsCare(person)) rate += Math.max(0, game.labor.care) + Math.floor(Math.max(0, game.labor.herbs) * 0.5);
+  rate -= Math.min(5, shelterPressure);
+  return clamp(Math.round(rate), 2, 30);
+}
+function restRecoveryLabel(game: GameState, person?: Person) {
+  const alive = Math.max(1, alivePeople(game).length);
+  const cap = shelterCapacity(game);
+  const parts: string[] = [];
+  parts.push(cap >= alive ? "มีที่พักเพียงพอ" : game.buildings.shelter > 0 ? "ที่พักไม่พอทุกคน" : "ยังไม่มีบ้านพัก");
+  if (game.buildings.campfire > 0) parts.push("มีกองไฟ");
+  if (game.buildings.smokeVent > 0) parts.push("ระบายควันดีขึ้น");
+  if (game.researchDone.shelterHygiene) parts.push("สุขอนามัยที่พัก");
+  if (game.leaderFocus === "quietRest") parts.push("ผู้นำสั่งพักงานหนัก");
+  if (game.leaderFocus === "restPlan") parts.push("มีแผนพักเป็นรอบ");
+  if (person && personNeedsCare(person) && (game.labor.care > 0 || game.labor.herbs > 0)) parts.push("มีคนดูแล/สมุนไพร");
+  return parts.join(" · ");
 }
 function emptyLabor(): Labor {
   return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, feed: 0, patrol: 0, explore: 0, trade: 0, teach: 0, intel: 0 };
@@ -3798,19 +3836,27 @@ function applyRealismRisks(game: GameState, changes: string[]): GameState {
     if (healed > 0) { g = { ...g, people, metrics: changeMetrics(g.metrics, { health: 2 }) }; changes.push(`ดูแลผู้บาดเจ็บ ${healed} คน`); }
   }
   const overwork = Math.max(0, laborTotal(g.labor) - adultWorkers(g));
-  const restRecovery = 6 + g.buildings.shelter * 2 + g.buildings.campfire * 2 + g.buildings.meetingHall + g.buildings.smokeVent * 2 + (g.researchDone.woodShelter ? 2 : 0) + (g.researchDone.shelterHygiene ? 2 : 0);
-  const workBuffer = Math.min(6, g.buildings.shelter + g.buildings.campfire + g.buildings.smokeVent + (g.researchDone.projectPlanning ? 2 : 0));
+  const workBuffer = Math.min(8, g.buildings.shelter + g.buildings.campfire + g.buildings.smokeVent + (g.researchDone.projectPlanning ? 2 : 0) + (g.researchDone.shelterHygiene ? 2 : 0));
+  let restingCount = 0;
+  let recoveredFatigue = 0;
   const people = g.people.map((p) => {
     if (!p.alive) return p;
     const assignedJob = assignedJobOf(g, p.id);
     const baseFactor = baseWorkFactor(p);
-    const rawFatigueGain = baseFactor > 0 && assignedJob ? Math.max(0, 5 + personJobBonus(p, assignedJob) * 2 + overwork * 5 - g.labor.care - Math.floor(g.labor.teach * 0.5) - workBuffer * 0.55) : -restRecovery;
+    const restRate = restRecoveryRate(g, p);
+    const workRecoveryBuffer = Math.floor(restRate * 0.22);
+    const rawFatigueGain = baseFactor > 0 && assignedJob
+      ? Math.max(0, 5 + personJobBonus(p, assignedJob) * 2 + overwork * 5 - g.labor.care - Math.floor(g.labor.teach * 0.5) - workBuffer * 0.55 - workRecoveryBuffer)
+      : -restRate;
+    if (!assignedJob || baseFactor <= 0) { restingCount++; recoveredFatigue += Math.max(0, Math.min(p.fatigue, restRate)); }
     const fatigue = clamp(p.fatigue + rawFatigueGain - (g.leaderFocus === "family" ? 2 : 0) - (g.leaderFocus === "quietRest" ? 4 : 0));
-    const fatigueHealthCost = fatigue > 88 ? 6 : fatigue > 75 ? 3 : fatigue > 60 ? 1 : 0;
-    const health = clamp(p.health - fatigueHealthCost + (g.labor.care > 0 ? 1 : 0));
+    const fatigueHealthCost = fatigue > 88 ? 7 : fatigue > 75 ? 4 : fatigue > 60 ? 1 : 0;
+    const restHealthBonus = !assignedJob && fatigue < 55 ? 1 : 0;
+    const health = clamp(p.health - fatigueHealthCost + (g.labor.care > 0 ? 1 : 0) + restHealthBonus);
     return { ...p, fatigue, health, injured: health < 35 ? true : p.injured };
   });
   g = { ...g, people };
+  if (restingCount > 0 && recoveredFatigue > 0) changes.push(`คนพัก ${restingCount} คน ฟื้นความล้ารวม ${Math.round(recoveredFatigue)} หน่วย (${restRecoveryLabel(g)})`);
   const exhausted = alivePeople(g).filter((p) => p.fatigue >= 85 && p.health < 70 && !p.injured);
   if (exhausted.length && Math.random() * 100 < Math.min(35, exhausted.length * 8 + risk.disease * 0.08)) {
     const target = pickFrom(exhausted);
@@ -4047,7 +4093,7 @@ export default function GamePage() {
       if (job) {
         const allowed = new Set(unlockedLaborOptions(g).map((item) => item.id));
         const person = g.people.find((p) => p.id === personId);
-        if (!allowed.has(job) || !person || baseWorkFactor(person) <= 0) return { ...g, savedText: "คนนี้ยังไม่พร้อมทำงานนั้น" };
+        if (!allowed.has(job) || !person || baseWorkFactor(person) <= 0 || personNeedsCare(person)) return { ...g, savedText: "คนนี้ควรพักหรือได้รับการดูแลก่อน ไม่ควรลงงานเดือนนี้" };
         nextAssignments[job] = [...(nextAssignments[job] ?? []), personId];
       }
       const normalizedAssignments = normalizeLaborAssignments(g, nextAssignments);
@@ -4802,19 +4848,28 @@ function MapView({ game, setExploreTarget, establishOutpost }: { game: GameState
 }
 
 function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignments }: { game: GameState; assignPersonLabor: (personId: string, job: LaborKey | "") => void; applyRecommendedAssignments: () => void }) {
-  const [skillFilter, setSkillFilter] = useState<SkillKey | "all" | "free" | "sick" | "assigned">("all");
+  const [skillFilter, setSkillFilter] = useState<SkillKey | "all" | "free" | "sick" | "assigned" | "tired" | "resting">("all");
   const jobs = unlockedLaborOptions(game);
   const assignments = normalizeLaborAssignments(game, game.laborAssignments ?? {});
   const labor = deriveLaborFromAssignments(game, assignments);
   const capacity = workerCapacity(game);
   const used = laborAssignmentLoad(game, assignments);
   const output = laborTotal(labor);
-  const workers = eligibleWorkers(game);
-  const filters: Array<{ id: SkillKey | "all" | "free" | "sick" | "assigned"; label: string }> = [
-    { id: "all", label: "ทั้งหมด" },
-    { id: "free", label: "🟢 คนว่าง" },
-    { id: "assigned", label: "📌 มีงานแล้ว" },
-    { id: "sick", label: "🤒 ป่วย/เจ็บ" },
+  const workers = alivePeople(game);
+  const peopleCounts = {
+    free: workers.filter((p) => baseWorkFactor(p) > 0 && !assignedJobOf(game, p.id)).length,
+    assigned: workers.filter((p) => Boolean(assignedJobOf(game, p.id))).length,
+    sick: workers.filter((p) => personNeedsCare(p)).length,
+    tired: workers.filter((p) => personIsExhausted(p)).length,
+    resting: workers.filter((p) => !assignedJobOf(game, p.id)).length,
+  };
+  const filters: Array<{ id: SkillKey | "all" | "free" | "sick" | "assigned" | "tired" | "resting"; label: string }> = [
+    { id: "all", label: `ทั้งหมด ${workers.length}` },
+    { id: "free", label: `🟢 คนว่าง ${peopleCounts.free}` },
+    { id: "assigned", label: `📌 มีงานแล้ว ${peopleCounts.assigned}` },
+    { id: "sick", label: `🤒 ป่วย/เจ็บ ${peopleCounts.sick}` },
+    { id: "tired", label: `😓 ล้าสูง ${peopleCounts.tired}` },
+    { id: "resting", label: `🛌 กำลังพัก ${peopleCounts.resting}` },
     { id: "hunter", label: "🏹 อาหาร/ป่า" },
     { id: "builder", label: "🛠️ ไม้/ก่อสร้าง" },
     { id: "healer", label: "🌿 สุขภาพ" },
@@ -4826,17 +4881,19 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
   ];
   const visibleWorkers = workers.filter((person) => {
     if (skillFilter === "all") return true;
-    if (skillFilter === "free") return !assignedJobOf(game, person.id);
+    if (skillFilter === "free") return baseWorkFactor(person) > 0 && !assignedJobOf(game, person.id);
     if (skillFilter === "assigned") return Boolean(assignedJobOf(game, person.id));
-    if (skillFilter === "sick") return person.injured || person.health < 45;
+    if (skillFilter === "sick") return personNeedsCare(person);
+    if (skillFilter === "tired") return personIsExhausted(person);
+    if (skillFilter === "resting") return !assignedJobOf(game, person.id);
     return person.skill === skillFilter || (skillFilter === "child" && person.age < 15) || (skillFilter === "elder" && person.age >= 60);
-  });
+  }).sort((a, b) => Number(personNeedsCare(b)) - Number(personNeedsCare(a)) || Number(personIsExhausted(b)) - Number(personIsExhausted(a)) || b.fatigue - a.fatigue);
   return (
     <section className="panel pad labor-named-panel" style={{ boxShadow: "none", margin: "12px 0" }}>
       <div className="split">
         <div>
           <h3 className="section-title">จัดแรงงานรายบุคคล</h3>
-          <p className="muted small">เลือกคนลงงานจากรายชื่อย่อ สถานะ อายุ passive และความถนัดจะถูกนำไปคำนวณผลผลิตจริง เด็กช่วยงานได้เมื่อมีผู้ใหญ่ทำงานเดียวกัน ส่วนผู้สูงอายุยังช่วยได้แต่กำลังลดลง</p>
+          <p className="muted small">เลือกคนลงงานจากรายชื่อย่อ สถานะ อายุ passive และความถนัดจะถูกนำไปคำนวณผลผลิตจริง เด็กช่วยงานได้เมื่อมีผู้ใหญ่ทำงานเดียวกัน ผู้สูงอายุยังช่วยได้แต่กำลังลดลง ส่วนคนป่วย/บาดเจ็บจะแสดงในตัวกรองแต่ควรถูกพักและดูแลก่อน</p>
         </div>
         <div className="flex"><button className="secondary" onClick={applyRecommendedAssignments}>จัดตามความถนัด</button><span className="badge green">ใช้คน {used.toFixed(1)}/{capacity.toFixed(1)}</span><span className="badge blue">ผลผลิต {output.toFixed(1)}</span></div>
       </div>
@@ -4848,8 +4905,10 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
           const current = assignedJobOf(game, person.id) ?? "";
           const factor = baseWorkFactor(person);
           const currentJob = current ? laborMeta.find((j) => j.id === current) : null;
+          const cannotWork = factor <= 0 || personNeedsCare(person);
+          const restRate = restRecoveryRate(game, person);
           return (
-            <article className="assignment-row" key={`assign-${person.id}`}>
+            <article className={cannotWork ? "assignment-row needs-care" : "assignment-row"} key={`assign-${person.id}`}>
               <div className="person-line">
                 <b>{personStatusEmoji(person)} {personSkillEmoji(person)} {person.name}</b>
                 <small className="muted">{person.role} · อายุ {person.age} · {workAgeLabel(person)} · กำลัง {factor}</small>
@@ -4858,10 +4917,13 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
                 {person.traits.slice(0, 4).map((tr) => <span className="badge" key={`${person.id}-${tr}`}>{traitEmoji(tr)} {tr}</span>)}
                 {person.fatigue > 65 && <span className="badge red">😓 ล้า</span>}
                 {person.health < 45 && <span className="badge red">🤒 สุขภาพต่ำ</span>}
+                {person.injured && <span className="badge red">🩹 บาดเจ็บ</span>}
                 {currentJob && <span className="badge green">ทำอยู่: {currentJob.icon} {currentJob.title}</span>}
+                {!currentJob && <span className="badge blue">พักฟื้น {restRate}/เดือน</span>}
               </div>
-              <select value={current} onChange={(e) => assignPersonLabor(person.id, e.target.value as LaborKey | "")} className="labor-select compact-select">
-                <option value="">พัก / ไม่ลงงาน</option>
+              <small className="muted">{!currentJob ? `อัตราพัก: ${restRecoveryLabel(game, person)}` : `ทำงานอยู่ ความล้าจะเพิ่มน้อยลงตามที่พัก/กองไฟ/การวางแผน`}</small>
+              <select value={current} onChange={(e) => assignPersonLabor(person.id, e.target.value as LaborKey | "")} className="labor-select compact-select" disabled={cannotWork}>
+                <option value="">{cannotWork ? "ต้องพัก/ดูแลก่อน" : "พัก / ไม่ลงงาน"}</option>
                 {jobs.map((job) => <option key={job.id} value={job.id}>{job.icon} {job.title} · {Math.round(baseWorkFactor(person) * personJobBonus(person, job.id) * 100)}%</option>)}
               </select>
             </article>
@@ -4878,17 +4940,37 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
               <span className="badge green">ผลผลิตจริง {fmt(labor[job.id] ?? 0)}</span>
             </div>
           ))}
+          {jobs.every((job) => (assignments[job.id] ?? []).length === 0) && <div className="empty">ยังไม่มีใครถูกส่งงาน คนทั้งหมดกำลังพักหรือรอคำสั่ง</div>}
         </div>
       </details>
     </section>
   );
 }
+function RestSystemPanel({ game }: { game: GameState }) {
+  const noShelterGame = { ...game, buildings: { ...game.buildings, shelter: 0, campfire: 0, smokeVent: 0, meetingHall: 0 }, researchDone: { ...game.researchDone, woodShelter: false, shelterHygiene: false }, leaderFocus: "" } as GameState;
+  const campfireOnlyGame = { ...noShelterGame, buildings: { ...noShelterGame.buildings, campfire: Math.max(1, game.buildings.campfire) } } as GameState;
+  const current = restRecoveryRate(game);
+  const shelterText = shelterCapacity(game) >= alivePeople(game).length ? "ที่พักพอทุกคน" : shelterCapacity(game) > 0 ? `ที่พักรองรับ ${shelterCapacity(game)}/${alivePeople(game).length}` : "ยังไม่มีบ้านพัก";
+  const rows = [
+    { icon: "🌌", title: "พักกลางแจ้ง", value: restRecoveryRate(noShelterGame), text: "ฟื้นช้า เสี่ยงฝน หนาว และโรค" },
+    { icon: "🔥", title: "พักใกล้กองไฟ", value: restRecoveryRate(campfireOnlyGame), text: "อุ่นขึ้น ฟื้นตัวดีกว่ากลางแจ้ง" },
+    { icon: "🛖", title: "พักในที่พักของค่าย", value: current, text: shelterText },
+    { icon: "🛌", title: "ผู้นำสั่งพักงานหนัก", value: game.leaderFocus === "quietRest" ? current : current + 8, text: game.leaderFocus === "quietRest" ? "กำลังมีผลเดือนนี้" : "จะเพิ่มแรงฟื้นตัวเมื่อเลือกการกระทำนี้" },
+  ];
+  return <section className="panel pad rest-panel" style={{ boxShadow: "none", margin: "12px 0" }}>
+    <div className="split"><div><h3 className="section-title">ระบบพักฟื้นและความล้า</h3><p className="muted small">คนที่ไม่ถูกส่งงานจะฟื้นความล้าตามสภาพพักจริง บ้านพัก กองไฟ ช่องระบายควัน สุขอนามัย และคำสั่งของผู้นำมีผลโดยตรงต่ออัตราฟื้นตัว</p></div><span className="badge green">ปัจจุบัน {current}/เดือน</span></div>
+    <div className="work-grid">{rows.map((row) => <div className="work-card" key={row.title}><b>{row.icon} {row.title}</b><p className="muted small">{row.text}</p><span className="badge blue">ฟื้นความล้า {row.value}/เดือน</span></div>)}</div>
+    <p className="muted small" style={{ marginTop: 8 }}>ถ้าความล้าเกิน 70% โอกาสป่วยและอุบัติเหตุจะสูงขึ้น คนป่วย/บาดเจ็บจะถูกกันออกจากงานและควรมีคนดูแลหรือเก็บสมุนไพรช่วย</p>
+  </section>;
+}
+
 function PeopleView({ game, assignPersonLabor, applyRecommendedAssignments }: { game: GameState; assignPersonLabor: (personId: string, job: LaborKey | "") => void; applyRecommendedAssignments: () => void }) {
   const keys = keyVillagers(game);
   return (
     <section className="panel pad">
       <div className="split"><div><h2 className="title">คนในค่าย</h2><p className="muted">ทุกคนมีชื่อ อายุ สุขภาพ ความเหนื่อย และสถานะจริง คนสำคัญจะมีผลต่อการล่า ก่อสร้าง รักษา เวรยาม ข่าวสาร และพงศาวดาร</p></div><span className="badge">มีชีวิต {alivePeople(game).length}</span></div>
       <LaborAssignmentPanel game={game} assignPersonLabor={assignPersonLabor} applyRecommendedAssignments={applyRecommendedAssignments} />
+      <RestSystemPanel game={game} />
       <section className="panel pad" style={{ boxShadow: "none", margin: "12px 0" }}><h3 className="section-title">คนสำคัญของรอบนี้</h3><div className="work-grid">{keys.map((p) => <div className="key-villager" key={`key-${p.id}`}><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div></section>
       <details className="details-box" style={{ marginTop: 12 }}><summary>ดูรายละเอียดรายคนทั้งหมด</summary><div className="people-grid">{game.people.map((p) => <PersonCard key={p.id} person={p} />)}</div></details>
     </section>

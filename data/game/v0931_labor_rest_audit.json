@@ -1,0 +1,31 @@
+{
+  "version": "0.9.31",
+  "title": "Labor Filter Audit & Rest Recovery Rates",
+  "systems": {
+    "laborFilters": {
+      "fixed": [
+        "sick/injured filter now reads from all living people, not only eligible workers",
+        "exhausted and resting filters added",
+        "filter labels include live counts",
+        "sick or injured people remain visible but are blocked from work assignment"
+      ]
+    },
+    "restRecovery": {
+      "base": "Resting people recover fatigue each month based on actual camp conditions",
+      "rates": {
+        "noShelter": "slow recovery, high exposure",
+        "campfire": "better recovery than open ground",
+        "shelter": "stronger recovery when shelter capacity covers population",
+        "leaderQuietRest": "temporary large recovery bonus when the leader orders rest"
+      },
+      "connections": [
+        "shelter capacity",
+        "campfire",
+        "smoke vent",
+        "shelter hygiene research",
+        "care/herbs labor for sick people",
+        "leader actions"
+      ]
+    }
+  }
+}
