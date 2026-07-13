@@ -1,22 +1,14 @@
-# Evolution of Us v0.9.25 — Dark Mode, Map Consequences & Livestock Expansion
+# Evolution of Us v0.9.26
 
-อัปเดตนี้แก้บัค Dark Mode, ปรับกราฟทรัพยากรให้เป็นกราฟเส้นรวม, ลบข้อความแนวผู้พัฒนาออกจากหน้าผู้เล่น, ทำให้การสำรวจแผนที่ส่งผลกับระบบเกมมากขึ้น, ปรับสีความเสี่ยง และขยายระบบสัตว์เลี้ยงให้มีวัว/หมูพร้อมผลต่ออาหาร น้ำ ความปลอดภัย และเหตุการณ์ในค่าย
+Comfort Dark, Deep Events & Research/Construction Coherence Patch
 
-## ติดตั้ง
+ติดตั้งด้วย:
 ```powershell
-cd "C:\Users\phass\Desktop\game\New folder (2)"
-powershell -ExecutionPolicy Bypass -File .\apply-v0925-darkmode-map-animals.ps1
+powershell -ExecutionPolicy Bypass -File .\apply-v0926-comfort-realism.ps1
 ```
 
-## ตรวจ build
+จากนั้นตรวจสอบ:
 ```powershell
 cd "C:\Users\phass\evolution-of-us"
 npm run check
-```
-
-## Deploy
-```powershell
-git add -A
-git commit -m "update v0.9.25 darkmode map animals"
-git push
 ```

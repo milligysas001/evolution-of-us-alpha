@@ -1,0 +1,25 @@
+{
+  "version": "0.9.26",
+  "systems": [
+    "comfort_dark_mode",
+    "status_color_thresholds",
+    "fatigue_recovery_from_shelter_campfire_smoke_vent",
+    "fatigue_increases_sickness_risk",
+    "more_contextual_events",
+    "livestock_foundation_events",
+    "new_research_and_buildings_linked_to_jobs"
+  ],
+  "new_buildings": [
+    "smokeVent",
+    "dryingRack",
+    "livestockShed",
+    "waterTrough"
+  ],
+  "new_research": [
+    "shelterHygiene",
+    "animalBreeding",
+    "masonry",
+    "herbalWorkshop",
+    "projectPlanning"
+  ]
+}
