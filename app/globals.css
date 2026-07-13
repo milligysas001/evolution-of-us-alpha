@@ -77,7 +77,7 @@ button { cursor: pointer; }
 .fill { height: 100%; background: linear-gradient(90deg, var(--green), #75a66f); border-radius: inherit; }
 .fill.warn { background: linear-gradient(90deg, #ba7a21, #e1b45e); }
 .fill.danger { background: linear-gradient(90deg, var(--red), #e0866f); }
-.view-tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 18px; background: rgba(251,247,237,.8); margin-bottom: 14px; }
+.view-tabs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 18px; background: rgba(251,247,237,.8); margin-bottom: 14px; }
 .view-tabs button { border: 1px solid transparent; background: transparent; border-radius: 13px; padding: 10px 8px; color: #675b48; font-weight: 800; }
 .view-tabs button.active { background: var(--green); color: #fff8dd; border-color: #15372d; }
 .main { min-width: 0; }
@@ -253,3 +253,23 @@ button { cursor: pointer; }
 .section-title { letter-spacing: .01em; }
 .muted.small, small.muted { line-height: 1.55; }
 .report-table th { font-size: 13px; text-transform: none; letter-spacing: .01em; }
+
+
+/* v0.9.11 mobile/tablet navigation and News tab polish */
+@media (max-width: 1180px) {
+  .topbar { position: static; top: auto; }
+  .view-tabs { position: static !important; top: auto !important; }
+  .bottom-nav { position: static; bottom: auto; margin-top: 16px; padding-bottom: 6px; }
+}
+.device-tablet .topbar,
+.device-mobile .topbar { position: static; top: auto; }
+.device-tablet .view-tabs,
+.device-mobile .view-tabs { position: static !important; top: auto !important; }
+.device-tablet .bottom-nav,
+.device-mobile .bottom-nav { position: static; bottom: auto; margin-top: 16px; }
+.device-tablet .view-tabs { grid-template-columns: repeat(4, 1fr); }
+.device-mobile .view-tabs { grid-template-columns: repeat(2, 1fr); }
+.device-mobile .bottom-nav { background: rgba(251,247,237,.92); border: 1px solid var(--line); border-radius: 18px; }
+.rumor-card b { color: var(--green); }
+.details-box summary { list-style: none; }
+.details-box summary::-webkit-details-marker { display: none; }

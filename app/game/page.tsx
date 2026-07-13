@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
-type View = "เมือง" | "คน" | "ก่อสร้าง" | "วิจัย" | "พงศาวดาร" | "ตั้งค่า";
+type View = "เมือง" | "คน" | "ก่อสร้าง" | "วิจัย" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
 type DeviceMode = "desktop" | "tablet" | "mobile";
 type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
-type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "patrol" | "trade" | "teach";
+type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "patrol" | "trade" | "teach" | "intel";
 type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "knowledge" | "fuel" | "ore" | "gold";
 type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "palisade" | "graveyard" | "meetingHall";
-type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "sanitation" | "storyRecords" | "palisadeCraft";
+type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "sanitation" | "storyRecords" | "palisadeCraft" | "signalNetwork";
 type LeaderFocusKey = "workWithPeople" | "study" | "trainGuard" | "family" | "scout" | "mediate" | "rationPlan" | "inspectRations" | "leadForage" | "boilHerbs" | "isolateSick" | "nightPatrol" | "trackBeasts" | "campRules" | "holdCouncil" | "memorial" | "firewoodPlan" | "repairTools" | "rainShelter" | "winterWatch" | "quietRest";
 type LogKind = "normal" | "good" | "bad" | "death" | "rare" | "milestone";
 type MetricKey = "morale" | "security" | "trust" | "health" | "cohesion" | "fairness";
@@ -99,7 +99,7 @@ type SummaryModal = {
 } | null;
 
 type GameState = {
-  version: "0.9.10";
+  version: "0.9.11";
   leaderName: string;
   houseName: string;
   origin: Origin;
@@ -175,12 +175,12 @@ type GameEvent = {
   choices: EventChoice[];
 };
 
-const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "พงศาวดาร", "ตั้งค่า"];
+const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.10";
-const saveKey = "eou-v0910-save";
-const setupKey = "eou-v0910-setup";
-const tutorialKey = "eou-v0910-tutorial-seen";
+const GAME_VERSION = "0.9.11";
+const saveKey = "eou-v0911-save";
+const setupKey = "eou-v0911-setup";
+const tutorialKey = "eou-v0911-tutorial-seen";
 
 const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string; category: string; unlock?: (game: GameState) => boolean; lockedText?: string }> = [
   { id: "forage", icon: "🌾", title: "หาอาหาร / ล่าสัตว์", category: "พื้นฐาน", text: "อาหารมากขึ้น แต่เสี่ยงอุบัติเหตุในป่าและสัตว์ร้าย" },
@@ -198,6 +198,7 @@ const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string
   { id: "patrol", icon: "🪤", title: "ลาดตระเวน / วางกับดัก", category: "ความปลอดภัย", text: "ลดสัตว์ป่า โจร และภัยภายนอก มีโอกาสได้อาหารเล็กน้อย", unlock: (game) => game.researchDone.watchRoutine || game.buildings.watchPost > 0 || game.buildings.palisade > 0, lockedText: "ต้องมีเวรยามเป็นระบบ ป้อมยาม หรือรั้วไม้" },
   { id: "trade", icon: "🪙", title: "แลกเปลี่ยน / ขายของส่วนเกิน", category: "เศรษฐกิจ", text: "เปลี่ยนอาหาร หนัง สมุนไพร หรือเครื่องมือส่วนเกินเป็นทอง", unlock: (game) => game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0, lockedText: "ต้องพัฒนาเป็นชุมชนแรกเริ่ม หรือมีศาลาประชุม" },
   { id: "teach", icon: "👧", title: "สอนเด็ก / บันทึกความรู้", category: "สังคม", text: "เพิ่มความรู้ ความสามัคคี และทำให้คนรุ่นใหม่เติบโตดีขึ้น", unlock: (game) => game.researchDone.storyRecords || game.buildings.meetingHall > 0, lockedText: "ต้องวิจัยการบันทึกเรื่องเล่า หรือมีศาลาประชุม" },
+  { id: "intel", icon: "🕊️", title: "สายข่าว / รับฟังข่าวสาร", category: "ข่าวสาร", text: "รวบรวมข่าวจากพ่อค้า คนเดินทาง และชาวบ้าน เพื่อเปิดเหตุการณ์พิเศษล่วงหน้า", unlock: (game) => game.researchDone.signalNetwork || game.stage === "เมืองเล็ก", lockedText: "ต้องเข้าสู่ระยะเมืองเล็ก หรือเรียนรู้เครือข่ายสายข่าว" },
 ];
 
 type LeaderAction = { id: LeaderFocusKey; icon: string; title: string; text: string; reason?: string; locked?: boolean; lockReason?: string; priority?: number; };
@@ -346,6 +347,7 @@ const researchData: Record<ResearchKey, { icon: string; title: string; text: str
   sanitation: { icon: "🧼", title: "สุขาภิบาลค่าย", text: "ลดโรคจากคนอยู่แออัด ควัน น้ำสกปรก และอาหารเสีย", cost: 44, prereq: ["waterFinding", "herbalCare"] },
   storyRecords: { icon: "📜", title: "บันทึกความทรงจำ", text: "ทำให้พงศาวดารและความทรงจำส่งผลต่อคนรุ่นต่อไปมากขึ้น", cost: 38 },
   palisadeCraft: { icon: "🪵", title: "รั้วไม้และประตูค่าย", text: "ปลดล็อกรั้วไม้รอบค่าย ลดโจรและสัตว์ป่า", cost: 52, prereq: ["watchRoutine", "simpleCraft"] },
+  signalNetwork: { icon: "🕊️", title: "เครือข่ายสายข่าว", text: "จัดคนรับฟังข่าวจากพ่อค้า คนเดินทาง และครอบครัวรอบเมือง เพื่อเห็นภัยและโอกาสก่อนเกิดขึ้น", cost: 64, prereq: ["storyRecords", "watchRoutine"] },
 };
 
 function clamp(n: number, min = 0, max = 100) { return Math.max(min, Math.min(max, Math.round(n))); }
@@ -359,6 +361,7 @@ function viewLabel(view: View) {
     "คน": "👥 คน",
     "ก่อสร้าง": "🛖 ก่อสร้าง",
     "วิจัย": "📜 วิจัย",
+    "ข่าวสาร": "🕊️ ข่าวสาร",
     "พงศาวดาร": "📖 พงศาวดาร",
     "ตั้งค่า": "⚙️ ตั้งค่า",
   };
@@ -391,7 +394,7 @@ function choice(id: string, icon: string, title: string, tone: string, hint: str
 function emptyResearch(): ResearchDone {
   return {
     foodPreservation: false, stoneTools: false, woodShelter: false, basicFarming: false, herbalCare: false,
-    watchRoutine: false, simpleCraft: false, waterFinding: false, sanitation: false, storyRecords: false, palisadeCraft: false,
+    watchRoutine: false, simpleCraft: false, waterFinding: false, sanitation: false, storyRecords: false, palisadeCraft: false, signalNetwork: false,
   };
 }
 function emptyBuildings(): Buildings {
@@ -451,7 +454,7 @@ function shelterCapacity(game: GameState) {
   return base + (game.buildings.meetingHall > 0 ? 4 : 0);
 }
 function emptyLabor(): Labor {
-  return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, patrol: 0, trade: 0, teach: 0 };
+  return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, patrol: 0, trade: 0, teach: 0, intel: 0 };
 }
 function laborTotal(labor: Labor) { return Object.values(labor).reduce((a, b) => a + (b ?? 0), 0); }
 function unlockedLaborOptions(game: GameState) { return laborMeta.filter((item) => !item.unlock || item.unlock(game)); }
@@ -498,6 +501,7 @@ function payCost(game: GameState, cost: Partial<Resources>): GameState {
   return { ...game, resources: changeResources(game.resources, Object.fromEntries(Object.entries(cost).map(([k, v]) => [k, -(v ?? 0)])) as Partial<Resources>) };
 }
 function researchUnlocked(game: GameState, id: ResearchKey) {
+  if (id === "signalNetwork" && game.stage !== "เมืองเล็ก") return false;
   const prereq = researchData[id].prereq ?? [];
   return prereq.every((p) => game.researchDone[p]);
 }
@@ -732,7 +736,8 @@ function recommendedLabor(game: GameState): Labor {
   if ((game.researchDone.simpleCraft || game.buildings.workshop > 0) && game.resources.tools <= 4) assign("craft", 1);
   if (game.activeResearch) assign("research", 1); else if (game.resources.knowledge < 25) assign("research", 1);
   if ((game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0) && game.resources.food > foodNeedFor(game) * 3) assign("trade", 1);
-  const fallback: LaborKey[] = ["forage", "wood", "farm", "build", "guard", "patrol", "research", "stone", "care", "water", "preserve", "craft", "herbs", "teach", "trade"];
+  if ((game.stage === "เมืองเล็ก" || game.researchDone.signalNetwork) && game.rumors.length < 3) assign("intel", 1);
+  const fallback: LaborKey[] = ["forage", "wood", "farm", "build", "guard", "patrol", "research", "stone", "care", "water", "preserve", "craft", "herbs", "teach", "intel", "trade"];
   let i = 0;
   while (workers > 0) {
     const key = fallback[i % fallback.length];
@@ -754,7 +759,7 @@ function resourceLedger(game: GameState) {
   const foodProd = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5);
   const woodProd = Math.round(l.wood * woodRate);
   const stoneProd = Math.round(l.stone * stoneRate);
-  const knowledgeProd = Math.round(l.research * researchRate + l.teach * 4 + (game.leaderFocus === "study" ? 4 : 0));
+  const knowledgeProd = Math.round(l.research * researchRate + l.teach * 4 + l.intel * 2 + (game.leaderFocus === "study" ? 4 : 0));
   const waterProd = Math.round(l.water * (game.buildings.well ? 9 : 5) + (game.researchDone.waterFinding ? 2 : 0));
   const fuelProd = Math.floor(l.wood * 1.4);
   const toolsProd = Math.floor(l.craft * (game.buildings.workshop ? 1.5 : 0.8));
@@ -798,9 +803,9 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
   if (setup.origin === "mediator") { metrics.trust += 7; metrics.fairness += 7; }
   if (setup.origin === "hunter") metrics.security += 4;
   const base: GameState = {
-    version: "0.9.10", leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
+    version: "0.9.11", leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
     year: 1, month: 1, stage: "ค่ายพักแรม", resources: baseResources(setup.origin), buildings: emptyBuildings(), researchDone: emptyResearch(),
-    construction: null, activeResearch: null, labor: { ...emptyLabor(), forage: 3, wood: 2, stone: 1, build: 1, guard: 1, care: 0, research: 0 },
+    construction: null, activeResearch: null, labor: emptyLabor(),
     leaderFocus: "workWithPeople", leaderActionSelected: false, selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [],
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
@@ -1342,7 +1347,7 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   const foodGain = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5);
   const woodGain = Math.round(l.wood * woodRate);
   const stoneGain = Math.round(l.stone * stoneRate);
-  const knowledgeGain = Math.round(l.research * researchRate + l.teach * 4 + (g.leaderFocus === "study" ? 4 : 0));
+  const knowledgeGain = Math.round(l.research * researchRate + l.teach * 4 + l.intel * 2 + (g.leaderFocus === "study" ? 4 : 0));
   const waterGain = Math.round(l.water * (g.buildings.well ? 9 : 5) + (g.researchDone.waterFinding ? 2 : 0));
   const fuelGain = Math.floor(l.wood * 1.4);
   const toolsGain = Math.floor(l.craft * (g.buildings.workshop ? 1.5 : 0.8));
@@ -1358,6 +1363,22 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   if (l.herbs > 0) g = { ...g, metrics: changeMetrics(g.metrics, { health: Math.min(4, l.herbs) }) };
   if (l.teach > 0) g = { ...g, metrics: changeMetrics(g.metrics, { cohesion: Math.min(4, l.teach * 2), morale: Math.min(3, l.teach) }) };
   const changes = [`ผลิตอาหาร +${foodGain}`, `ไม้ +${woodGain}`, `หิน +${stoneGain}`, `ความรู้ +${knowledgeGain}`, `น้ำ +${waterGain}`, `ฟืน +${fuelGain}`];
+  if (l.intel > 0) {
+    g = { ...g, metrics: changeMetrics(g.metrics, { security: Math.min(3, l.intel), trust: Math.min(2, l.intel) }), threat: clamp(g.threat - l.intel, 0, 100) };
+    const newsPool: Array<Omit<Rumor, "id" | "discovered">> = [
+      { title: "คาราวานบนถนนเก่า", detail: "คนเดินทางพูดถึงพ่อค้าที่อาจผ่านใกล้ถิ่นฐาน หากมีของส่วนเกิน อาจเปลี่ยนเป็นทองหรือเครื่องมือได้", danger: "ต่ำ" },
+      { title: "กลุ่มโจรในป่าสน", detail: "มีข่าวว่าคนถืออาวุธเดินตามรอยควันไฟของชุมชนเล็ก ๆ การเฝ้ายามจะสำคัญขึ้น", danger: "สูง" },
+      { title: "ราคาสมุนไพรดีขึ้น", detail: "หมอยาจากทางใต้ต้องการสมุนไพรแห้ง หากมีเก็บไว้มากพอ อาจใช้แลกของได้", danger: "ต่ำ" },
+      { title: "ครอบครัวเร่ร่อนมองหาที่พัก", detail: "คนไร้ถิ่นฐานบางกลุ่มกำลังมองหาที่ปลอดภัย การรับเข้ามาอาจเพิ่มแรงงานและความเสี่ยงพร้อมกัน", danger: "กลาง" },
+    ];
+    if (Math.random() < Math.min(0.75, 0.28 * l.intel) && g.rumors.length < 24) {
+      const rumor = pickFrom(newsPool);
+      g = { ...g, rumors: [{ id: uid("rumor"), discovered: false, ...rumor }, ...g.rumors].slice(0, 24) };
+      changes.push(`สายข่าวได้เบาะแสใหม่: ${rumor.title}`);
+    } else {
+      changes.push("สายข่าวช่วยกรองข่าวลือและลดความไม่แน่นอนของถิ่นฐาน");
+    }
+  }
   if (toolsGain) changes.push(`เครื่องมือ +${toolsGain}`);
   if (herbsGain) changes.push(`สมุนไพร +${herbsGain}`);
   if (goldGain) changes.push(`ทอง +${goldGain} จากการแลกเปลี่ยนของส่วนเกิน`);
@@ -1631,7 +1652,7 @@ export default function GamePage() {
     if (saveText) {
       try {
         const loaded = JSON.parse(saveText) as GameState;
-        if (loaded.version === "0.9.10") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
+        if (loaded.version === "0.9.11") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
       } catch {}
     }
     setGame(createInitialGame(setup));
@@ -1757,13 +1778,13 @@ export default function GamePage() {
           {view === "คน" && <PeopleView game={game} />}
           {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} />}
           {view === "วิจัย" && <ResearchView game={game} startResearch={startResearch} />}
+          {view === "ข่าวสาร" && <NewsView game={game} />}
           {view === "พงศาวดาร" && <ChronicleView game={game} />}
           {view === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} />}
         </section>
 
         <aside className="event-panel">
           <EventPanel game={game} event={event} setFocus={(focus) => updateGame((g) => ({ ...g, leaderFocus: focus, leaderActionSelected: true }))} selectChoice={(id) => updateGame((g) => ({ ...g, selectedChoiceId: id }))} endTurn={endTurn} />
-          <RumorPanel game={game} />
         </aside>
       </section>
 
@@ -1943,7 +1964,7 @@ function CityView({ game, adjustLabor, applyRecommendedLabor }: { game: GameStat
       </section>
       <ActiveProjectsPanel game={game} />
       <section className="panel pad" style={{ marginBottom: 14 }}>
-        <div className="split"><div><h2 className="title">จัดแรงงานรายเดือน</h2><p className="muted">แรงงานว่าง {laborLeft} คน · วางแผนให้พอดีกับฤดูกาล ความเสี่ยง และสุขภาพของคนในค่าย</p></div><div className="flex"><button className="secondary" onClick={applyRecommendedLabor}>จัดแรงงานแนะนำ</button><span className="badge green">ใช้แล้ว {laborTotal(game.labor)}/{adultWorkers(game)}</span></div></div>
+        <div className="split"><div><h2 className="title">จัดแรงงานรายเดือน</h2><p className="muted">แรงงานว่าง {laborLeft} คน · เริ่มเดือนด้วยการเลือกเองว่าจะส่งใครไปทำงานใด</p></div><div className="flex"><button className="secondary" onClick={applyRecommendedLabor}>จัดแรงงานแนะนำ</button><span className="badge green">ใช้แล้ว {laborTotal(game.labor)}/{adultWorkers(game)}</span></div></div>
         <div className="work-grid">
           {visibleJobs.map((item) => <div className="work-card" key={item.id}><div className="work-head"><div><b>{item.icon} {item.title}</b><p className="muted small">{item.text}</p><small className="context-text">{item.category}</small></div><div className="counter"><button onClick={() => adjustLabor(item.id, -1)}>-</button><strong>{normalizedLabor[item.id]}</strong><button onClick={() => adjustLabor(item.id, 1)}>+</button></div></div></div>)}
         </div>
@@ -2017,7 +2038,7 @@ function ChronicleView({ game }: { game: GameState }) {
 }
 function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void }) {
   const exportText = JSON.stringify(game, null, 2);
-  return <section className="panel pad"><h2 className="title">ตั้งค่าและตรวจสอบระบบ</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>UI แยกก่อสร้าง/วิจัย และรองรับ Desktop · Tablet · Mobile</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ระบบกันใช้แรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">ทอง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ได้จากงานแลกเปลี่ยน/ขายของส่วนเกิน</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>ลำดับการเล่นที่ตรวจแล้ว</h3><ol><li>เปิดระบบสอนเล่นหลังเริ่มเกมครั้งแรก</li><li>จัดแรงงานและปลดล็อกงานตามวิจัย/อาคาร</li><li>เลือกสิ่งก่อสร้างในแท็บก่อสร้าง หรือเลือกภูมิปัญญาในแท็บวิจัย</li><li>เลือกการกระทำผู้นำแบบ Dynamic ตามเหตุการณ์</li><li>ตอบเหตุการณ์เดือนนี้</li><li>จบเดือน ระบบคำนวณผลผลิต การบริโภค ความเสี่ยง บาดเจ็บ ตาย ความทรงจำ เหตุการณ์ต่อเนื่อง และเงื่อนไขแพ้</li></ol></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ปุ่มนี้จะลบเซฟในเครื่องและกลับไปหน้าเริ่มเกม เหมาะสำหรับให้เพื่อนเริ่มทดสอบรอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><details className="details-box" style={{ marginTop: 16 }}><summary>Debug Report สำหรับผู้พัฒนา</summary><p className="muted small">เปิดเฉพาะตอนเจอบัค แล้วคัดลอกส่งผู้พัฒนา</p><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details></section>;
+  return <section className="panel pad"><h2 className="title">ตั้งค่าและตรวจสอบระบบ</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>แท็บข่าวสาร แรงงานเริ่มต้นว่าง และปรับ Mobile · Tablet ไม่ให้เมนูซ้อน</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ระบบกันใช้แรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">ทอง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ได้จากงานแลกเปลี่ยน/ขายของส่วนเกิน</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>ลำดับการเล่นที่ตรวจแล้ว</h3><ol><li>เปิดระบบสอนเล่นหลังเริ่มเกมครั้งแรก</li><li>จัดแรงงานและปลดล็อกงานตามวิจัย/อาคาร</li><li>เลือกสิ่งก่อสร้างในแท็บก่อสร้าง หรือเลือกภูมิปัญญาในแท็บวิจัย</li><li>ติดตามข่าวลือ สายข่าว และเหตุการณ์พิเศษในแท็บข่าวสาร</li><li>เลือกการกระทำผู้นำแบบ Dynamic ตามเหตุการณ์</li><li>ตอบเหตุการณ์เดือนนี้</li><li>จบเดือน ระบบคำนวณผลผลิต การบริโภค ความเสี่ยง บาดเจ็บ ตาย ความทรงจำ เหตุการณ์ต่อเนื่อง และเงื่อนไขแพ้</li></ol></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ปุ่มนี้จะลบเซฟในเครื่องและกลับไปหน้าเริ่มเกม เหมาะสำหรับให้เพื่อนเริ่มทดสอบรอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><details className="details-box" style={{ marginTop: 16 }}><summary>Debug Report สำหรับผู้พัฒนา</summary><p className="muted small">เปิดเฉพาะตอนเจอบัค แล้วคัดลอกส่งผู้พัฒนา</p><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details></section>;
 }
 
 function estimateBuildMonths(game: GameState): number | null {
@@ -2107,6 +2128,43 @@ function EventPanel({ game, event, setFocus, selectChoice, endTurn }: { game: Ga
       {eventMissing && <p className="danger-text small">ยังไม่ได้เลือกวิธีตอบสนองเหตุการณ์</p>}
       <button className="primary" disabled={blocked} onClick={endTurn} style={{ width: "100%", marginTop: 14, opacity: blocked ? .55 : 1 }}>ยืนยันและจบเดือน →</button>
       <p className="muted small">ทุกตัวเลือกจะส่งผลต่อทรัพยากร คน ความเสี่ยง พงศาวดารและเหตุการณ์ต่อเนื่อง</p>
+    </section>
+  );
+}
+
+function NewsView({ game }: { game: GameState }) {
+  const intelUnlocked = game.stage === "เมืองเล็ก" || game.researchDone.signalNetwork;
+  const specialHints = [
+    { icon: "🪙", title: "คาราวานและพ่อค้า", text: "เมื่อพ่อค้ามาถึง จะมีกรอบเหตุการณ์พิเศษให้ซื้อ ขาย หรือแลกเปลี่ยนของส่วนเกินเป็นทอง" },
+    { icon: "⚠️", title: "ภัยจากโจรและคนเร่ร่อน", text: "ข่าวล่วงหน้าช่วยให้เตรียมเวรยาม ซ่อนเสบียง หรือเลือกเจรจาก่อนเกิดความเสียหาย" },
+    { icon: "🌲", title: "ร่องรอยในป่า", text: "การสำรวจและสายข่าวจะเปิดข่าวลือเกี่ยวกับลำธาร ถ้ำ ซากเก่า และทรัพยากรที่ยังไม่รู้จัก" },
+  ];
+  return (
+    <section className="panel pad">
+      <div className="split">
+        <div>
+          <h2 className="title">ข่าวสารและข่าวลือ</h2>
+          <p className="muted">รวมข่าวลือ สิ่งที่ยังไม่รู้ และสัญญาณของเหตุการณ์พิเศษ เพื่อให้วางแผนก่อนเดือนถัดไปได้ชัดขึ้น</p>
+        </div>
+        <span className={intelUnlocked ? "badge green" : "badge"}>{intelUnlocked ? "เปิดระบบสายข่าวแล้ว" : "สายข่าวยังไม่ปลดล็อก"}</span>
+      </div>
+      <div className="dashboard-grid" style={{ marginTop: 12 }}>
+        <div className="panel kpi"><span className="muted">ข่าวลือที่มี</span><b>{game.rumors.length}</b><small>เกิดจากการสำรวจ เหตุการณ์ และงานสายข่าว</small></div>
+        <div className="panel kpi"><span className="muted">ภัยภายนอก</span><b>{pct(game.threat)}</b><small>ยิ่งสูงยิ่งมีโอกาสเกิดเหตุโจร/ผู้บุกรุก</small></div>
+        <div className="panel kpi"><span className="muted">สายข่าว</span><b>{intelUnlocked ? "พร้อมใช้" : "ยังไม่พร้อม"}</b><small>{intelUnlocked ? "มอบแรงงานไปงานสายข่าวได้" : "ปลดล็อกเมื่อเป็นเมืองเล็กหรือวิจัยเครือข่ายสายข่าว"}</small></div>
+        <div className="panel kpi"><span className="muted">คำแนะนำ</span><b>{game.rumors.length ? "ตรวจข่าว" : "สำรวจ"}</b><small>{game.rumors.length ? "เลือกข่าวที่มีผลต่อแผนเดือนนี้" : "ให้ผู้นำสำรวจเพื่อเปิดข่าวลือแรก"}</small></div>
+      </div>
+      <section className="two-col" style={{ marginTop: 14 }}>
+        <div className="panel pad" style={{ boxShadow: "none" }}>
+          <h3 className="section-title">ข่าวลือที่บันทึกไว้</h3>
+          {game.rumors.length ? <div className="timeline">{game.rumors.map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><div className="deltas"><span className="badge blue">อันตราย: {r.danger}</span><span className="badge">{r.discovered ? "ตรวจสอบแล้ว" : "ยังไม่ยืนยัน"}</span></div></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ ลองให้ผู้นำออกสำรวจ หรือปลดล็อกงานสายข่าวเมื่อถิ่นฐานเติบโตขึ้น</div>}
+        </div>
+        <div className="panel pad" style={{ boxShadow: "none" }}>
+          <h3 className="section-title">เหตุการณ์พิเศษที่ควรจับตา</h3>
+          <div className="timeline">{specialHints.map((h) => <div key={h.title} className="rumor-card"><b>{h.icon} {h.title}</b><p className="muted small">{h.text}</p></div>)}</div>
+          <details className="details-box" open><summary>การเรียนรู้สายข่าว</summary><p>เมื่อเข้าสู่ระยะเมืองเล็ก หรือเรียนรู้ “เครือข่ายสายข่าว” จะสามารถจัดแรงงานไปฟังข่าวจากพ่อค้า คนเดินทาง และครอบครัวรอบถิ่นฐาน เพื่อเพิ่มโอกาสเห็นเหตุการณ์ก่อนเกิดขึ้น</p></details>
+        </div>
+      </section>
     </section>
   );
 }
