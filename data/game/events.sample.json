@@ -1,0 +1,67 @@
+[
+  {
+    "id": "stream_trace",
+    "type": "water",
+    "stage": [
+      "ค่ายพักแรม"
+    ],
+    "season": [
+      "ฤดูใบไม้ผลิ",
+      "ฤดูร้อน",
+      "ฤดูฝน"
+    ],
+    "weight": 12,
+    "title": "รอยชื้นบนดินเก่า",
+    "body": "คนตัดไม้พบรอยชื้นที่ดินไม่แห้งเหมือนพื้นที่อื่น อาจเป็นทางน้ำตื้นหรือเพียงดินที่เก็บฝนไว้",
+    "choices": [
+      {
+        "id": "mark_path",
+        "label": "ทำเครื่องหมายเส้นทางน้ำ",
+        "effects": {
+          "water": 18,
+          "knowledge": 8
+        }
+      },
+      {
+        "id": "guard_path",
+        "label": "จัดเวรยามเส้นทางน้ำ",
+        "effects": {
+          "water": 10,
+          "security": 4,
+          "health": 5
+        }
+      }
+    ]
+  },
+  {
+    "id": "merchant_arrival_basic",
+    "type": "merchant",
+    "stage": [
+      "ชุมชนแรกเริ่ม",
+      "หมู่บ้านถาวร",
+      "เมืองเล็ก"
+    ],
+    "weight": 10,
+    "title": "พ่อค้าเร่จอดเกวียนใกล้กองไฟ",
+    "choices": [
+      {
+        "id": "buy_tools",
+        "cost": {
+          "gold": 8
+        },
+        "effects": {
+          "tools": 3
+        }
+      },
+      {
+        "id": "sell_food",
+        "cost": {
+          "food": 20
+        },
+        "effects": {
+          "gold": 4
+        }
+      }
+    ]
+  }
+]

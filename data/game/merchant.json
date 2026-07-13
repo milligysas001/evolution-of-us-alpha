@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "tradeRules": {
+    "goldResource": "gold",
+    "priceModifiers": [
+      "season",
+      "threat",
+      "reputation",
+      "scarcity"
+    ]
+  },
+  "basicOffers": [
+    {
+      "id": "buy_tools",
+      "label": "ซื้อเครื่องมือ",
+      "cost": {
+        "gold": 8
+      },
+      "gain": {
+        "tools": 3
+      }
+    },
+    {
+      "id": "buy_medicine",
+      "label": "ซื้อยา/ผ้าพันแผล",
+      "cost": {
+        "gold": 5
+      },
+      "gain": {
+        "herbs": 4
+      }
+    },
+    {
+      "id": "sell_food",
+      "label": "ขายอาหารส่วนเกิน",
+      "cost": {
+        "food": 20
+      },
+      "gain": {
+        "gold": 4
+      }
+    },
+    {
+      "id": "buy_news",
+      "label": "ซื้อข่าวสาร/แผนที่",
+      "cost": {
+        "gold": 3
+      },
+      "gain": {
+        "knowledge": 8
+      }
+    }
+  ]
+}

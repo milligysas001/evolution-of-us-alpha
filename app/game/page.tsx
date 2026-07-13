@@ -177,14 +177,32 @@ type GameEvent = {
 
 const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.14";
-const BUILD_LABEL = "Stability Refactor Foundation";
+const GAME_VERSION = "0.9.15";
+const BUILD_LABEL = "Portable Data Foundation";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
 const tutorialKey = "eou-current-tutorial-seen";
 const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
+const portableDataVersion = "0.9.15";
+const portableDataSummary = {
+  version: portableDataVersion,
+  purpose: "Portable Data Foundation: data/game/*.json is the source-of-truth draft for future Godot porting.",
+  files: [
+    "data/game/resources.json",
+    "data/game/jobs.json",
+    "data/game/buildings.json",
+    "data/game/research.json",
+    "data/game/events.sample.json",
+    "data/game/milestones.json",
+    "data/game/threats.json",
+    "data/game/merchant.json",
+    "data/game/water.json"
+  ],
+  godotNotes: "Godot can load these JSON files with FileAccess + JSON.parse_string and map ids to UI nodes/resources."
+};
+
 function readFirstStorage(keys: string[]) {
   for (const key of keys) {
     const value = window.localStorage.getItem(key);
@@ -205,7 +223,7 @@ const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string
   { id: "care", icon: "🌿", title: "ดูแลคนป่วย", category: "สุขภาพ", text: "รักษาผู้บาดเจ็บ ลดโรค ลดโอกาสเสียชีวิตจากแผลติดเชื้อ" },
   { id: "research", icon: "📜", title: "ทดลอง / เรียนรู้", category: "ความรู้", text: "เพิ่มความรู้ วิจัยภูมิปัญญาพื้นฐาน และลดความเสี่ยงระยะยาว" },
   { id: "farm", icon: "🌱", title: "เพาะปลูก", category: "อาหาร", text: "อาหารเสถียรกว่าล่าสัตว์ ผลดีในฤดูอบอุ่น แต่โตช้าในฤดูหนาว", unlock: (game) => game.researchDone.basicFarming || game.buildings.farmPlot > 0, lockedText: "ต้องวิจัยการเพาะปลูกเบื้องต้น หรือมีแปลงปลูก" },
-  { id: "water", icon: "💧", title: "ดูแลน้ำสะอาด", category: "สุขภาพ", text: "เพิ่มน้ำใช้ ลดโรค และช่วยเด็ก/ผู้ป่วยให้อยู่รอด", unlock: (game) => game.researchDone.waterFinding || game.buildings.well > 0, lockedText: "ต้องวิจัยการหาแหล่งน้ำ หรือสร้างบ่อน้ำ" },
+  { id: "water", icon: "💧", title: "ตักน้ำ / ดูแลน้ำสะอาด", category: "พื้นฐาน", text: "งานพื้นฐานตั้งแต่เริ่มเกม: ตักน้ำจากลำธาร เก็บน้ำค้าง และต้มน้ำใช้ในค่าย เมื่อวิจัยหรือมีบ่อน้ำจะมีประสิทธิภาพและปลอดภัยขึ้น" },
   { id: "preserve", icon: "🥫", title: "ถนอมอาหาร", category: "อาหาร", text: "ลดอาหารเสีย เตรียมค่ายก่อนฤดูหนาว ใช้ฟืนเล็กน้อย", unlock: (game) => game.researchDone.foodPreservation || game.buildings.storage > 0, lockedText: "ต้องวิจัยการถนอมอาหาร หรือสร้างคลังอาหาร" },
   { id: "craft", icon: "🛠️", title: "ซ่อม / ผลิตเครื่องมือ", category: "งานช่าง", text: "ซ่อมเครื่องมือพังและผลิตเครื่องมือหยาบ ใช้ไม้กับหิน", unlock: (game) => game.researchDone.simpleCraft || game.buildings.workshop > 0, lockedText: "ต้องวิจัยงานช่างง่าย ๆ หรือสร้างเพิงช่าง" },
   { id: "herbs", icon: "🍃", title: "เก็บสมุนไพร / ต้มยา", category: "สุขภาพ", text: "เพิ่มสมุนไพร ช่วยรักษา และลดโรคในค่าย", unlock: (game) => game.researchDone.herbalCare || game.buildings.healerHut > 0, lockedText: "ต้องวิจัยสมุนไพรพื้นบ้าน หรือมีกระท่อมหมอยา" },
@@ -357,7 +375,7 @@ const researchData: Record<ResearchKey, { icon: string; title: string; text: str
   herbalCare: { icon: "🌿", title: "สมุนไพรรักษาแผล", text: "ปลดล็อกกระท่อมหมอยา ลดแผลติดเชื้อและไข้ฤดูฝน", cost: 34 },
   watchRoutine: { icon: "🛡️", title: "ระบบเวรยาม", text: "ปลดล็อกหอเฝ้ายาม เพิ่มสัญญาณเตือนก่อนภัยมา", cost: 32 },
   simpleCraft: { icon: "⚒️", title: "งานช่างพื้นฐาน", text: "ปลดล็อกเพิงช่าง ลดอุบัติเหตุจากเครื่องมือเก่า", cost: 46, prereq: ["stoneTools"] },
-  waterFinding: { icon: "💧", title: "การหาแหล่งน้ำ", text: "ปลดล็อกบ่อน้ำ ลดโรคน้ำเสีย", cost: 36 },
+  waterFinding: { icon: "💧", title: "การหาแหล่งน้ำ", text: "เพิ่มประสิทธิภาพการตักน้ำ ปลดล็อกบ่อน้ำ และลดโรคน้ำเสีย", cost: 36 },
   sanitation: { icon: "🧼", title: "สุขาภิบาลค่าย", text: "ลดโรคจากคนอยู่แออัด ควัน น้ำสกปรก และอาหารเสีย", cost: 44, prereq: ["waterFinding", "herbalCare"] },
   storyRecords: { icon: "📜", title: "บันทึกความทรงจำ", text: "ทำให้พงศาวดารและความทรงจำส่งผลต่อคนรุ่นต่อไปมากขึ้น", cost: 38 },
   palisadeCraft: { icon: "🪵", title: "รั้วไม้และประตูค่าย", text: "ปลดล็อกรั้วไม้รอบค่าย ลดโจรและสัตว์ป่า", cost: 52, prereq: ["watchRoutine", "simpleCraft"] },
@@ -689,6 +707,7 @@ function endMonthWarnings(game: GameState): WarningItem[] {
   const need = foodNeedFor(game);
   if (laborTotal(game.labor) === 0) warnings.push({ icon: "🧑‍🌾", title: "ยังไม่ได้จัดแรงงาน", text: "ถ้าจบเดือนตอนนี้ ค่ายแทบไม่ผลิตอะไรเลย และความเสี่ยงจะไล่ตามเร็วมาก", severity: "danger" });
   if (game.resources.food < need) warnings.push({ icon: "🍲", title: "อาหารไม่พอหลังจบเดือน", text: `มีอาหาร ${fmt(game.resources.food)} แต่ต้องใช้ประมาณ ${fmt(need)} หน่วย`, severity: "danger" });
+  if (game.resources.water < Math.ceil(alivePeople(game).length * 1.3)) warnings.push({ icon: "💧", title: "น้ำใช้ไม่พอหลังจบเดือน", text: `มีน้ำ ${fmt(game.resources.water)} แต่ต้องใช้ประมาณ ${fmt(Math.ceil(alivePeople(game).length * 1.3))} หน่วย ควรจัดคนไปตักน้ำ`, severity: "danger" });
   if (seasonOf(game.month) === "ฤดูหนาว" && game.resources.fuel < alivePeople(game).length) warnings.push({ icon: "🪵", title: "ฟืนต่ำในฤดูหนาว", text: "เด็ก ผู้สูงอายุ และผู้ป่วยจะเสี่ยงมากขึ้นหากไม่มีฟืนพอ", severity: "danger" });
   if (game.labor.guard + game.labor.patrol <= 0 && (risk.beast >= 48 || game.threat >= 45)) warnings.push({ icon: "🛡️", title: "ไม่มีคนดูแลความปลอดภัย", text: "ภัยสัตว์ป่า/คนภายนอกสูง แต่ยังไม่มีเวรยามหรือการลาดตระเวน", severity: "warn" });
   if (woundedCount(game) > 0 && game.labor.care + game.labor.herbs <= 0) warnings.push({ icon: "🌿", title: "มีคนป่วยหรือบาดเจ็บแต่ไม่มีคนดูแล", text: "แผลติดเชื้อและโรคอาจเปลี่ยนเป็นการสูญเสียจริง", severity: "warn" });
@@ -2377,7 +2396,7 @@ function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState;
 วาง Debug Report หรือความเห็นตรงนี้:
 
 ${compactDebug}`);
-  return <section className="panel pad"><h2 className="title">ตั้งค่าและเครื่องมือทดสอบ Alpha</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>{BUILD_LABEL} · {BUILD_DATE}</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ตรวจแรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ซื้อขายผ่านพ่อค้า/ตลาด</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>เครื่องมือทดสอบ</h3><ol><li>Copy Debug Report เมื่อเจอบัค</li><li>ส่ง Feedback ทางอีเมล</li><li>Export Save เพื่อส่งให้ผู้พัฒนา</li><li>Import Save เพื่อเปิดเซฟที่เพื่อนส่งมา debug</li></ol><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a></div></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ใช้เมื่อต้องการเริ่มรอบทดสอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><details className="details-box" style={{ marginTop: 16 }} open><summary>Debug Report แบบย่อ</summary><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></section>;
+  return <section className="panel pad"><h2 className="title">ตั้งค่าและเครื่องมือทดสอบ Alpha</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>{BUILD_LABEL} · {BUILD_DATE}</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ตรวจแรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ซื้อขายผ่านพ่อค้า/ตลาด</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>เครื่องมือทดสอบ</h3><ol><li>Copy Debug Report เมื่อเจอบัค</li><li>ส่ง Feedback ทางอีเมล</li><li>Export Save เพื่อส่งให้ผู้พัฒนา</li><li>Import Save เพื่อเปิดเซฟที่เพื่อนส่งมา debug</li></ol><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอก Godot Data Pack</button><a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a></div></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ใช้เมื่อต้องการเริ่มรอบทดสอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><details className="details-box" style={{ marginTop: 16 }} open><summary>Debug Report แบบย่อ</summary><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></section>;
 }
 
 function estimateBuildMonths(game: GameState): number | null {

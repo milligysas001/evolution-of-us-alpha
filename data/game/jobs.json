@@ -1,0 +1,149 @@
+[
+  {
+    "id": "forage",
+    "emoji": "🌾",
+    "name": "หาอาหาร / ล่าสัตว์",
+    "category": "พื้นฐาน",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "food",
+      "hides"
+    ],
+    "risk": [
+      "accident",
+      "beast"
+    ]
+  },
+  {
+    "id": "water",
+    "emoji": "💧",
+    "name": "ตักน้ำ / ดูแลน้ำสะอาด",
+    "category": "พื้นฐาน",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "water"
+    ],
+    "risk": [
+      "disease if unmanaged"
+    ],
+    "note": "งานนี้ไม่ล็อก เพราะค่ายต้องหาน้ำได้ตั้งแต่เริ่มเกม"
+  },
+  {
+    "id": "wood",
+    "emoji": "🪵",
+    "name": "ตัดไม้",
+    "category": "พื้นฐาน",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "wood",
+      "fuel"
+    ],
+    "risk": [
+      "accident",
+      "fatigue"
+    ]
+  },
+  {
+    "id": "stone",
+    "emoji": "🪨",
+    "name": "เก็บหิน",
+    "category": "พื้นฐาน",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "stone"
+    ],
+    "risk": [
+      "accident"
+    ]
+  },
+  {
+    "id": "build",
+    "emoji": "🛖",
+    "name": "ก่อสร้าง",
+    "category": "ก่อสร้าง",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "construction_progress"
+    ],
+    "risk": [
+      "accident"
+    ]
+  },
+  {
+    "id": "guard",
+    "emoji": "🛡️",
+    "name": "เฝ้ายาม",
+    "category": "ความปลอดภัย",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "security"
+    ],
+    "risk": [
+      "fatigue"
+    ]
+  },
+  {
+    "id": "care",
+    "emoji": "🌿",
+    "name": "ดูแลคนป่วย",
+    "category": "สุขภาพ",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "health_recovery"
+    ],
+    "risk": []
+  },
+  {
+    "id": "research",
+    "emoji": "📜",
+    "name": "ทดลอง / เรียนรู้",
+    "category": "ความรู้",
+    "availableFrom": "ค่ายพักแรม",
+    "output": [
+      "knowledge"
+    ],
+    "risk": []
+  },
+  {
+    "id": "farm",
+    "emoji": "🌱",
+    "name": "เพาะปลูก",
+    "category": "อาหาร",
+    "unlock": {
+      "researchAny": [
+        "basicFarming"
+      ],
+      "buildingAny": [
+        "farmPlot"
+      ]
+    }
+  },
+  {
+    "id": "preserve",
+    "emoji": "🥫",
+    "name": "ถนอมอาหาร",
+    "category": "อาหาร",
+    "unlock": {
+      "researchAny": [
+        "foodPreservation"
+      ],
+      "buildingAny": [
+        "storage"
+      ]
+    }
+  },
+  {
+    "id": "intel",
+    "emoji": "🕊️",
+    "name": "สายข่าว / รับฟังข่าวสาร",
+    "category": "ข่าวสาร",
+    "unlock": {
+      "stageAny": [
+        "เมืองเล็ก"
+      ],
+      "researchAny": [
+        "signalNetwork"
+      ]
+    }
+  }
+]

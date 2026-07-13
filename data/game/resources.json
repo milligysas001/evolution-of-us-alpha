@@ -1,0 +1,79 @@
+[
+  {
+    "id": "food",
+    "emoji": "🍲",
+    "name": "อาหาร",
+    "category": "survival",
+    "description": "ใช้เลี้ยงทุกคนในค่าย ขาดแล้วเกิดความอดอยากและความตาย"
+  },
+  {
+    "id": "water",
+    "emoji": "💧",
+    "name": "น้ำ",
+    "category": "survival",
+    "description": "ต้องใช้ทุกเดือน เริ่มแรกตักจากลำธาร/น้ำค้างได้ แต่คุณภาพยังเสี่ยง"
+  },
+  {
+    "id": "fuel",
+    "emoji": "🔥",
+    "name": "ฟืน",
+    "category": "survival",
+    "description": "สำคัญมากในฤดูหนาว ใช้ให้ความอบอุ่นและต้มน้ำ"
+  },
+  {
+    "id": "wood",
+    "emoji": "🪵",
+    "name": "ไม้",
+    "category": "material",
+    "description": "ใช้สร้างที่พัก รั้ว คลัง และซ่อมเครื่องมือ"
+  },
+  {
+    "id": "stone",
+    "emoji": "🪨",
+    "name": "หิน",
+    "category": "material",
+    "description": "ใช้ก่อสร้างบ่อน้ำ กองไฟถาวร และอาคารแข็งแรง"
+  },
+  {
+    "id": "tools",
+    "emoji": "🛠️",
+    "name": "เครื่องมือ",
+    "category": "tool",
+    "description": "เพิ่มประสิทธิภาพแรงงานแต่พังได้"
+  },
+  {
+    "id": "herbs",
+    "emoji": "🍃",
+    "name": "สมุนไพร",
+    "category": "health",
+    "description": "รักษาแผล ลดโรค และใช้ค้าขายได้"
+  },
+  {
+    "id": "hides",
+    "emoji": "🧥",
+    "name": "หนังสัตว์",
+    "category": "trade",
+    "description": "ได้จากการล่า ใช้ขายหรือทำเสื้อกันหนาวในอนาคต"
+  },
+  {
+    "id": "knowledge",
+    "emoji": "📜",
+    "name": "ความรู้",
+    "category": "progress",
+    "description": "ใช้วิจัยภูมิปัญญาและปลดล็อกระบบใหม่"
+  },
+  {
+    "id": "gold",
+    "emoji": "🪙",
+    "name": "ทอง",
+    "category": "city_asset",
+    "description": "ทรัพย์สินของเมือง ได้จากการค้า ใช้ซื้อของฉุกเฉิน ข่าวสาร เครื่องมือ และบริการ"
+  },
+  {
+    "id": "ore",
+    "emoji": "⛓️",
+    "name": "แร่ดิบ",
+    "category": "advanced",
+    "description": "ทรัพยากรขั้นสูงสำหรับเครื่องมือ/อาวุธในยุคหลัง"
+  }
+]

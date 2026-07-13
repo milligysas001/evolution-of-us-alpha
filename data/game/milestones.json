@@ -1,0 +1,51 @@
+[
+  {
+    "stage": "ค่ายพักแรม",
+    "goal": "รอดให้ถึงสิ้นปีแรก",
+    "requirements": [
+      {
+        "resource": "food",
+        "min": 60
+      },
+      {
+        "resource": "fuel",
+        "min": 40
+      },
+      {
+        "building": "shelter",
+        "min": 2
+      },
+      {
+        "labor": "guard",
+        "min": 1
+      }
+    ],
+    "rewards": [
+      "ปลดล็อกเป้าหมายชุมชนแรกเริ่ม",
+      "เปิด event ครอบครัวเร่ร่อน/พ่อค้า"
+    ]
+  },
+  {
+    "stage": "ชุมชนแรกเริ่ม",
+    "goal": "เปลี่ยนจากค่ายเป็นหมู่บ้าน",
+    "requirements": [
+      {
+        "building": "well",
+        "min": 1
+      },
+      {
+        "building": "storage",
+        "min": 1
+      },
+      {
+        "research": "basicFarming"
+      },
+      {
+        "populationMin": 15
+      }
+    ],
+    "rewards": [
+      "ปลดล็อกงานสังคมและการค้าเพิ่ม"
+    ]
+  }
+]

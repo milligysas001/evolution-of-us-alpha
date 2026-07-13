@@ -1,0 +1,100 @@
+[
+  {
+    "id": "shelter",
+    "emoji": "🛖",
+    "name": "ที่พักชั่วคราว",
+    "category": "housing",
+    "cost": {
+      "wood": 12,
+      "tools": 1
+    },
+    "workRequired": 20,
+    "unlock": {
+      "stageMin": "ค่ายพักแรม"
+    },
+    "effects": {
+      "shelterQuality": 5,
+      "coldRisk": -2
+    }
+  },
+  {
+    "id": "campfire",
+    "emoji": "🔥",
+    "name": "กองไฟกลาง",
+    "category": "survival",
+    "cost": {
+      "wood": 8,
+      "stone": 3
+    },
+    "workRequired": 18,
+    "effects": {
+      "morale": 3,
+      "coldRisk": -2
+    }
+  },
+  {
+    "id": "storage",
+    "emoji": "🏺",
+    "name": "คลังอาหารเล็ก",
+    "category": "storage",
+    "cost": {
+      "wood": 14,
+      "stone": 4
+    },
+    "workRequired": 28,
+    "effects": {
+      "foodSpoilage": -8
+    }
+  },
+  {
+    "id": "well",
+    "emoji": "💧",
+    "name": "บ่อน้ำ",
+    "category": "water",
+    "cost": {
+      "wood": 10,
+      "stone": 12
+    },
+    "workRequired": 40,
+    "unlock": {
+      "researchAll": [
+        "waterFinding"
+      ]
+    },
+    "effects": {
+      "waterOutput": 4,
+      "waterQuality": 28,
+      "diseaseRisk": -10
+    }
+  },
+  {
+    "id": "watchPost",
+    "emoji": "🛡️",
+    "name": "ป้อมยามไม้",
+    "category": "defense",
+    "cost": {
+      "wood": 18,
+      "stone": 4
+    },
+    "workRequired": 38,
+    "effects": {
+      "security": 8,
+      "banditRisk": -6
+    }
+  },
+  {
+    "id": "meetingHall",
+    "emoji": "🏛️",
+    "name": "ศาลาประชุม",
+    "category": "society",
+    "cost": {
+      "wood": 30,
+      "stone": 12
+    },
+    "workRequired": 60,
+    "effects": {
+      "cohesion": 8,
+      "tradeUnlock": true
+    }
+  }
+]
