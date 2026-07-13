@@ -1,3 +1,15 @@
+# Godot Porting Notes v0.9.27
+
+Content expansion now uses template/seed-style event generation. When porting to Godot, split these into JSON packs:
+- leader_actions.json
+- event_survival.json
+- event_animals.json
+- event_exploration.json
+- event_family.json
+- event_chains.json
+
+Each event follows the existing GameEvent structure: id, title, category, text, condition, weight, choices.
+
 # Godot Porting Notes (v0.9.15)
 
 ## สิ่งที่ควรพกไป Godot

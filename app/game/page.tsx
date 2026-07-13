@@ -12,7 +12,7 @@ type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "rese
 type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "knowledge" | "fuel" | "ore" | "gold" | "feed";
 type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "animalPen" | "palisade" | "graveyard" | "meetingHall" | "smokeVent" | "dryingRack" | "livestockShed" | "waterTrough";
 type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "sanitation" | "animalKeeping" | "fodderPrep" | "storyRecords" | "palisadeCraft" | "signalNetwork" | "shelterHygiene" | "animalBreeding" | "masonry" | "herbalWorkshop" | "projectPlanning";
-type LeaderFocusKey = "workWithPeople" | "study" | "trainGuard" | "family" | "scout" | "mediate" | "rationPlan" | "inspectRations" | "leadForage" | "boilHerbs" | "isolateSick" | "nightPatrol" | "trackBeasts" | "animalCare" | "campRules" | "holdCouncil" | "memorial" | "firewoodPlan" | "repairTools" | "rainShelter" | "winterWatch" | "quietRest";
+type LeaderFocusKey = string;
 type LogKind = "normal" | "good" | "bad" | "death" | "rare" | "milestone";
 type MetricKey = "morale" | "security" | "trust" | "health" | "cohesion" | "fairness";
 type SkillKey = "hunter" | "builder" | "healer" | "keeper" | "guard" | "farmer" | "child" | "elder";
@@ -261,7 +261,7 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.26";
+const GAME_VERSION = "0.9.27";
 const BUILD_LABEL = "Comfort Dark · Deep Events · Research Build Link";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
@@ -338,6 +338,71 @@ const leaderFocuses: LeaderAction[] = [
   { id: "rationPlan", icon: "📦", title: "วางแผนเสบียง", text: "ลดอาหารเสียและความเสี่ยงอดอาหาร แต่คนอาจรู้สึกเข้มงวด" },
 ];
 
+const expandedLeaderFocuses: LeaderAction[] = [
+  { id: "waterMarshal", icon: "💧", title: "ตรวจแหล่งน้ำด้วยตนเอง", text: "ลดโรคจากน้ำและเพิ่มน้ำสะอาดเล็กน้อย" },
+  { id: "herbWalk", icon: "🌿", title: "พาหมอยาเดินดูพืชรอบค่าย", text: "เพิ่มสมุนไพรและลดความเสี่ยงโรค" },
+  { id: "fieldHands", icon: "🌾", title: "ลงแปลงกับคนเพาะปลูก", text: "เพิ่มอาหารจากงานไร่และความไว้ใจ" },
+  { id: "woodlineSurvey", icon: "🪓", title: "เดินแนวไม้กับช่างและพราน", text: "เพิ่มไม้ ลดหลงป่า และอ่านทิศลมได้ดีขึ้น" },
+  { id: "stoneMeasure", icon: "🪨", title: "วัดแนวหินและฐานราก", text: "ช่วยงานหินและลดโอกาสก่อสร้างผิดพลาด" },
+  { id: "toolAudit", icon: "🔧", title: "ตรวจเครื่องมือทุกด้าม", text: "ลดอุบัติเหตุและรักษาเครื่องมือที่เหลือ" },
+  { id: "childLessons", icon: "🧒", title: "สอนเด็กให้ช่วยงานอย่างปลอดภัย", text: "เด็กช่วยงานดีขึ้นโดยไม่เสี่ยงเกินไป" },
+  { id: "elderCouncil", icon: "🧓", title: "ขอคำจากผู้เฒ่า", text: "เพิ่มความรู้ ความสามัคคี และลดความตื่นตระหนก" },
+  { id: "animalLedger", icon: "🐐", title: "นับสัตว์และแบ่งอาหารสัตว์", text: "ลดความหิวของฝูงและป้องกันสัตว์หาย" },
+  { id: "smokeWatch", icon: "💨", title: "ตรวจควันในที่พัก", text: "ลดโรคจากควันและช่วยการพักฟื้น" },
+  { id: "shelterRounds", icon: "🛖", title: "เดินตรวจที่พักก่อนค่ำ", text: "ลดความหนาวและเพิ่มความรู้สึกปลอดภัย" },
+  { id: "marketGreeting", icon: "🪙", title: "ออกต้อนรับพ่อค้าด้วยตนเอง", text: "เพิ่มโอกาสต่อรองและลดความเข้าใจผิดกับคนนอก" },
+  { id: "migrantInterview", icon: "🧳", title: "สัมภาษณ์ผู้มาใหม่ทีละคน", text: "รับคนได้เหมาะขึ้น ลดโรคและความขัดแย้ง" },
+  { id: "justiceHearing", icon: "⚖️", title: "เปิดวงไต่สวนอย่างเป็นธรรม", text: "ลดข่าวลือเรื่องการลงโทษและเพิ่มความยุติธรรม" },
+  { id: "trailMarkers", icon: "🪧", title: "ทำเครื่องหมายเส้นทางสำรวจ", text: "เพิ่มผลสำรวจและลดหลงทาง" },
+  { id: "weatherReading", icon: "🌦️", title: "อ่านเมฆ ลม และกลิ่นฝน", text: "ลดความเสียหายจากอากาศและเตรียมฤดูถัดไป" },
+  { id: "fireDiscipline", icon: "🔥", title: "จัดวินัยกองไฟและเถ้าร้อน", text: "เพิ่มฟืนที่ใช้คุ้มค่าและลดไฟลาม" },
+  { id: "quietMeal", icon: "🍲", title: "นั่งกินมื้อเดียวกับคนที่อ่อนแรง", text: "เพิ่มขวัญคนเปราะบางและลดความโดดเดี่ยว" },
+  { id: "nightStories", icon: "📜", title: "เล่าเรื่องก่อนนอนให้ค่ายจำได้", text: "เพิ่มกำลังใจและความทรงจำร่วม" },
+  { id: "seedSaving", icon: "🌱", title: "คัดเมล็ดและของกินไว้สำหรับฤดูหน้า", text: "เพิ่มความมั่นคงอาหารระยะยาวแต่ใช้เสบียงบางส่วน" },
+  { id: "sicknessLedger", icon: "🩺", title: "จดอาการป่วยทุกคน", text: "ลดโรคซ้ำและช่วยหมอยาเลือกคนดูแล" },
+  { id: "watchRotation", icon: "🛡️", title: "จัดเวรยามใหม่ไม่ให้คนเดิมเหนื่อยเกิน", text: "ลดความล้าและเพิ่มความปลอดภัย" },
+  { id: "constructionBrief", icon: "🏗️", title: "ประชุมช่างก่อนเริ่มงานใหญ่", text: "เพิ่มความคืบหน้าก่อสร้างและลดอุบัติเหตุ" },
+  { id: "researchCircle", icon: "🧪", title: "ตั้งวงเรียนรู้หลังเลิกงาน", text: "เพิ่มความรู้โดยไม่ดึงแรงงานทั้งวัน" },
+  { id: "funeralCare", icon: "🕯️", title: "ดูแลครอบครัวผู้สูญเสีย", text: "ลดบาดแผลใจหลังมีคนตาย" },
+  { id: "scavengerRules", icon: "🧺", title: "ตั้งกฎเก็บของจากซากเก่า", text: "เพิ่มของใช้แต่ลดโรคและการแย่งชิง" },
+  { id: "riverGuard", icon: "🌊", title: "ตั้งคนเฝ้าริมน้ำ", text: "ลดอุบัติเหตุและสัตว์ป่าที่ลงน้ำตอนกลางคืน" },
+  { id: "rationKitchen", icon: "🥣", title: "จัดครัวกลางแทนการแบ่งเงียบ ๆ", text: "ลดขโมยเสบียงและเพิ่มความยุติธรรม" },
+  { id: "craftMentor", icon: "🪚", title: "ให้ช่างสอนมือใหม่หนึ่งคืน", text: "เพิ่มเครื่องมือและลดของเสียในเดือนถัดไป" },
+  { id: "beastFence", icon: "🐺", title: "ตรวจแนวกลิ่นสัตว์และรั้วหยาบ", text: "ลดภัยสัตว์ป่าโดยเฉพาะเมื่อมีสัตว์เลี้ยง" },
+  { id: "roadWhisper", icon: "🛤️", title: "ส่งคนฟังข่าวริมทางเก่า", text: "เพิ่มข่าวสารและโอกาสการค้า แต่เปิดตาให้คนนอกเห็นค่าย" },
+  { id: "birthSupport", icon: "🍼", title: "กันพื้นที่อบอุ่นให้หญิงตั้งครรภ์และเด็ก", text: "ลดความเสี่ยงครอบครัวและเพิ่มความไว้ใจ" },
+  { id: "oreTest", icon: "⛏️", title: "ทดสอบหินสีเข้มจากแนวเขา", text: "เพิ่มโอกาสพบแร่และความรู้ช่าง" },
+  { id: "sharedOath", icon: "🤝", title: "ให้ทุกคนกล่าวคำมั่นต่อค่าย", text: "เพิ่มความสามัคคีเมื่อค่ายเริ่มโตและคนใหม่มากขึ้น" },
+  { id: "restPlan", icon: "🛌", title: "วางแผนพักเป็นรอบแทนหยุดทั้งค่าย", text: "ลดความล้าโดยเสียผลผลิตน้อยกว่า" },
+  { id: "dogTrail", icon: "🐕", title: "ให้สุนัขนำตรวจรอยรอบค่าย", text: "ลดภัยคนแปลกหน้าและสัตว์ป่า" },
+  { id: "cowCare", icon: "🐄", title: "ตรวจน้ำและหญ้าของวัว", text: "ลดความหิวสัตว์ใหญ่และเพิ่มผลตอบแทนระยะยาว" },
+  { id: "pigWaste", icon: "🐖", title: "จัดที่ทิ้งเศษอาหารไม่ให้หมูป่วย", text: "ลดโรคสัตว์และกลิ่นคอก" },
+  { id: "chickenRoost", icon: "🐔", title: "ซ่อมรังไก่ก่อนกลางคืน", text: "ลดไก่หายและเพิ่มอาหารเล็กน้อย" },
+  { id: "mapCouncil", icon: "🗺️", title: "กางแผนที่และเลือกเส้นทางเดือนหน้า", text: "เพิ่มผลสำรวจและลดการเดินซ้ำไร้ผล" },
+];
+
+function expandedLeaderActionAvailable(id: LeaderFocusKey, game: GameState, event: GameEvent): boolean {
+  const risk = riskPreview(game);
+  const season = seasonOf(game.month);
+  const state = normalizeAnimalState(game.animalState);
+  const hasAnimals = animalCount(game) > 0;
+  const eventText = `${event.category} ${event.title}`;
+  if (["waterMarshal", "riverGuard"].includes(id)) return game.resources.water < foodNeedFor(game) * 2 || risk.disease > 40 || eventText.includes("น้ำ");
+  if (["herbWalk", "sicknessLedger"].includes(id)) return game.resources.herbs < 6 || risk.disease > 35 || woundedCount(game) > 0 || eventText.includes("โรค") || eventText.includes("สมุนไพร");
+  if (["fieldHands", "seedSaving"].includes(id)) return game.researchDone.basicFarming || game.buildings.farmPlot > 0 || season !== "ฤดูหนาว";
+  if (["woodlineSurvey", "stoneMeasure", "toolAudit", "constructionBrief", "craftMentor", "oreTest"].includes(id)) return game.construction !== null || game.resources.tools <= 4 || eventText.includes("ก่อสร้าง") || eventText.includes("เครื่องมือ") || eventText.includes("หิน");
+  if (["childLessons", "elderCouncil", "quietMeal", "nightStories", "sharedOath"].includes(id)) return alivePeople(game).some(p => p.age < 15 || p.age >= 60) || game.metrics.morale < 55 || game.metrics.cohesion < 55;
+  if (["animalLedger", "beastFence", "dogTrail", "cowCare", "pigWaste", "chickenRoost"].includes(id)) return hasAnimals || eventText.includes("สัตว์");
+  if (["smokeWatch", "shelterRounds", "weatherReading", "fireDiscipline"].includes(id)) return game.buildings.shelter > 0 || game.buildings.campfire > 0 || risk.weather > 35 || season === "ฤดูหนาว" || season === "ฤดูฝน";
+  if (["marketGreeting"].includes(id)) return eventText.includes("พ่อค้า") || eventText.includes("การค้า") || game.labor.trade > 0;
+  if (["migrantInterview", "birthSupport"].includes(id)) return eventText.includes("ผู้ลี้ภัย") || eventText.includes("อพยพ") || eventText.includes("เกิด") || game.people.length > 14;
+  if (["justiceHearing", "rationKitchen"].includes(id)) return risk.conflict > 35 || eventText.includes("ขโมย") || eventText.includes("เสบียง") || game.metrics.fairness < 55;
+  if (["trailMarkers", "roadWhisper", "mapCouncil", "scavengerRules"].includes(id)) return game.labor.explore > 0 || game.leaderFocus === "scout" || eventText.includes("สำรวจ") || eventText.includes("ถนน") || eventText.includes("ซาก");
+  if (["watchRotation"].includes(id)) return risk.beast > 30 || game.threat > 25 || game.metrics.security < 60;
+  if (["funeralCare"].includes(id)) return game.casualties.length > 0;
+  if (["restPlan"].includes(id)) return alivePeople(game).some(p => p.fatigue > 55) || risk.accident > 35;
+  return true;
+}
 
 
 function makeLeaderAction(id: LeaderFocusKey, icon: string, title: string, text: string, reason: string, priority = 50, locked = false, lockReason?: string): LeaderAction {
@@ -354,6 +419,7 @@ function dynamicLeaderActions(game: GameState, event: GameEvent): LeaderAction[]
     { ...leaderFocuses.find((f) => f.id === "trainGuard")!, reason: "เป็นทางเลือกปลอดภัยเมื่อค่ายยังไม่มีแนวป้องกันที่มั่นคง", priority: 24 },
     { ...leaderFocuses.find((f) => f.id === "scout")!, reason: "เปิดข่าวลือและเหตุการณ์ต่อเนื่อง แต่อาจเพิ่มความเสี่ยงให้ผู้นำ", priority: 20 },
   ];
+  actions.push(...expandedLeaderFocuses.filter((a) => expandedLeaderActionAvailable(a.id, game, event)).map((a, index) => ({ ...a, reason: "ทางเลือกตามสภาพค่ายและเหตุการณ์เดือนนี้", priority: 72 - index * 0.2 })));
 
   if (risk.food >= 45 || game.resources.food < foodNeedFor(game) * 2 || event.category.includes("อาหาร")) {
     actions.push(makeLeaderAction("inspectRations", "📦", "ตรวจคลังและนับเสบียงต่อหน้าทุกคน", "ลดความสับสนเรื่องอาหาร เพิ่มความยุติธรรม แต่ทำให้คนรู้ว่าค่ายตึงมือเพียงใด", "ขึ้นมาเพราะเสบียงกำลังเป็นจุดเสี่ยงของเดือนนี้", 95));
@@ -2188,8 +2254,298 @@ const events: GameEvent[] = [
 
 ];
 
+
+type ExtraEventSeed = {
+  id: string;
+  icon: string;
+  title: string;
+  category: string;
+  text: string;
+  condition?: (g: GameState) => boolean;
+  weight?: (g: GameState) => number;
+  resources?: Partial<Resources>;
+  risk?: Partial<Risks>;
+  metrics?: Partial<Metrics>;
+  path?: Partial<PathScores>;
+  threat?: number;
+  chainTo?: string;
+  rare?: boolean;
+};
+
+function extraEvent(seed: ExtraEventSeed): GameEvent {
+  const resourceDelta = seed.resources ?? {};
+  const metricDelta = seed.metrics ?? {};
+  const riskDelta = seed.risk ?? {};
+  const pathDelta = seed.path ?? {};
+  return {
+    id: seed.id,
+    title: seed.title,
+    category: seed.category,
+    text: seed.text,
+    rare: seed.rare,
+    condition: seed.condition,
+    weight: seed.weight ?? (() => 5),
+    choices: [
+      choice(`${seed.id}_careful`, seed.icon, "รับมืออย่างระมัดระวัง", "รอบคอบ", "ลดความเสี่ยง แต่ใช้เวลาและทรัพยากรบางส่วน", {
+        resources: scaleResources(resourceDelta, 0.6),
+        metrics: changeLike(metricDelta, 0.8),
+        risk: invertRisk(riskDelta, 0.5),
+        path: pathDelta,
+        threat: seed.threat ?? 0,
+      }, [
+        "ผู้นำไม่ได้รีบเอาชนะเหตุการณ์ตรงหน้า แต่ให้คนในค่ายหยุดมองรายละเอียดที่มักถูกละเลย",
+        "ผลลัพธ์อาจไม่หวือหวา ทว่าความเสียหายที่ไม่เกิดขึ้นก็เป็นชัยชนะชนิดหนึ่ง",
+      ], seed.chainTo ? { addPending: seed.chainTo } : {}),
+      choice(`${seed.id}_practical`, "🧰", "ใช้แรงงานแก้ปัญหาทันที", "ปฏิบัติ", "ได้ผลเร็ว แต่เพิ่มความล้าและอุบัติเหตุเล็กน้อย", {
+        resources: resourceDelta,
+        metrics: { ...metricDelta, morale: (metricDelta.morale ?? 0) + 1 },
+        risk: { ...riskDelta, accident: (riskDelta.accident ?? 0) + 3 },
+        path: { ...pathDelta, survival: (pathDelta.survival ?? 0) + 1 },
+        threat: seed.threat ?? 0,
+      }, [
+        "คนที่ยังมีกำลังถูกเรียกออกมา งานจึงเดินหน้าโดยไม่รอให้ความกลัวตั้งราก",
+        "แต่ทุกก้าวที่เร่งขึ้น ทิ้งรอยเหนื่อยไว้บนไหล่ของคนทำงานเสมอ",
+      ], seed.chainTo ? { addPending: seed.chainTo } : {}),
+      choice(`${seed.id}_community`, "🤝", "ให้ชุมชนร่วมตัดสินใจ", "ร่วมมือ", "เพิ่มความไว้ใจและลดความขัดแย้ง แต่อาจไม่แก้ทรัพยากรทันที", {
+        resources: scaleResources(resourceDelta, 0.35),
+        metrics: { trust: 3, cohesion: 3, fairness: 2, ...(metricDelta ?? {}) },
+        risk: { conflict: -5 },
+        path: { family: 1, ...(pathDelta ?? {}) },
+        threat: seed.threat ? Math.round(seed.threat * 0.4) : 0,
+      }, [
+        "เรื่องนี้ถูกเล่าต่อหน้าคนทั้งค่าย ไม่ใช่ในเงาของที่พักผู้นำ",
+        "บางคนยังไม่เห็นด้วย แต่การได้พูดทำให้ความไม่เห็นด้วยไม่กลายเป็นพิษเงียบ",
+      ], seed.chainTo ? { addPending: seed.chainTo } : {}),
+    ],
+  };
+}
+
+function scaleResources(delta: Partial<Resources>, factor: number): Partial<Resources> {
+  const out: Partial<Resources> = {};
+  (Object.keys(delta) as ResourceKey[]).forEach((k) => { out[k] = Math.round((delta[k] ?? 0) * factor); });
+  return out;
+}
+function changeLike<T extends string>(delta: Partial<Record<T, number>>, factor: number): Partial<Record<T, number>> {
+  const out: Partial<Record<T, number>> = {};
+  (Object.keys(delta) as T[]).forEach((k) => { out[k] = Math.round((delta[k] ?? 0) * factor); });
+  return out;
+}
+function invertRisk(delta: Partial<Risks>, factor: number): Partial<Risks> {
+  const out: Partial<Risks> = {};
+  (Object.keys(delta) as Array<keyof Risks>).forEach((k) => { out[k] = -Math.round(Math.abs(delta[k] ?? 0) * factor); });
+  return out;
+}
+
+const survivalEventSeeds: ExtraEventSeed[] = [
+  { id: "food_mold_in_sack", icon: "🍞", title: "กลิ่นเปรี้ยวในถุงเสบียง", category: "อาหาร / คลัง", text: "ถุงอาหารใบหนึ่งมีกลิ่นเปรี้ยว เด็กที่วิ่งผ่านเป็นคนได้กลิ่นก่อนผู้ใหญ่ หากปล่อยไว้ อาหารดีอาจปนเสียทั้งกอง", resources: { food: -4, knowledge: 2 }, risk: { food: 8, disease: 4 }, weight: (g) => 5 + (g.buildings.storage ? -2 : 8) },
+  { id: "water_skin_leak", icon: "💧", title: "ถุงน้ำรั่วระหว่างขนกลับค่าย", category: "น้ำ / งานประจำวัน", text: "คนตักน้ำกลับมาพร้อมถุงหนังที่เปียกกว่าปกติ น้ำหายไปก่อนถึงค่ายครึ่งหนึ่ง และทุกคนเริ่มมองหาใครสักคนให้รับผิด", resources: { water: -5, hides: -1 }, risk: { conflict: 5 }, weight: (g) => 6 + (g.resources.water < foodNeedFor(g) * 2 ? 8 : 0) },
+  { id: "wet_firewood_smokes", icon: "🔥", title: "ฟืนเปียกทำให้ควันขัง", category: "ฟืน / สุขภาพ", text: "ฟืนที่เก็บมาเปียกข้างใน ควันหนาเกาะที่พักจนเด็กไอและผู้เฒ่าต้องออกไปนั่งกลางลม", resources: { fuel: -3 }, metrics: { health: -2 }, risk: { disease: 6, weather: 5 }, weight: (g) => 6 + (seasonOf(g.month) === "ฤดูฝน" ? 8 : 0) },
+  { id: "tool_handle_splits", icon: "🛠️", title: "ด้ามขวานแตกระหว่างผ่าฟืน", category: "เครื่องมือ / อุบัติเหตุ", text: "เสียงไม้แตกดังแหลมกว่าปกติ ด้ามขวานหนึ่งอันร้าวยาว หากฝืนใช้ต่อ มือของคนตัดไม้อาจไม่รอด", resources: { tools: -1, wood: 1 }, risk: { accident: 9 }, weight: (g) => 5 + (g.resources.tools <= 3 ? 8 : 0) },
+  { id: "child_near_stream", icon: "🧒", title: "เด็กเล็กเดินตามเสียงน้ำ", category: "ครอบครัว / น้ำ", text: "เด็กคนหนึ่งหายจากกองไฟไปไม่นาน ก่อนมีคนเห็นรอยเท้าเล็ก ๆ ไปทางลำธาร เรื่องนี้ทำให้ทุกคนรู้ว่าค่ายยังไม่มีขอบเขตที่ปลอดภัย", metrics: { morale: -1, security: 2 }, risk: { accident: 10 }, weight: (g) => alivePeople(g).some(p=>p.age<12) ? 10 : 1 },
+  { id: "old_cough_returns", icon: "🩺", title: "ไอเก่ากลับมาในที่พักรวม", category: "โรค / ที่พัก", text: "เสียงไอเดิมกลับมาอีกครั้งในที่พักรวม คราวนี้คนข้าง ๆ เริ่มหันหน้าหนี ก่อนจะมีใครกล้าพูดว่าโรคอาจอยู่ใกล้กว่าที่คิด", metrics: { health: -3 }, risk: { disease: 12 }, weight: (g) => 5 + (g.buildings.shelter < Math.ceil(alivePeople(g).length/5) ? 10 : 0) },
+  { id: "quiet_theft_hint", icon: "⚖️", title: "รอยนิ้วในถุงธัญพืช", category: "อาชญากรรม / เสบียง", text: "ถุงธัญพืชที่ผูกไว้ถูกคลายออกเล็กน้อย ไม่มีใครเห็นขโมย แต่ทุกคนเห็นว่าปมเชือกไม่เหมือนเดิม", resources: { food: -3 }, metrics: { trust: -2 }, risk: { conflict: 10 }, chainTo: "supply_theft", weight: (g) => 4 + (g.metrics.fairness < 55 ? 8 : 0) },
+  { id: "ashes_spread_by_wind", icon: "🌬️", title: "ลมแรงพัดเถ้าร้อนไปใกล้ที่พัก", category: "อากาศ / ไฟ", text: "เถ้าร้อนถูกลมพัดข้ามพื้นดินแห้งเกินไป ไฟยังไม่ลาม แต่กลิ่นไหม้ทำให้คนเฝ้ากองไฟหน้าซีด", resources: { fuel: -1 }, risk: { accident: 12, weather: 6 }, weight: (g) => 5 + (terrainData[g.terrain].weather > 5 ? 6 : 0) },
+  { id: "sore_backs_after_build", icon: "🏗️", title: "หลังของแรงงานก่อสร้างเริ่มรับไม่ไหว", category: "แรงงาน / ก่อสร้าง", text: "คนที่ยกไม้และหินมาหลายวันเริ่มนั่งเงียบหลังเลิกงาน ไม่มีใครป่วยชัดเจน แต่ความเหนื่อยกำลังยืมร่างของวันหน้า", metrics: { health: -1, morale: -1 }, risk: { accident: 8 }, weight: (g) => g.labor.build > 1 ? 10 : 2 },
+  { id: "strange_tracks_by_storage", icon: "🐾", title: "รอยเท้าเล็กใกล้คลัง", category: "สัตว์ป่า / คลัง", text: "รอยเท้าเล็ก ๆ วนอยู่ใกล้คลังอาหาร อาจเป็นสัตว์ตัวเล็ก หรือสัญญาณว่ากลิ่นอาหารของค่ายเริ่มเรียกแขกกลางคืน", resources: { food: -2 }, risk: { beast: 8, food: 3 }, weight: (g) => g.buildings.storage > 0 ? 8 : 4 },
+  { id: "elder_falls_on_mud", icon: "🧓", title: "ผู้เฒ่าลื่นบนทางโคลน", category: "อุบัติเหตุ / ผู้สูงอายุ", text: "ฝนทิ้งทางเดินเป็นโคลน ผู้เฒ่าคนหนึ่งล้มใกล้กองฟืน ไม่มีแผลใหญ่ แต่ทุกคนเห็นว่าทางเดินในค่ายก็เป็นภัยได้", metrics: { health: -2 }, risk: { accident: 10 }, weight: (g) => alivePeople(g).some(p=>p.age>=60) ? 9 : 2 },
+  { id: "sleeping_space_argument", icon: "🛖", title: "ที่นอนแคบทำให้คำพูดสั้นลง", category: "ที่พัก / ข้อพิพาท", text: "คืนหนึ่งมีคนสองครอบครัวเถียงกันเรื่องที่นอนใกล้กองไฟ ใคร ๆ ก็รู้ว่าพวกเขาไม่ได้โกรธกันเพราะผ้าห่มผืนเดียว", metrics: { morale: -2, trust: -2 }, risk: { shelter: 8, conflict: 8 }, weight: (g) => riskPreview(g).shelter > 40 ? 12 : 3 },
+  { id: "bad_water_taste", icon: "💧", title: "น้ำมีรสฝาดหลังฝนตก", category: "น้ำ / โรค", text: "น้ำที่ตักจากทางเดิมมีรสฝาดและกลิ่นดินแรงกว่าปกติ คนตักน้ำไม่แน่ใจว่าควรทิ้งหรือเก็บไว้ให้เดือด", resources: { water: -2 }, metrics: { health: -1 }, risk: { disease: 10 }, weight: (g) => seasonOf(g.month)==="ฤดูฝน" ? 11 : 4 },
+  { id: "berry_patch_dispute", icon: "🫐", title: "พุ่มเบอร์รี่ที่ทุกคนอยากเป็นเจ้าของ", category: "อาหาร / ความยุติธรรม", text: "คนหาอาหารพบพุ่มเบอร์รี่ใกล้ค่าย เด็กอยากกินทันที พรานอยากเก็บไว้ทำเสบียง และผู้ป่วยต้องการของหวานพยุงแรง", resources: { food: 5 }, metrics: { fairness: -1 }, risk: { conflict: 5 }, weight: (g) => seasonOf(g.month)!=="ฤดูหนาว" ? 8 : 1 },
+  { id: "cold_floor_children", icon: "🧣", title: "พื้นเย็นเกินไปสำหรับเด็ก", category: "ฤดูหนาว / ครอบครัว", text: "เด็ก ๆ ตื่นพร้อมปลายมือเย็นและไม่อยากลุกจากผ้าห่ม ผู้ใหญ่รู้ทันทีว่าฟืนอย่างเดียวไม่พอถ้าที่นอนยังแตะพื้นเย็น", resources: { fuel: -2 }, metrics: { health: -3 }, risk: { weather: 12 }, weight: (g) => seasonOf(g.month)==="ฤดูหนาว" ? 12 : 1 },
+  { id: "hunter_returns_empty", icon: "🏹", title: "พรานกลับมามือเปล่า", category: "อาหาร / ป่า", text: "พรานกลับมาพร้อมรอยข่วนบนแขนและไม่มีเนื้อสัตว์ เสียงในค่ายเงียบลงทันที เพราะทุกคนรู้ว่าอาหารไม่ได้เกิดจากความตั้งใจอย่างเดียว", resources: { food: -3 }, metrics: { morale: -2 }, risk: { beast: 6 }, weight: (g) => g.labor.forage > 0 ? 8 : 2 },
+  { id: "first_rust_on_blade", icon: "⚒️", title: "สนิมแรกบนคมมีด", category: "เครื่องมือ / ความชื้น", text: "คมมีดที่ใช้แล่เนื้อเริ่มมีจุดสนิมเล็ก ๆ ฝนและเหงื่อกำลังบอกว่าของใช้ก็ต้องได้รับการดูแลเหมือนคน", resources: { tools: -1, knowledge: 2 }, risk: { accident: 4 }, weight: (g) => seasonOf(g.month)==="ฤดูฝน" ? 9 : 4 },
+  { id: "night_fear_spreads", icon: "🌙", title: "ข่าวลือกลางคืนเดินเร็วกว่าคน", category: "ข่าวลือ / ความกลัว", text: "คนหนึ่งบอกว่าได้ยินเสียงนอกค่าย อีกคนยืนยันว่าเห็นเงา เรื่องเดียวกันโตขึ้นทุกครั้งที่ถูกเล่าต่อในความมืด", metrics: { morale: -2, security: -1 }, risk: { conflict: 4, beast: 4 }, weight: (g) => g.metrics.security < 55 ? 9 : 3 },
+  { id: "too_many_tasks", icon: "📋", title: "งานมากกว่ามือที่มี", category: "แรงงาน / การจัดการ", text: "รายชื่องานบนหินแบนยาวกว่ารายชื่อคนว่าง งานที่จำเป็นเริ่มแย่งแรงกันเองก่อนที่ภัยข้างนอกจะมาถึง", metrics: { morale: -1 }, risk: { accident: 8, conflict: 5 }, weight: (g) => workerCapacity(g) < Object.values(g.labor).reduce((a,b)=>a+b,0) ? 10 : 4 },
+  { id: "smoke_sparks_memory", icon: "🔥", title: "ประกายไฟเตือนความทรงจำเก่า", category: "จิตใจ / กองไฟ", text: "ประกายไฟหนึ่งกระเด็นใส่ผ้าห่มเก่า ไม่มีไฟไหม้ แต่ผู้รอดชีวิตบางคนเงียบไปทั้งคืนเหมือนเห็นบ้านเก่าลุกไหม้อีกครั้ง", metrics: { morale: -2 }, risk: { accident: 4 }, weight: (g) => g.memories.some(m=>m.kind==="trauma") ? 8 : 3 },
+  { id: "loose_rope_on_load", icon: "🪢", title: "เชือกมัดฟืนเริ่มลุ่ย", category: "งานไม้ / อุบัติเหตุ", text: "เชือกที่มัดฟืนเริ่มลุ่ย คนแบกมองมันแล้วรู้ว่าถ้าขาดกลางทาง ทั้งฟืนทั้งเท้าอาจเสียหาย", resources: { wood: 2, hides: -1 }, risk: { accident: 6 }, weight: (g) => g.labor.wood > 0 ? 8 : 2 },
+  { id: "herb_wrong_leaf", icon: "🌿", title: "ใบสมุนไพรที่คล้ายกันเกินไป", category: "สมุนไพร / ความรู้", text: "ใบสองชนิดวางอยู่ข้างกัน คล้ายกันจนคนเก็บมือใหม่แยกไม่ออก หมอยารู้ว่าความต่างเล็ก ๆ อาจเป็นความต่างระหว่างยาและพิษ", resources: { herbs: 3, knowledge: 2 }, risk: { disease: 4 }, weight: (g) => g.labor.herbs > 0 ? 10 : 3 },
+  { id: "muddy_storage_floor", icon: "🏺", title: "พื้นคลังเริ่มชื้น", category: "คลัง / ฝน", text: "ใต้กองเสบียงมีรอยชื้นเป็นวงเล็ก ๆ ถ้าไม่ยกของขึ้นตอนนี้ ความชื้นจะทำงานแทนศัตรูอย่างเงียบ ๆ", resources: { food: -2, wood: -1 }, risk: { food: 7, disease: 3 }, weight: (g) => g.buildings.storage > 0 && seasonOf(g.month)==="ฤดูฝน" ? 12 : 3 },
+  { id: "newcomer_old_grudge", icon: "🧳", title: "ผู้มาใหม่รู้จักชื่อที่ไม่ควรรู้", category: "คนใหม่ / ความไว้ใจ", text: "ผู้มาใหม่คนหนึ่งเอ่ยชื่อกลุ่มที่บางคนในค่ายเคยหนีมา ความเงียบที่ตามมาหนักกว่าคำถามหลายข้อ", metrics: { trust: -2 }, risk: { conflict: 8 }, weight: (g) => g.people.length > 14 ? 7 : 2 },
+  { id: "trail_food_missing", icon: "🥾", title: "เสบียงเดินทางหายไประหว่างสำรวจ", category: "สำรวจ / เสบียง", text: "ถุงอาหารของคนสำรวจเบากว่าที่ควรเมื่อกลับถึงค่าย อาจเป็นรูที่ก้นถุง อาจเป็นมือใครบางคน หรืออาจเป็นป่าที่กินทุกอย่าง", resources: { food: -4 }, risk: { conflict: 5, accident: 5 }, weight: (g) => g.labor.explore > 0 ? 9 : 1 },
+  { id: "old_song_returns", icon: "🎶", title: "เพลงเก่ากลับมารอบกองไฟ", category: "กำลังใจ / วัฒนธรรม", text: "มีคนเริ่มร้องเพลงที่เคยคิดว่าลืมไปแล้ว เสียงแรกสั่น แต่เสียงที่สองตามมา และค่ายฟังดูเป็นบ้านขึ้นเล็กน้อย", metrics: { morale: 5, cohesion: 2 }, resources: { knowledge: 2 }, weight: (g) => g.metrics.morale < 65 ? 8 : 3 },
+  { id: "animal_smell_near_food", icon: "🐐", title: "กลิ่นคอกลอยถึงคลังอาหาร", category: "สัตว์เลี้ยง / สุขอนามัย", text: "ลมพัดกลิ่นคอกจากฝั่งสัตว์ไปถึงคลังอาหาร หมอยาขมวดคิ้วก่อนจะพูดว่าอาหารและมูลสัตว์ไม่ควรจำกลิ่นกันได้", metrics: { health: -2 }, risk: { disease: 8 }, weight: (g) => animalCount(g)>0 && g.buildings.livestockShed===0 ? 10 : 1 },
+  { id: "small_victory_shared", icon: "🌤️", title: "เช้าที่ทุกคนตื่นครบ", category: "กำลังใจ / ความหวัง", text: "ไม่มีศพ ไม่มีไข้ใหม่ ไม่มีเสียงร้องขอความช่วยเหลือ เช้าธรรมดาเช่นนี้ทำให้บางคนรู้ว่าการอยู่รอดอาจมีหน้าตาเงียบ ๆ", metrics: { morale: 4, cohesion: 2 }, weight: (g) => riskPreview(g).food < 35 && riskPreview(g).disease < 35 ? 6 : 1 },
+  { id: "argument_over_tools", icon: "🛠️", title: "เครื่องมือดีมีไม่พอสำหรับทุกมือ", category: "เครื่องมือ / ความยุติธรรม", text: "ช่างไม้และคนตัดฟืนต่างต้องการเครื่องมือที่ยังคมที่สุดในเดือนเดียวกัน การแบ่งของใช้เริ่มเป็นการเมืองขนาดเล็ก", metrics: { fairness: -2 }, risk: { conflict: 7, accident: 4 }, weight: (g) => g.resources.tools < 4 ? 9 : 2 },
+  { id: "salt_craving", icon: "🧂", title: "ร่างกายเริ่มเรียกหาเกลือ", category: "อาหาร / สุขภาพ", text: "อาหารยังพอ แต่หลายคนเริ่มอ่อนแรงและบ่นถึงรสเค็มที่หายไป เสบียงไม่ใช่แค่จำนวน แต่เป็นสิ่งที่ร่างกายต้องการจริง ๆ", metrics: { health: -2, morale: -1 }, risk: { disease: 4 }, weight: (g) => g.year > 1 && g.labor.trade === 0 ? 6 : 2 },
+  { id: "stone_chips_in_eye", icon: "🪨", title: "เศษหินกระเด็นเฉียดตา", category: "งานหิน / อุบัติเหตุ", text: "คนเก็บหินสะดุ้งเมื่อเศษหินกระเด็นเฉียดตา ทุกคนเห็นเพียงเสี้ยวเดียวว่าการสร้างอนาคตอาจทำลายสายตาของคนหนึ่งได้", metrics: { health: -1 }, risk: { accident: 10 }, weight: (g) => g.labor.stone > 0 ? 9 : 1 },
+  { id: "family_hides_food", icon: "🏡", title: "ครอบครัวหนึ่งซ่อนอาหารไว้ใต้ที่นอน", category: "ครอบครัว / เสบียง", text: "อาหารแห้งถูกพบใต้ที่นอนของครอบครัวที่มีเด็กเล็ก พวกเขาไม่ได้ปฏิเสธ เพียงถามกลับว่าใครจะรับผิดชอบถ้าเด็กหิว", resources: { food: -3 }, metrics: { fairness: -3, trust: -2 }, risk: { conflict: 12 }, weight: (g) => g.resources.food < foodNeedFor(g) * 3 ? 8 : 2 },
+  { id: "fireflies_at_marsh", icon: "✨", title: "แสงเล็ก ๆ เหนือบึง", category: "ข่าวลือ / บึง", text: "กลางคืนมีแสงกระพริบเหนือบึง เด็กบอกว่าเป็นดาวตกใกล้ดิน ผู้เฒ่าบอกว่ามันอาจพาไปยังน้ำหรือโรคอย่างใดอย่างหนึ่ง", resources: { knowledge: 3 }, risk: { disease: 4 }, weight: (g) => normalizeLocations(g.locations).marshPools.discovered ? 8 : 2 },
+  { id: "broken_sleep_after_howl", icon: "🐺", title: "เสียงหอนทำให้คนหลับไม่สนิท", category: "สัตว์ป่า / ความล้า", text: "เสียงหอนยาวลากผ่านป่ามืด ไม่มีอะไรบุกค่าย แต่เช้าถัดมาคนหลายคนทำงานช้าลงเพราะหลับไม่เต็มตา", metrics: { morale: -1, security: -1 }, risk: { beast: 7, accident: 5 }, weight: (g) => riskPreview(g).beast > 35 ? 10 : 3 },
+  { id: "rain_barrel_idea", icon: "🌧️", title: "เด็กเสนอให้รองน้ำฝน", category: "น้ำ / ความรู้", text: "เด็กคนหนึ่งวางถ้วยแตกไว้ใต้ชายผ้าใบและพบว่าน้ำฝนเต็มถ้วยก่อนเช้า ผู้ใหญ่หัวเราะก่อนจะเริ่มคิดจริงจัง", resources: { water: 4, knowledge: 3 }, metrics: { morale: 1 }, weight: (g) => seasonOf(g.month)==="ฤดูฝน" ? 9 : 3 },
+  { id: "too_quiet_road", icon: "🛤️", title: "ถนนเก่าเงียบเกินไป", category: "ถนน / ข่าวสาร", text: "คนฟังข่าวริมทางกลับมาพร้อมคำเดียว: เงียบ เงียบเกินกว่าถนนที่ควรมีพ่อค้า บางครั้งความไม่มีข่าวคือข่าวที่ดังที่สุด", resources: { knowledge: 4 }, threat: 4, risk: { conflict: 4 }, weight: (g) => normalizeLocations(g.locations).oldTradeRoad.discovered ? 8 : 2 },
+];
+
+const animalKindsForEvents: Array<{ key: AnimalKey; name: string; icon: string; condition: (g: GameState)=>boolean }> = [
+  { key: "goats", name: "แพะ", icon: "🐐", condition: (g)=>normalizeAnimalState(g.animalState).animals.goats>0 },
+  { key: "chickens", name: "ไก่", icon: "🐔", condition: (g)=>normalizeAnimalState(g.animalState).animals.chickens>0 },
+  { key: "dogs", name: "สุนัข", icon: "🐕", condition: (g)=>normalizeAnimalState(g.animalState).animals.dogs>0 },
+  { key: "cows", name: "วัว", icon: "🐄", condition: (g)=>normalizeAnimalState(g.animalState).animals.cows>0 },
+  { key: "pigs", name: "หมู", icon: "🐖", condition: (g)=>normalizeAnimalState(g.animalState).animals.pigs>0 },
+];
+const animalIssues = [
+  { suffix: "หิวเกินกว่าจะนิ่ง", cat: "สัตว์เลี้ยง / อาหาร", text: "มันเริ่มส่งเสียงและเบียดกันใกล้รางอาหาร บอกให้คนรู้ว่าอาหารสัตว์ไม่ใช่ของฟุ่มเฟือย", res: { feed: -2, food: -2 } as Partial<Resources>, risk: { disease: 4 } as Partial<Risks> },
+  { suffix: "น้ำในรางขุ่น", cat: "สัตว์เลี้ยง / น้ำ", text: "น้ำที่วางไว้เริ่มขุ่นและมีกลิ่นดิน หากปล่อยไว้ ฝูงอาจป่วยก่อนคนจะรู้ตัว", res: { water: -2 } as Partial<Resources>, risk: { disease: 6 } as Partial<Risks> },
+  { suffix: "เชือกผูกเริ่มกัดผิว", cat: "สัตว์เลี้ยง / คอก", text: "รอยแดงบนผิวสัตว์ทำให้คนเลี้ยงรู้ว่าเครื่องผูกที่หยาบเกินไปก็ทำร้ายทรัพย์สินมีชีวิตได้", res: { hides: -1, knowledge: 2 } as Partial<Resources>, risk: { accident: 5 } as Partial<Risks> },
+  { suffix: "หายไปจากคอกชั่วครู่", cat: "สัตว์เลี้ยง / ความปลอดภัย", text: "มีช่วงหนึ่งที่ไม่มีใครเห็นมันในคอก หัวใจของคนเลี้ยงสัตว์ตกไปอยู่ที่พื้นก่อนจะพบรอยใหม่ข้างรั้ว", res: {} as Partial<Resources>, risk: { beast: 6, conflict: 3 } as Partial<Risks> },
+  { suffix: "ป่วยเงียบ ๆ", cat: "สัตว์เลี้ยง / โรค", text: "มันกินน้อยลงและยืนนิ่งกว่าปกติ อาการเล็ก ๆ เช่นนี้มักเป็นจุดเริ่มของโรคทั้งคอก", res: { herbs: -1 } as Partial<Resources>, risk: { disease: 9 } as Partial<Risks> },
+  { suffix: "ทำให้เด็กยิ้ม", cat: "สัตว์เลี้ยง / กำลังใจ", text: "เด็ก ๆ หัวเราะเมื่อมันทำท่าประหลาด เสียงหัวเราะนั้นเล็ก แต่กองไฟที่เหนื่อยล้าต้องการมัน", res: { food: -1 } as Partial<Resources>, metrics: { morale: 3 } as Partial<Metrics> },
+  { suffix: "กลิ่นดึงสัตว์ป่า", cat: "สัตว์เลี้ยง / ภัยนอกค่าย", text: "กลิ่นคอกลอยไปไกลกว่าที่คิด พรานบอกว่าจมูกของสัตว์ป่ามาถึงก่อนเท้าของมันเสมอ", res: {} as Partial<Resources>, risk: { beast: 10 } as Partial<Risks> },
+];
+function buildAnimalEvents(): GameEvent[] {
+  const out: GameEvent[] = [];
+  animalKindsForEvents.forEach((animal) => {
+    animalIssues.forEach((issue, index) => {
+      out.push(extraEvent({
+        id: `animal_${animal.key}_${index}`,
+        icon: animal.icon,
+        title: `${animal.name}${issue.suffix}`,
+        category: issue.cat,
+        text: `${animal.name}${issue.text}`,
+        condition: animal.condition,
+        weight: (g) => 3 + (animal.condition(g) ? 7 : 0) + (normalizeAnimalState(g.animalState).hunger > 55 ? 4 : 0) + (normalizeAnimalState(g.animalState).health < 55 ? 4 : 0),
+        resources: issue.res,
+        metrics: issue.metrics ?? { morale: -1 },
+        risk: issue.risk,
+        path: { survival: 1 },
+      }));
+    });
+  });
+  return out;
+}
+
+const exploreFinds = [
+  { key: "fresh_signs", title: "ร่องรอยสดบนดิน", res: { knowledge: 4 }, risk: { beast: 5 }, path: { knowledge: 1 } },
+  { key: "hidden_water", title: "แอ่งน้ำที่ถูกหญ้าบัง", res: { water: 6, knowledge: 2 }, risk: { disease: 3 }, path: { survival: 1 } },
+  { key: "fallen_tree", title: "ไม้ล้มที่ใช้ได้", res: { wood: 6 }, risk: { accident: 4 }, path: { survival: 1 } },
+  { key: "old_marks", title: "รอยสลักเก่าบนหิน", res: { knowledge: 5, stone: 2 }, risk: { conflict: 2 }, path: { knowledge: 1 } },
+  { key: "animal_crossing", title: "ทางเดินสัตว์", res: { food: 3, hides: 1 }, risk: { beast: 8 }, path: { survival: 1 } },
+  { key: "stranger_smoke", title: "ควันไฟของคนอื่น", res: { knowledge: 5 }, risk: { conflict: 8 }, path: { trade: 1 } },
+  { key: "safe_bend", title: "จุดพักที่ลมไม่แรง", res: { knowledge: 3, fuel: 2 }, risk: { weather: -4 }, path: { family: 1 } },
+];
+function buildExplorationEvents(): GameEvent[] {
+  const locs = Object.entries(locationData) as Array<[LocationKey, typeof locationData[LocationKey]]>;
+  const out: GameEvent[] = [];
+  locs.forEach(([key, loc]) => {
+    exploreFinds.forEach((find) => {
+      out.push(extraEvent({
+        id: `explore_${key}_${find.key}`,
+        icon: loc.icon,
+        title: `${loc.title}: ${find.title}`,
+        category: `สำรวจ / ${loc.title}`,
+        text: `คนสำรวจกลับจาก${loc.title}พร้อมเรื่องเล่าใหม่: ${loc.text} ครั้งนี้พวกเขาพบ${find.title.toLowerCase()} ซึ่งอาจเปลี่ยนการใช้พื้นที่นี้ในเดือนต่อไป`,
+        condition: (g) => normalizeLocations(g.locations)[key].discovered || g.exploreTarget === key || (g.labor.explore ?? 0) > 0,
+        weight: (g) => 2 + (g.exploreTarget === key ? 10 : 0) + Math.floor(normalizeLocations(g.locations)[key].progress / 25),
+        resources: find.res as Partial<Resources>,
+        risk: find.risk as Partial<Risks>,
+        path: find.path as Partial<PathScores>,
+      }));
+    });
+  });
+  return out;
+}
+
+const familyMoments = [
+  { key: "child_question", title: "คำถามของเด็ก", res: { knowledge: 2 }, metrics: { morale: 2, cohesion: 1 } },
+  { key: "old_story", title: "เรื่องเล่าของผู้เฒ่า", res: { knowledge: 4 }, metrics: { cohesion: 2 } },
+  { key: "shared_blanket", title: "ผ้าห่มที่ถูกแบ่ง", res: { fuel: -1 }, metrics: { morale: 3, trust: 1 } },
+  { key: "jealous_ration", title: "สายตาเมื่ออาหารไม่เท่ากัน", res: { food: -1 }, metrics: { fairness: -2, trust: -1 }, risk: { conflict: 6 } },
+  { key: "new_friendship", title: "มิตรภาพที่เกิดจากงานหนัก", res: {}, metrics: { morale: 2, cohesion: 3 } },
+];
+const socialGroups = ["ครอบครัวคนตัดไม้", "เด็กใกล้กองไฟ", "ผู้เฒ่าข้างที่พัก", "คนป่วยที่ยังอยากช่วย", "พรานที่กลับค่ำ", "ช่างที่มือแตก", "คนใหม่ที่ยังไม่กล้าพูด", "เวรยามกลางคืน", "หญิงตั้งครรภ์", "เด็กวัยช่วยงาน", "คนทำครัว", "คนเฝ้าสัตว์"];
+function buildFamilyEvents(): GameEvent[] {
+  const out: GameEvent[] = [];
+  socialGroups.forEach((group, gi) => {
+    familyMoments.forEach((moment) => {
+      out.push(extraEvent({
+        id: `family_${gi}_${moment.key}`,
+        icon: "🏡",
+        title: `${group}: ${moment.title}`,
+        category: "คนในค่าย / ครอบครัว",
+        text: `${group}ทำให้ค่ายต้องหยุดมองเรื่องเล็กที่ไม่เล็กสำหรับคนมีชีวิต ${moment.title}กลายเป็นสิ่งที่ผู้คนพูดถึงหลังมื้อค่ำ`,
+        condition: (g) => alivePeople(g).length >= 8,
+        weight: (g) => 3 + (g.metrics.morale < 60 ? 5 : 0) + (g.people.length > 14 ? 3 : 0),
+        resources: moment.res as Partial<Resources>,
+        metrics: moment.metrics as Partial<Metrics>,
+        risk: (moment as any).risk ?? {},
+        path: { family: 1 },
+      }));
+    });
+  });
+  return out;
+}
+
+const chainThemes = [
+  ["stranger_child", "เด็กหลงทางที่จำชื่อตัวเองไม่ได้", "เด็กคนหนึ่งยืนอยู่ริมค่ายโดยไม่ร้องไห้ เขามองกองไฟเหมือนเคยเห็นมันมาก่อน", "เด็กเริ่มจำทางกลับบ้าน"],
+  ["buried_cache", "ห่อผ้าใต้รากไม้", "พรานสะดุดรากไม้ที่มีผ้าฝังอยู่ใต้ดิน กลิ่นเก่าของมันไม่เหมือนของชาวค่าย", "เจ้าของห่อผ้าปรากฏตัว"],
+  ["old_debt", "หนี้เก่าของผู้มาใหม่", "คนที่เพิ่งเข้าค่ายหลบตาเมื่อเห็นรอยสลักบนด้ามมีดของพ่อค้า", "เจ้าหนี้เดินทางถึงค่าย"],
+  ["sick_herb", "สมุนไพรที่ช่วยคนหนึ่งแต่ทำร้ายอีกคน", "หมอยาพบว่ายาต้มชุดเดียวกันทำให้คนป่วยคนหนึ่งดีขึ้น แต่อีกคนหน้าซีดลง", "สูตรยาถูกแก้ใหม่"],
+  ["wolf_pair", "หมาป่าสองตัวที่ไม่ล่า", "พรานเห็นหมาป่าสองตัวเฝ้ามองค่าย แต่พวกมันไม่บุก เพียงเดินวนเหมือนรออะไรบางอย่าง", "หมาป่ากลับมาพร้อมฝูง"],
+  ["merchant_seal", "ตราประทับบนเหรียญแปลก", "ทองเหรียญหนึ่งมีตราที่ไม่มีใครในค่ายรู้จัก พ่อค้าบางคนอาจให้ค่ามันมากกว่าทองทั่วไป", "ตราประทับถูกจำได้"],
+  ["cave_voice", "เสียงสะท้อนในถ้ำเก่า", "คนสำรวจถ้ำได้ยินเสียงเหมือนคนตอบกลับ ทั้งที่ไม่มีใครอยู่ในนั้น", "สิ่งที่อยู่ในถ้ำถูกพบ"],
+  ["river_bones", "กระดูกริมตลิ่ง", "น้ำลดจนเห็นกระดูกเก่าติดรากไม้ ไม่ชัดว่าเป็นสัตว์หรือคน", "ชื่อของกระดูกริมตลิ่ง"],
+  ["shared_dream", "ความฝันเดียวกันของเด็กสองคน", "เด็กสองคนตื่นมาเล่าภาพเดียวกัน: ไฟสูง น้ำดำ และเสียงล้อเกวียน", "ความฝันชี้ทาง"],
+  ["broken_oath", "คำมั่นที่มีคนไม่ยอมกล่าว", "ในคืนที่ทุกคนกล่าวคำมั่น มีคนหนึ่งเงียบจนคนข้าง ๆ หันมามอง", "คนเงียบเผยเหตุผล"],
+  ["lost_dog", "สุนัขหายตอนรุ่งสาง", "รอยเท้าสุนัขหายไปทางชายป่า และมีรอยเท้าคนทับอยู่ข้าง ๆ", "สุนัขกลับมาพร้อมข่าว"],
+  ["black_stone", "หินดำที่ไม่เหมือนหินอื่น", "หินสีดำหนักผิดปกติถูกพบใกล้แนวเขา ช่างบอกว่ามันควรลองเผา", "กลิ่นโลหะจากหินดำ"],
+  ["marsh_fever", "ไข้จากหมอกบึง", "คนเก็บสมุนไพรกลับจากบึงพร้อมหนาวสั่น ทั้งที่เสื้อยังเปียกเหงื่อ", "ไข้บึงเผยแหล่งน้ำสกปรก"],
+  ["grain_sprout", "เมล็ดงอกในมุมคลัง", "อาหารที่คิดว่าเก็บไว้กินเริ่มงอกเป็นต้นอ่อนในมุมชื้นของคลัง", "ต้นอ่อนกลายเป็นบทเรียน"],
+  ["quiet_couple", "สองคนเริ่มแบ่งอาหารให้กัน", "มีคนเห็นสองคนแบ่งอาหารกันเงียบ ๆ หลายคืนติด เรื่องเล็กนี้อาจกลายเป็นครอบครัวใหม่", "ข่าวครอบครัวใหม่"],
+  ["road_tax", "คนแปลกหน้าเรียกค่าผ่านทาง", "ชายติดอาวุธสองคนบอกว่าถนนเก่าไม่ว่างเปล่าอีกต่อไป และทุกค่ายต้องจ่ายเพื่ออยู่เงียบ", "เจ้าของถนนปลอมกลับมา"],
+  ["smoke_signal", "ควันสามเส้นจากไกล", "ควันสามเส้นขึ้นจากแนวป่า ไม่เหมือนไฟธรรมดาและไม่เหมือนไฟของคนหลงทาง", "คำตอบจากควันสามเส้น"],
+  ["hidden_spring", "เสียงน้ำใต้หิน", "ตอนกลางคืนมีคนได้ยินเสียงน้ำไหลใต้แนวหิน ทั้งที่พื้นแห้งสนิท", "น้ำใต้หินเปิดทาง"],
+  ["tool_mark", "รอยช่างบนเครื่องมือเก่า", "เครื่องมือเก่าที่เก็บได้มีรอยช่างเฉพาะตัว เหมือนเคยเป็นของชุมชนที่มีระเบียบมาก่อน", "เจ้าของรอยช่าง"],
+  ["child_map", "แผนที่ของเด็ก", "เด็กคนหนึ่งวาดทางเดินในดินเล่น แต่เส้นที่วาดกลับตรงกับทางที่พรานเพิ่งพบ", "แผนที่เด็กพาไปถูกทาง"],
+  ["beehive", "รังผึ้งในไม้ล้ม", "ไม้ล้มต้นหนึ่งมีเสียงผึ้งเต็มโพรง น้ำหวานอยู่ใกล้ แต่เหล็กในก็อยู่ใกล้เช่นกัน", "ผึ้งเลือกค่าย"],
+  ["old_prayer", "คำภาวนาเก่าบนแผ่นไม้", "แผ่นไม้เก่ามีคำภาวนาถูกขูดไว้ คนอ่านออกไม่หมดแต่สัมผัสได้ว่ามันเคยสำคัญ", "คำภาวนาถูกอ่านครบ"],
+  ["iron_smell", "กลิ่นเหล็กในน้ำฝน", "น้ำฝนที่ขังในรอยหินมีกลิ่นเหล็กจาง ๆ ช่างบอกว่าน้ำกำลังเล่าเรื่องของดิน", "สายแร่ใต้ฝน"],
+  ["bitter_milk", "น้ำนมรสขม", "วัวที่เพิ่งรับมาให้น้ำนมน้อยและรสขม คนเลี้ยงรู้ว่ามันอาจกินพืชผิดชนิด", "พืชขมถูกพบ"],
+  ["missing_knife", "มีดเล็กหายจากครัว", "มีดครัวเล็กหายไป ไม่มีอาหารหาย แต่มีดที่หายไปอันตรายกว่าอาหารในบางคืน", "มีดเล็กถูกพบ"],
+  ["forest_lullaby", "เพลงกล่อมจากชายป่า", "เวรยามได้ยินเสียงเหมือนเพลงกล่อมเด็กจากชายป่า ไม่มีใครในค่ายร้องเพลงนั้น", "เจ้าของเพลงกล่อม"],
+  ["white_deer", "กวางสีซีดที่ไม่หนี", "พรานเห็นกวางสีซีดยืนนิ่งกลางแสงเช้า มันไม่หนี ไม่เข้าใกล้ และทิ้งรอยเท้าไว้ทางลำธาร", "รอยกวางพาไปพบน้ำ"],
+  ["old_well", "ปากบ่อใต้ใบไม้", "ใบไม้แห้งยุบตัวเป็นวง กลิ่นเย็นจากข้างล่างบอกว่ามีช่องว่างใต้ดิน", "บ่อเก่าถูกเปิด"],
+  ["runaway_goat", "แพะหนีแต่กลับมาอ้วนขึ้น", "แพะตัวหนึ่งหายไปสองคืนแล้วกลับมาพร้อมท้องแน่น มันอาจพบแหล่งหญ้าที่คนยังไม่รู้", "แพะพาไปทุ่งหญ้า"],
+  ["red_thread", "ด้ายแดงบนกิ่งไม้", "ด้ายแดงเส้นเล็กผูกอยู่กับกิ่งไม้ระหว่างทางสำรวจ ไม่มีลมใดผูกมันเองได้", "คนผูกด้ายแดง"],
+  ["grave_flower", "ดอกไม้ขึ้นบนหลุมศพแรก", "ดอกไม้เล็ก ๆ ขึ้นบนหลุมศพแรกโดยไม่มีใครปลูก เด็ก ๆ เริ่มเอาน้ำไปวางให้มัน", "หลุมศพกลายเป็นที่รวมใจ"],
+  ["cracked_bell", "กระดิ่งแตกในซากค่าย", "กระดิ่งแตกถูกพบในซากค่ายเก่า แม้มันดังไม่เต็มเสียง แต่เสียงแหบของมันทำให้ทุกคนเงียบ", "กระดิ่งถูกแขวนใหม่"],
+  ["distant_horn", "เสียงเขาสัตว์ไกล ๆ", "เสียงเขาสัตว์ดังมาจากถนนเก่าในยามเช้า ไม่รู้ว่าเป็นพ่อค้า นักล่า หรือคนที่ต้องการให้ค่ายหันไปมอง", "เจ้าของเสียงเขา"],
+  ["rain_omen", "ฝนตกทั้งที่ฟ้าใส", "ฝนสั้น ๆ ตกลงกลางแดดจนทุกคนหยุดงานมองฟ้า ผู้เฒ่าบอกว่าธรรมชาติบางครั้งเตือนก่อนพูด", "ฝนประหลาดทิ้งร่องรอย"],
+  ["bread_sharing", "ขนมปังก้อนเดียวแบ่งเกินจำนวน", "มีก้อนขนมปังเก่าเพียงก้อนเดียว แต่คนที่แบ่งกลับทำให้ทุกคนได้ชิ้นเล็ก ๆ เหมือนเป็นพิธีมากกว่าอาหาร", "พิธีแบ่งขนมปัง"],
+];
+function buildChainEvents(): GameEvent[] {
+  const out: GameEvent[] = [];
+  chainThemes.forEach(([key, title, intro, follow], index) => {
+    const followId = `chain_${key}_follow`;
+    out.push(extraEvent({
+      id: `chain_${key}_start`, icon: "✦", title, category: "เหตุการณ์ต่อเนื่อง / จุดเริ่ม", text: intro,
+      weight: (g) => 2 + (g.year > 1 ? 2 : 0) + (g.labor.explore > 0 ? 3 : 0),
+      resources: { knowledge: 3 }, metrics: { morale: index % 3 === 0 ? 1 : 0 }, risk: { conflict: index % 4 === 0 ? 5 : 0, beast: index % 5 === 0 ? 5 : 0 }, path: { knowledge: 1 }, chainTo: followId, rare: index % 7 === 0,
+    }));
+    out.push(extraEvent({
+      id: followId, icon: "◈", title: follow, category: "เหตุการณ์ต่อเนื่อง / ผลสะท้อน", text: `${follow}เกิดขึ้นหลังจากเรื่องก่อนหน้า ผู้คนจึงเข้าใจว่าบางการตัดสินใจไม่ได้จบในเดือนเดียว แต่มันเดินตามค่ายมาอย่างเงียบ ๆ`,
+      condition: (g) => g.pendingEvents.includes(followId),
+      weight: () => 50,
+      resources: { knowledge: 4, food: index % 2 === 0 ? 3 : 0, water: index % 3 === 0 ? 3 : 0, gold: index % 6 === 0 ? 2 : 0 },
+      metrics: { trust: 2, morale: 2 }, risk: { conflict: -3, disease: index % 5 === 0 ? 4 : 0 }, path: { knowledge: 1, family: 1 }, rare: index % 7 === 0,
+    }));
+  });
+  return out;
+}
+
+function buildExpandedContentEvents(): GameEvent[] {
+  return [
+    ...survivalEventSeeds.map(extraEvent),
+    ...buildAnimalEvents(),
+    ...buildExplorationEvents(),
+    ...buildFamilyEvents(),
+    ...buildChainEvents(),
+  ];
+}
+const expandedContentEvents: GameEvent[] = buildExpandedContentEvents();
+const allEvents: GameEvent[] = [...events, ...expandedContentEvents];
+
+
 function getEvent(id: string): GameEvent {
-  return events.find((e) => e.id === id) ?? events[0];
+  return allEvents.find((e) => e.id === id) ?? allEvents[0];
 }
 function pickEvent(game: GameState): string {
   const pending = game.pendingEvents.find((id) => {
@@ -2197,7 +2553,7 @@ function pickEvent(game: GameState): string {
     return !ev.condition || ev.condition(game);
   });
   if (pending) return pending;
-  const candidates = events.filter((event) => event.id !== "first_night" && (!event.condition || event.condition(game)) && !game.recentEventIds.includes(event.id));
+  const candidates = allEvents.filter((event) => event.id !== "first_night" && (!event.condition || event.condition(game)) && !game.recentEventIds.includes(event.id));
   const weighted = candidates.map((event) => ({ id: event.id, w: Math.max(0, event.weight(game)) })).filter((x) => x.w > 0);
   const total = weighted.reduce((s, x) => s + x.w, 0);
   if (total <= 0) return "tracks_near_camp";
@@ -2558,9 +2914,72 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   g = applyLeaderFocus(g, changes);
   return { game: g, changes };
 }
+
+function applyExpandedLeaderFocus(game: GameState, f: LeaderFocusKey, changes: string[]): GameState {
+  let g = game;
+  const state = normalizeAnimalState(g.animalState);
+  const effectMap: Record<string, { resources?: Partial<Resources>; metrics?: Partial<Metrics>; threat?: number; fatigue?: number; animalHunger?: number; animalHealth?: number; note: string; woundChance?: number; rumor?: Omit<Rumor, "id" | "discovered"> }> = {
+    waterMarshal: { resources: { water: 6 }, metrics: { health: 3 }, note: "ผู้นำตรวจแหล่งน้ำด้วยตนเอง น้ำสะอาดถูกแยกจากน้ำเสี่ยงชัดเจนขึ้น" },
+    herbWalk: { resources: { herbs: 4, knowledge: 2 }, metrics: { health: 2 }, note: "หมอยาเดินดูพืชกับผู้นำ สมุนไพรที่เคยมองข้ามถูกจดจำ" },
+    fieldHands: { resources: { food: 5 }, metrics: { trust: 2 }, note: "ผู้นำลงแปลงกับคนเพาะปลูก มือเปื้อนดินช่วยให้คำสั่งมีน้ำหนักขึ้น" },
+    woodlineSurvey: { resources: { wood: 5, knowledge: 1 }, metrics: { security: 1 }, note: "แนวไม้ถูกอ่านใหม่ เส้นทางตัดไม้ปลอดภัยขึ้น" },
+    stoneMeasure: { resources: { stone: 4, knowledge: 2 }, metrics: { health: 1 }, note: "ฐานรากถูกวัดก่อนยกของหนัก งานหินเริ่มมีระเบียบ" },
+    toolAudit: { resources: { tools: 1, wood: -1 }, metrics: { health: 2 }, note: "เครื่องมือที่แตกร้าวถูกแยกซ่อมก่อนทำให้มือใครบาด" },
+    childLessons: { resources: { knowledge: 3 }, metrics: { morale: 2, health: 1 }, note: "เด็ก ๆ ได้เรียนรู้ว่าจะช่วยงานอย่างไรโดยไม่เอาตัวไปเสี่ยงเกินวัย" },
+    elderCouncil: { resources: { knowledge: 4 }, metrics: { cohesion: 3, trust: 1 }, note: "คำของผู้เฒ่าทำให้คนหนุ่มสาวเห็นว่าความช้าไม่ใช่ความอ่อนแอเสมอไป" },
+    animalLedger: { animalHunger: -10, animalHealth: 5, metrics: { morale: 1 }, note: "จำนวนสัตว์และอาหารสัตว์ถูกนับชัดเจน ความหิวของฝูงลดลง" },
+    smokeWatch: { metrics: { health: 4 }, resources: { fuel: -1 }, note: "ควันในที่พักถูกจัดทางออก ผู้คนตื่นมาพร้อมคอที่แสบน้อยลง" },
+    shelterRounds: { metrics: { morale: 2, health: 2 }, fatigue: -4, note: "ที่นอนและรอยรั่วถูกตรวจทีละจุด การพักฟื้นดีขึ้น" },
+    marketGreeting: { resources: { gold: 3, knowledge: 2 }, metrics: { trust: 1 }, note: "พ่อค้าถูกต้อนรับอย่างระวัง คำพูดดี ๆ แปรเป็นราคาที่ไม่โหดนัก" },
+    migrantInterview: { metrics: { fairness: 3, trust: 2 }, resources: { knowledge: 2 }, note: "ผู้มาใหม่ถูกถามชื่อ ฝีมือ และบาดแผลก่อนตัดสินใจรับเข้าเส้นกองไฟ" },
+    justiceHearing: { metrics: { fairness: 6, trust: 2, morale: -1 }, note: "วงไต่สวนเปิดขึ้นต่อหน้าคนทั้งค่าย โทษจึงไม่ใช่เพียงอารมณ์ของผู้มีอำนาจ" },
+    trailMarkers: { resources: { knowledge: 3, wood: -1 }, metrics: { security: 2 }, note: "รอยขีดและหลักไม้ทำให้เส้นทางไม่กลืนคนสำรวจง่ายเหมือนก่อน" },
+    weatherReading: { metrics: { health: 2 }, resources: { fuel: 2 }, note: "ทิศลมและกลิ่นฝนถูกอ่านก่อนค่ำ ค่ายเตรียมตัวก่อนฟ้าเปลี่ยน" },
+    fireDiscipline: { resources: { fuel: 4 }, metrics: { health: 1 }, note: "กองไฟถูกจัดเป็นเวลา เถ้าร้อนและฟืนถูกใช้คุ้มขึ้น" },
+    quietMeal: { resources: { food: -2 }, metrics: { morale: 5, trust: 2 }, fatigue: -3, note: "มื้อเงียบ ๆ ร่วมกับคนอ่อนแรงทำให้บางคนรู้ว่าตนยังถูกมองเห็น" },
+    nightStories: { resources: { knowledge: 3 }, metrics: { morale: 4, cohesion: 2 }, note: "เรื่องเล่าก่อนนอนทำให้เด็กหลับและผู้ใหญ่จำได้ว่าตนรอดมาเพื่ออะไร" },
+    seedSaving: { resources: { food: -3, knowledge: 3 }, metrics: { trust: 1 }, note: "เมล็ดและอาหารบางส่วนถูกกันไว้สำหรับวันข้างหน้า ท้องวันนี้เบาลงเพื่อฤดูหน้า" },
+    sicknessLedger: { resources: { knowledge: 2 }, metrics: { health: 5 }, note: "อาการป่วยถูกจดชื่อ ไม่ปล่อยให้ไข้ของแต่ละคนปะปนเป็นความกลัวก้อนเดียว" },
+    watchRotation: { metrics: { security: 5, morale: 1 }, fatigue: -5, threat: -2, note: "เวรยามถูกหมุนใหม่ คนเดิมไม่ต้องแบกความมืดทุกคืน" },
+    constructionBrief: { resources: { knowledge: 2 }, metrics: { health: 2, trust: 1 }, note: "ช่างและแรงงานรู้ก่อนว่าอะไรต้องยก อะไรต้องค้ำ อุบัติเหตุจึงถอยห่าง" },
+    researchCircle: { resources: { knowledge: 6 }, metrics: { morale: 1 }, note: "วงเรียนรู้หลังเลิกงานทำให้ความรู้ไม่อยู่แต่ในมือผู้จดจำ" },
+    funeralCare: { metrics: { morale: 4, cohesion: 4, trust: 1 }, note: "ครอบครัวผู้สูญเสียถูกนั่งเคียงข้าง ชื่อของคนตายไม่ถูกปล่อยให้เย็นไปลำพัง" },
+    scavengerRules: { resources: { tools: 1, knowledge: 2 }, metrics: { fairness: 2 }, note: "ของจากซากเก่าถูกนับก่อนแบ่ง ลดมือไวและลดโรคจากของสกปรก" },
+    riverGuard: { resources: { water: 3 }, metrics: { security: 2, health: 1 }, note: "ริมลำธารถูกเฝ้าในเวลาที่สัตว์ลงน้ำและเด็กชอบเล่นไกลตา" },
+    rationKitchen: { resources: { food: 2 }, metrics: { fairness: 4, cohesion: 1 }, note: "ครัวกลางทำให้ถ้วยอาหารผ่านสายตาหลายคน ความลับในหม้อจึงน้อยลง" },
+    craftMentor: { resources: { tools: 1, knowledge: 2 }, metrics: { morale: 1 }, note: "ช่างสอนมือใหม่ให้ฟังเสียงไม้และโลหะก่อนมันแตก" },
+    beastFence: { metrics: { security: 4 }, threat: -3, resources: { wood: -1 }, note: "แนวกลิ่นสัตว์และรั้วหยาบถูกตรวจใหม่ เงาในป่าถอยไปอีกนิด" },
+    roadWhisper: { resources: { knowledge: 5, gold: 1 }, threat: 1, note: "ข่าวริมถนนเก่าถูกเก็บกลับมา แต่ควันไฟของค่ายก็ถูกคนอื่นเห็นเช่นกัน", rumor: { title: "เสียงล้อบนถนนเก่า", detail: "มีคาราวานหรือคนเร่ร่อนผ่านถนนใกล้ค่ายมากกว่าที่คิด", danger: "กลาง" } },
+    birthSupport: { resources: { food: -2, fuel: -1 }, metrics: { health: 4, trust: 2 }, note: "พื้นที่อบอุ่นถูกกันไว้ให้แม่ เด็ก และคนที่กำลังจะคลอดความหวังใหม่" },
+    oreTest: { resources: { ore: 1, knowledge: 3 }, metrics: { morale: 1 }, note: "หินสีเข้มถูกทุบและเผาลอง กลิ่นโลหะจาง ๆ ทำให้ช่างเงียบลงด้วยความคิด" },
+    sharedOath: { metrics: { cohesion: 6, trust: 2, morale: 2 }, note: "คำมั่นถูกกล่าวรอบกองไฟ คนใหม่และคนเก่าเริ่มมีคำว่าเราเหมือนกัน" },
+    restPlan: { metrics: { health: 3, morale: 2 }, fatigue: -10, note: "การพักถูกแบ่งเป็นรอบ งานไม่หยุดทั้งค่าย แต่ร่างกายคนไม่ถูกใช้จนหมด" },
+    dogTrail: { metrics: { security: 4 }, threat: -2, note: "สุนัขนำคนเฝ้ารอยรอบค่าย กลิ่นแปลกที่คนไม่เห็นถูกพบก่อนรุ่งสาง" },
+    cowCare: { animalHunger: -8, animalHealth: 4, resources: { water: -1 }, note: "วัวได้หญ้าและน้ำตามเวลา สัตว์ใหญ่ที่รอดวันนี้อาจเป็นกำลังของวันหน้า" },
+    pigWaste: { animalHealth: 5, metrics: { health: 2 }, note: "เศษอาหารและโคลนถูกแยกจากที่นอนหมู กลิ่นคอกลดลงพร้อมโอกาสโรค" },
+    chickenRoost: { resources: { food: 2, wood: -1 }, animalHealth: 2, note: "รังไก่ถูกยกให้พ้นพื้นชื้น เช้าวันถัดมามีไข่และขนน้อยลงที่หายไป" },
+    mapCouncil: { resources: { knowledge: 4 }, metrics: { security: 1 }, note: "แผนที่หยาบถูกกาง คนสำรวจรู้ว่าตนจะไปทำไม ไม่ใช่เพียงเดินออกไปเสี่ยง" },
+  };
+  const effect = effectMap[f];
+  if (!effect) return g;
+  if (effect.resources) g = { ...g, resources: changeResources(g.resources, effect.resources) };
+  if (effect.metrics) g = { ...g, metrics: changeMetrics(g.metrics, effect.metrics) };
+  if (typeof effect.threat === "number") g = { ...g, threat: clamp(g.threat + effect.threat, 0, 100) };
+  if (typeof effect.fatigue === "number") { const fatigueDelta = effect.fatigue; g = { ...g, people: g.people.map(p => p.alive ? { ...p, fatigue: clamp(p.fatigue + fatigueDelta) } : p) }; }
+  if (typeof effect.animalHunger === "number" || typeof effect.animalHealth === "number") {
+    const st = normalizeAnimalState(g.animalState);
+    g = { ...g, animalState: { ...st, hunger: clamp(st.hunger + (effect.animalHunger ?? 0)), health: clamp(st.health + (effect.animalHealth ?? 0)), log: [effect.note, ...st.log].slice(0, 20) } };
+  }
+  if (effect.rumor) g = { ...g, rumors: [{ id: uid("rumor"), discovered: false, ...effect.rumor }, ...g.rumors].slice(0, 24) };
+  if (effect.woundChance && Math.random() * 100 < effect.woundChance) g = woundSomeone(g, effect.note);
+  changes.push(effect.note);
+  return g;
+}
+
 function applyLeaderFocus(game: GameState, changes: string[]): GameState {
   const f = game.leaderFocus;
   let g = game;
+  g = applyExpandedLeaderFocus(g, f, changes);
   if (f === "workWithPeople") { g = { ...g, metrics: changeMetrics(g.metrics, { trust: 3, morale: 2 }), pathScores: { ...g.pathScores, family: g.pathScores.family + 1 } }; changes.push("ผู้นำลงมือกับชาวบ้าน +ความไว้ใจ"); }
   if (f === "study") { g = { ...g, resources: changeResources(g.resources, { knowledge: 5 }) }; changes.push("ผู้นำศึกษาภูมิปัญญา +ความรู้"); }
   if (f === "trainGuard") { g = { ...g, metrics: changeMetrics(g.metrics, { security: 5 }), threat: clamp(g.threat - 2, 0, 100) }; changes.push("ฝึกเวรยาม +ความปลอดภัย"); }
@@ -2838,7 +3257,7 @@ export default function GamePage() {
     return () => window.clearTimeout(timeout);
   }, [game?.year, game?.month, game?.resources, game?.metrics, game?.people, game?.logs.length]);
 
-  const event = useMemo(() => game ? getEvent(game.currentEventId) : events[0], [game]);
+  const event = useMemo(() => game ? getEvent(game.currentEventId) : allEvents[0], [game]);
   useEffect(() => {
     // ไม่เปิดหน้าต่างเหตุการณ์อัตโนมัติ ยกเว้นผู้เล่นกดอ่านเอง เพื่อให้ flow เงียบและไม่รบกวนการวางแผน
     if (!game?.currentEventId) return;
