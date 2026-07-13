@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,8 +7,8 @@ type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
 type View = "เมือง" | "คน" | "ก่อสร้าง" | "วิจัย" | "Chronicle" | "ตั้งค่า";
 type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
-type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research";
-type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "knowledge" | "fuel" | "ore";
+type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "patrol" | "trade" | "teach";
+type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "knowledge" | "fuel" | "ore" | "gold";
 type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "palisade" | "graveyard" | "meetingHall";
 type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "sanitation" | "storyRecords" | "palisadeCraft";
 type LeaderFocusKey = "workWithPeople" | "study" | "trainGuard" | "family" | "scout" | "mediate" | "rationPlan" | "inspectRations" | "leadForage" | "boilHerbs" | "isolateSick" | "nightPatrol" | "trackBeasts" | "campRules" | "holdCouncil" | "memorial" | "firewoodPlan" | "repairTools" | "rainShelter" | "winterWatch" | "quietRest";
@@ -98,7 +98,7 @@ type SummaryModal = {
 } | null;
 
 type GameState = {
-  version: "0.9.7";
+  version: "0.9.8";
   leaderName: string;
   houseName: string;
   origin: Origin;
@@ -175,18 +175,27 @@ type GameEvent = {
 
 const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "Chronicle", "ตั้งค่า"];
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const saveKey = "eou-v097-save";
-const setupKey = "eou-v097-setup";
-const tutorialKey = "eou-v097-tutorial-seen";
+const GAME_VERSION = "0.9.8";
+const saveKey = "eou-v098-save";
+const setupKey = "eou-v098-setup";
+const tutorialKey = "eou-v098-tutorial-seen";
 
-const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string }> = [
-  { id: "forage", icon: "🌾", title: "หาอาหาร / ล่าสัตว์", text: "อาหารมากขึ้น แต่เสี่ยงอุบัติเหตุในป่าและสัตว์ร้าย" },
-  { id: "wood", icon: "🪵", title: "ตัดไม้", text: "ใช้สร้างที่พัก คลัง รั้ว ไฟ และซ่อมเครื่องมือ" },
-  { id: "stone", icon: "🪨", title: "เก็บหิน", text: "ใช้บ่อน้ำ กองไฟ คลัง และสิ่งก่อสร้างที่คงทน" },
-  { id: "build", icon: "🛖", title: "ก่อสร้าง", text: "เร่งโครงการ แต่เสี่ยงลื่น ตก บาดเจ็บเมื่อเครื่องมือไม่ดี" },
-  { id: "guard", icon: "🛡️", title: "เฝ้ายาม", text: "ลดสัตว์ป่า โจร และความกลัวตอนกลางคืน" },
-  { id: "care", icon: "🌿", title: "ดูแลคนป่วย", text: "รักษาผู้บาดเจ็บ ลดโรค ลดโอกาสเสียชีวิตจากแผลติดเชื้อ" },
-  { id: "research", icon: "📜", title: "ทดลอง / เรียนรู้", text: "เพิ่มความรู้ วิจัยภูมิปัญญาพื้นฐาน และลดความเสี่ยงระยะยาว" },
+const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string; category: string; unlock?: (game: GameState) => boolean; lockedText?: string }> = [
+  { id: "forage", icon: "🌾", title: "หาอาหาร / ล่าสัตว์", category: "พื้นฐาน", text: "อาหารมากขึ้น แต่เสี่ยงอุบัติเหตุในป่าและสัตว์ร้าย" },
+  { id: "wood", icon: "🪵", title: "ตัดไม้", category: "พื้นฐาน", text: "ใช้สร้างที่พัก คลัง รั้ว ไฟ และซ่อมเครื่องมือ" },
+  { id: "stone", icon: "🪨", title: "เก็บหิน", category: "พื้นฐาน", text: "ใช้บ่อน้ำ กองไฟ คลัง และสิ่งก่อสร้างที่คงทน" },
+  { id: "build", icon: "🛖", title: "ก่อสร้าง", category: "พื้นฐาน", text: "เร่งโครงการ แต่เสี่ยงลื่น ตก บาดเจ็บเมื่อเครื่องมือไม่ดี" },
+  { id: "guard", icon: "🛡️", title: "เฝ้ายาม", category: "พื้นฐาน", text: "ลดสัตว์ป่า โจร และความกลัวตอนกลางคืน" },
+  { id: "care", icon: "🌿", title: "ดูแลคนป่วย", category: "สุขภาพ", text: "รักษาผู้บาดเจ็บ ลดโรค ลดโอกาสเสียชีวิตจากแผลติดเชื้อ" },
+  { id: "research", icon: "📜", title: "ทดลอง / เรียนรู้", category: "ความรู้", text: "เพิ่มความรู้ วิจัยภูมิปัญญาพื้นฐาน และลดความเสี่ยงระยะยาว" },
+  { id: "farm", icon: "🌱", title: "เพาะปลูก", category: "อาหาร", text: "อาหารเสถียรกว่าล่าสัตว์ ผลดีในฤดูอบอุ่น แต่โตช้าในฤดูหนาว", unlock: (game) => game.researchDone.basicFarming || game.buildings.farmPlot > 0, lockedText: "ต้องวิจัยการเพาะปลูกเบื้องต้น หรือมีแปลงปลูก" },
+  { id: "water", icon: "💧", title: "ดูแลน้ำสะอาด", category: "สุขภาพ", text: "เพิ่มน้ำใช้ ลดโรค และช่วยเด็ก/ผู้ป่วยให้อยู่รอด", unlock: (game) => game.researchDone.waterFinding || game.buildings.well > 0, lockedText: "ต้องวิจัยการหาแหล่งน้ำ หรือสร้างบ่อน้ำ" },
+  { id: "preserve", icon: "🥫", title: "ถนอมอาหาร", category: "อาหาร", text: "ลดอาหารเสีย เตรียมค่ายก่อนฤดูหนาว ใช้ฟืนเล็กน้อย", unlock: (game) => game.researchDone.foodPreservation || game.buildings.storage > 0, lockedText: "ต้องวิจัยการถนอมอาหาร หรือสร้างคลังอาหาร" },
+  { id: "craft", icon: "🛠️", title: "ซ่อม / ผลิตเครื่องมือ", category: "งานช่าง", text: "ซ่อมเครื่องมือพังและผลิตเครื่องมือหยาบ ใช้ไม้กับหิน", unlock: (game) => game.researchDone.simpleCraft || game.buildings.workshop > 0, lockedText: "ต้องวิจัยงานช่างง่าย ๆ หรือสร้างเพิงช่าง" },
+  { id: "herbs", icon: "🍃", title: "เก็บสมุนไพร / ต้มยา", category: "สุขภาพ", text: "เพิ่มสมุนไพร ช่วยรักษา และลดโรคในค่าย", unlock: (game) => game.researchDone.herbalCare || game.buildings.healerHut > 0, lockedText: "ต้องวิจัยสมุนไพรพื้นบ้าน หรือมีกระท่อมหมอยา" },
+  { id: "patrol", icon: "🪤", title: "ลาดตระเวน / วางกับดัก", category: "ความปลอดภัย", text: "ลดสัตว์ป่า โจร และภัยภายนอก มีโอกาสได้อาหารเล็กน้อย", unlock: (game) => game.researchDone.watchRoutine || game.buildings.watchPost > 0 || game.buildings.palisade > 0, lockedText: "ต้องมีเวรยามเป็นระบบ ป้อมยาม หรือรั้วไม้" },
+  { id: "trade", icon: "🪙", title: "แลกเปลี่ยน / ขายของส่วนเกิน", category: "เศรษฐกิจ", text: "เปลี่ยนอาหาร หนัง สมุนไพร หรือเครื่องมือส่วนเกินเป็นทอง", unlock: (game) => game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0, lockedText: "ต้องพัฒนาเป็นชุมชนแรกเริ่ม หรือมีศาลาประชุม" },
+  { id: "teach", icon: "👧", title: "สอนเด็ก / บันทึกความรู้", category: "สังคม", text: "เพิ่มความรู้ ความสามัคคี และทำให้คนรุ่นใหม่เติบโตดีขึ้น", unlock: (game) => game.researchDone.storyRecords || game.buildings.meetingHall > 0, lockedText: "ต้องวิจัยการบันทึกเรื่องเล่า หรือมีศาลาประชุม" },
 ];
 
 type LeaderAction = { id: LeaderFocusKey; icon: string; title: string; text: string; reason?: string; locked?: boolean; lockReason?: string; priority?: number; };
@@ -363,7 +372,7 @@ function emptyBuildings(): Buildings {
   return { shelter: 0, campfire: 0, storage: 0, well: 0, watchPost: 0, farmPlot: 0, workshop: 0, healerHut: 0, palisade: 0, graveyard: 0, meetingHall: 0 };
 }
 function baseResources(origin: Origin): Resources {
-  const r: Resources = { food: 30, wood: 20, stone: 5, tools: 5, herbs: 2, hides: 1, water: 20, knowledge: 0, fuel: 8, ore: 0 };
+  const r: Resources = { food: 30, wood: 20, stone: 5, tools: 5, herbs: 2, hides: 1, water: 20, knowledge: 0, fuel: 8, ore: 0, gold: 0 };
   if (origin === "builder") { r.wood += 12; r.tools += 1; }
   if (origin === "hunter") { r.food += 12; r.hides += 2; }
   if (origin === "healer") { r.herbs += 6; }
@@ -396,12 +405,22 @@ function shelterCapacity(game: GameState) {
   const base = game.buildings.shelter * (game.researchDone.woodShelter ? 8 : 6);
   return base + (game.buildings.meetingHall > 0 ? 4 : 0);
 }
-function laborTotal(labor: Labor) { return Object.values(labor).reduce((a, b) => a + b, 0); }
+function emptyLabor(): Labor {
+  return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, patrol: 0, trade: 0, teach: 0 };
+}
+function laborTotal(labor: Labor) { return Object.values(labor).reduce((a, b) => a + (b ?? 0), 0); }
+function unlockedLaborOptions(game: GameState) { return laborMeta.filter((item) => !item.unlock || item.unlock(game)); }
+function lockedLaborOptions(game: GameState) { return laborMeta.filter((item) => item.unlock && !item.unlock(game)); }
 function normalizeLabor(game: GameState): Labor {
   const available = adultWorkers(game);
-  const copy: Labor = { ...game.labor };
+  const allowed = new Set(unlockedLaborOptions(game).map((item) => item.id));
+  const copy: Labor = emptyLabor();
+  (Object.keys(emptyLabor()) as LaborKey[]).forEach((key) => {
+    copy[key] = allowed.has(key) ? Math.max(0, Math.round(game.labor[key] ?? 0)) : 0;
+  });
   while (laborTotal(copy) > available) {
-    const keys = Object.keys(copy) as LaborKey[];
+    const keys = (Object.keys(copy) as LaborKey[]).filter((key) => copy[key] > 0);
+    if (!keys.length) break;
     const key = keys.reduce((a, b) => copy[a] > copy[b] ? a : b);
     copy[key] = Math.max(0, copy[key] - 1);
   }
@@ -487,13 +506,13 @@ function riskPreview(game: GameState): Risks {
   const foodNeed = foodNeedFor(game);
   const season = seasonOf(game.month);
   return {
-    food: clamp(20 + (foodNeed > game.resources.food ? 35 : 0) + (game.resources.food < foodNeed * 1.6 ? 18 : 0) - game.buildings.storage * 8 - labor.forage * 3),
+    food: clamp(20 + (foodNeed > game.resources.food ? 35 : 0) + (game.resources.food < foodNeed * 1.6 ? 18 : 0) - game.buildings.storage * 8 - labor.forage * 3 - labor.farm * 4 - labor.preserve * 3),
     shelter: clamp(16 + shelterShort * 8 + (season === "ฤดูหนาว" ? 18 : 0) + (season === "ฤดูฝน" ? 12 : 0) - game.buildings.campfire * 5),
     disease: clamp(18 + woundedCount(game) * 8 + shelterShort * 4 + (game.buildings.well ? -12 : 10) + (season === "ฤดูฝน" ? 16 : 0) - labor.care * 8 - (game.researchDone.sanitation ? 14 : 0)),
     beast: clamp(18 + (labor.forage >= 4 ? 16 : 0) + (game.metrics.security < 40 ? 18 : 0) - labor.guard * 9 - game.buildings.watchPost * 9 - game.buildings.palisade * 14),
     conflict: clamp(15 + (game.metrics.trust < 45 ? 16 : 0) + (game.metrics.fairness < 45 ? 14 : 0) + (game.resources.food < foodNeed ? 18 : 0) - (game.leaderFocus === "mediate" ? 12 : 0)),
     weather: clamp(12 + (season === "ฤดูหนาว" ? 25 : 0) + (season === "ฤดูฝน" ? 18 : 0) + shelterShort * 4 - game.buildings.shelter * 4 - game.buildings.campfire * 3),
-    accident: clamp(10 + labor.build * 6 + labor.stone * 4 + labor.forage * 3 + Math.max(0, laborTotal(labor) - available) * 8 - game.buildings.workshop * 8 - (game.researchDone.stoneTools ? 5 : 0)),
+    accident: clamp(10 + labor.build * 6 + labor.stone * 4 + labor.forage * 3 + labor.craft * 3 + Math.max(0, laborTotal(labor) - available) * 8 - game.buildings.workshop * 8 - (game.researchDone.stoneTools ? 5 : 0)),
   };
 }
 function riskLabel(value: number) { return value >= 70 ? "สูงมาก" : value >= 50 ? "สูง" : value >= 30 ? "กลาง" : "ต่ำ"; }
@@ -647,54 +666,79 @@ function riskReasons(game: GameState, risk: Risks) {
 }
 function recommendedLabor(game: GameState): Labor {
   let workers = adultWorkers(game);
-  const labor: Labor = { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0 };
+  const labor: Labor = emptyLabor();
+  const allowed = new Set(unlockedLaborOptions(game).map((item) => item.id));
   const assign = (key: LaborKey, count: number) => {
+    if (!allowed.has(key)) return;
     const n = Math.max(0, Math.min(workers, count));
     labor[key] += n;
     workers -= n;
   };
-  if (woundedCount(game) > 0) assign("care", Math.min(2, woundedCount(game)));
-  if (game.resources.food < foodNeedFor(game) * 2) assign("forage", 3); else assign("forage", 2);
+  if (woundedCount(game) > 0) assign(game.researchDone.herbalCare ? "herbs" : "care", Math.min(2, woundedCount(game)));
+  if (game.resources.water < alivePeople(game).length * 2) assign("water", 1);
+  if (game.resources.food < foodNeedFor(game) * 2) assign("forage", 2); else assign("forage", 1);
+  if (game.researchDone.basicFarming || game.buildings.farmPlot > 0) assign("farm", 1);
   if (game.resources.fuel < alivePeople(game).length && seasonOf(game.month) === "ฤดูหนาว") assign("wood", 2);
-  if (riskPreview(game).beast > 45 || game.threat > 35) assign("guard", 1);
+  if (riskPreview(game).beast > 45 || game.threat > 35) assign(game.researchDone.watchRoutine ? "patrol" : "guard", 1);
   if (game.construction) assign("build", 2); else if (game.buildings.shelter === 0 || shelterCapacity(game) < alivePeople(game).length) assign("build", 1);
   if (game.resources.wood < 18) assign("wood", 1);
   if (game.resources.stone < 8) assign("stone", 1);
+  if (game.researchDone.foodPreservation && game.resources.food > foodNeedFor(game) * 2) assign("preserve", 1);
+  if ((game.researchDone.simpleCraft || game.buildings.workshop > 0) && game.resources.tools <= 4) assign("craft", 1);
   if (game.activeResearch) assign("research", 1); else if (game.resources.knowledge < 25) assign("research", 1);
-  const fallback: LaborKey[] = ["forage", "wood", "build", "guard", "research", "stone", "care"];
+  if ((game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0) && game.resources.food > foodNeedFor(game) * 3) assign("trade", 1);
+  const fallback: LaborKey[] = ["forage", "wood", "farm", "build", "guard", "patrol", "research", "stone", "care", "water", "preserve", "craft", "herbs", "teach", "trade"];
   let i = 0;
-  while (workers > 0) { labor[fallback[i % fallback.length]] += 1; workers--; i++; }
+  while (workers > 0) {
+    const key = fallback[i % fallback.length];
+    if (allowed.has(key)) { labor[key] += 1; workers--; }
+    i++;
+    if (i > fallback.length * 4) break;
+  }
   return labor;
 }
 function resourceLedger(game: GameState) {
   const l = normalizeLabor(game);
   const season = seasonOf(game.month);
   const warmFood = season === "ฤดูใบไม้ผลิ" || season === "ฤดูร้อน" || season === "ฤดูใบไม้ร่วง";
-  const forageRate = (season === "ฤดูหนาว" ? 3 : season === "ฤดูฝน" ? 4 : 5) + (game.origin === "hunter" ? 1 : 0) + game.buildings.farmPlot * (warmFood ? 1.5 : 0.4) + skillCount(game, "hunter") * 0.35;
+  const forageRate = (season === "ฤดูหนาว" ? 3 : season === "ฤดูฝน" ? 4 : 5) + (game.origin === "hunter" ? 1 : 0) + skillCount(game, "hunter") * 0.35;
+  const farmRate = l.farm ? ((season === "ฤดูหนาว" ? 1 : season === "ฤดูฝน" ? 6 : warmFood ? 7 : 4) + game.buildings.farmPlot * 1.5 + (game.researchDone.basicFarming ? 1 : 0)) : 0;
   const woodRate = 5 + (game.researchDone.stoneTools ? 1 : 0) + (game.buildings.workshop ? 1.2 : 0) + skillCount(game, "builder") * 0.25;
   const stoneRate = 2.5 + (game.researchDone.stoneTools ? 0.8 : 0) + (game.buildings.workshop ? 0.7 : 0) + skillCount(game, "builder") * 0.15;
   const researchRate = 4 + (game.origin === "keeper" ? 1 : 0) + (game.leaderFocus === "study" ? 2 : 0) + skillCount(game, "keeper") * 0.35;
-  const foodProd = Math.round(l.forage * forageRate);
+  const foodProd = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5);
   const woodProd = Math.round(l.wood * woodRate);
   const stoneProd = Math.round(l.stone * stoneRate);
-  const knowledgeProd = Math.round(l.research * researchRate + (game.leaderFocus === "study" ? 4 : 0));
+  const knowledgeProd = Math.round(l.research * researchRate + l.teach * 4 + (game.leaderFocus === "study" ? 4 : 0));
+  const waterProd = Math.round(l.water * (game.buildings.well ? 9 : 5) + (game.researchDone.waterFinding ? 2 : 0));
   const fuelProd = Math.floor(l.wood * 1.4);
+  const toolsProd = Math.floor(l.craft * (game.buildings.workshop ? 1.5 : 0.8));
+  const toolInputs = l.craft > 0 ? Math.min(game.resources.wood, l.craft * 2) : 0;
+  const herbsProd = Math.round(l.herbs * (game.researchDone.herbalCare ? 3 : 2) + (game.buildings.healerHut ? 1 : 0));
   const foodUse = foodNeedFor(game);
   const waterUse = Math.ceil(alivePeople(game).length * 1.3);
-  const fuelUse = season === "ฤดูหนาว" ? Math.ceil(alivePeople(game).length * 0.7) + Math.max(0, alivePeople(game).length - shelterCapacity(game)) : 0;
+  const fuelUse = season === "ฤดูหนาว" ? Math.ceil(alivePeople(game).length * 0.7) + Math.max(0, alivePeople(game).length - shelterCapacity(game)) + l.preserve : l.preserve;
+  const tradeFood = l.trade ? Math.min(Math.max(0, game.resources.food - foodNeedFor(game) * 2), l.trade * 3) : 0;
+  const tradeHides = l.trade ? Math.min(game.resources.hides, l.trade) : 0;
+  const tradeHerbs = l.trade ? Math.min(game.resources.herbs, l.trade) : 0;
+  const goldProd = Math.round(l.trade * 2 + tradeFood * 0.8 + tradeHides * 2 + tradeHerbs * 1.5);
   return [
-    { name: "อาหาร", stock: game.resources.food, produced: foodProd, used: foodUse, net: foodProd - foodUse, note: "อาหารจากป่า/ล่าสัตว์/แปลงปลูก" },
-    { name: "น้ำ", stock: game.resources.water, produced: 0, used: waterUse, net: -waterUse, note: game.buildings.well ? "มีบ่อน้ำช่วยคุณภาพน้ำ" : "ยังไม่มีบ่อน้ำ น้ำเสี่ยงปนเปื้อน" },
-    { name: "ฟืน", stock: game.resources.fuel, produced: fuelProd, used: fuelUse, net: fuelProd - fuelUse, note: "ใช้มากในฤดูหนาว" },
-    { name: "ไม้", stock: game.resources.wood, produced: woodProd, used: 0, net: woodProd, note: "สร้างที่พัก คลัง รั้ว และซ่อม" },
-    { name: "หิน", stock: game.resources.stone, produced: stoneProd, used: 0, net: stoneProd, note: "บ่อน้ำ กองไฟ โครงสร้างถาวร" },
-    { name: "ความรู้", stock: game.resources.knowledge, produced: knowledgeProd, used: 0, net: knowledgeProd, note: "ใช้ปลดล็อกภูมิปัญญา" },
+    { icon: "🍲", name: "อาหาร", stock: game.resources.food, produced: foodProd, used: foodUse + tradeFood, net: foodProd - foodUse - tradeFood, note: "อาหารจากป่า/ล่าสัตว์/แปลงปลูก" },
+    { icon: "💧", name: "น้ำ", stock: game.resources.water, produced: waterProd, used: waterUse, net: waterProd - waterUse, note: game.buildings.well ? "มีบ่อน้ำช่วยคุณภาพน้ำ" : "ยังไม่มีบ่อน้ำ น้ำเสี่ยงปนเปื้อน" },
+    { icon: "🔥", name: "ฟืน", stock: game.resources.fuel, produced: fuelProd, used: fuelUse, net: fuelProd - fuelUse, note: "ใช้มากในฤดูหนาวและการถนอมอาหาร" },
+    { icon: "🪵", name: "ไม้", stock: game.resources.wood, produced: woodProd, used: toolInputs, net: woodProd - toolInputs, note: "สร้างที่พัก คลัง รั้ว ซ่อม และผลิตเครื่องมือ" },
+    { icon: "🪨", name: "หิน", stock: game.resources.stone, produced: stoneProd, used: 0, net: stoneProd, note: "บ่อน้ำ กองไฟ โครงสร้างถาวร" },
+    { icon: "🛠️", name: "เครื่องมือ", stock: game.resources.tools, produced: toolsProd, used: 0, net: toolsProd, note: "ช่วยลดอุบัติเหตุและเพิ่มผลผลิตงานหนัก" },
+    { icon: "🍃", name: "สมุนไพร", stock: game.resources.herbs, produced: herbsProd, used: tradeHerbs, net: herbsProd - tradeHerbs, note: "ใช้รักษา แผลติดเชื้อ และโรคระบาด" },
+    { icon: "🦌", name: "หนังสัตว์", stock: game.resources.hides, produced: 0, used: tradeHides, net: -tradeHides, note: "ใช้แลกเปลี่ยน ทำเครื่องนุ่งห่ม หรือเก็บเป็นของมีค่า" },
+    { icon: "📜", name: "ความรู้", stock: game.resources.knowledge, produced: knowledgeProd, used: 0, net: knowledgeProd, note: "ใช้ปลดล็อกภูมิปัญญา" },
+    { icon: "🪙", name: "ทอง", stock: game.resources.gold, produced: goldProd, used: 0, net: goldProd, note: "ได้จากการแลกเปลี่ยน/ขายของส่วนเกิน ใช้ซื้อเครื่องมือ เมล็ดพันธุ์ หรือจ้างคนในอนาคต" },
   ];
 }
 function categorizeChanges(changes: string[]) {
   const sections: Record<string, string[]> = { "ผลผลิต": [], "บริโภค/สูญเสีย": [], "คนและสุขภาพ": [], "ความก้าวหน้า": [], "เหตุการณ์อื่น": [] };
   changes.forEach((item) => {
-    if (item.includes("ผลิต") || item.includes("ไม้ +") || item.includes("หิน +") || item.includes("ความรู้ +") || item.includes("ฟืน +")) sections["ผลผลิต"].push(item);
+    if (item.includes("ผลิต") || item.includes("ไม้ +") || item.includes("หิน +") || item.includes("ความรู้ +") || item.includes("ฟืน +") || item.includes("น้ำ +") || item.includes("ทอง +") || item.includes("เครื่องมือ +") || item.includes("สมุนไพร +")) sections["ผลผลิต"].push(item);
     else if (item.includes("บริโภค") || item.includes("ใช้") || item.includes("ขาด") || item.includes("เสีย")) sections["บริโภค/สูญเสีย"].push(item);
     else if (item.includes("บาดเจ็บ") || item.includes("โรค") || item.includes("ผู้บาดเจ็บ") || item.includes("ตาย") || item.includes("สุขภาพ")) sections["คนและสุขภาพ"].push(item);
     else if (item.includes("ก่อสร้าง") || item.includes("สร้าง") || item.includes("วิจัย") || item.includes("เสร็จ") || item.includes("ศึกษา")) sections["ความก้าวหน้า"].push(item);
@@ -709,9 +753,9 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
   if (setup.origin === "mediator") { metrics.trust += 7; metrics.fairness += 7; }
   if (setup.origin === "hunter") metrics.security += 4;
   const base: GameState = {
-    version: "0.9.7", leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
+    version: "0.9.8", leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
     year: 1, month: 1, stage: "ค่ายพักแรม", resources: baseResources(setup.origin), buildings: emptyBuildings(), researchDone: emptyResearch(),
-    construction: null, activeResearch: null, labor: { forage: 3, wood: 2, stone: 1, build: 1, guard: 1, care: 0, research: 0 },
+    construction: null, activeResearch: null, labor: { ...emptyLabor(), forage: 3, wood: 2, stone: 1, build: 1, guard: 1, care: 0, research: 0 },
     leaderFocus: "workWithPeople", selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [],
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
@@ -1244,17 +1288,34 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   const l = g.labor;
   const season = seasonOf(g.month);
   const warmFood = season === "ฤดูใบไม้ผลิ" || season === "ฤดูร้อน" || season === "ฤดูใบไม้ร่วง";
-  const forageRate = (season === "ฤดูหนาว" ? 3 : season === "ฤดูฝน" ? 4 : 5) + (g.origin === "hunter" ? 1 : 0) + g.buildings.farmPlot * (warmFood ? 1.5 : 0.4) + skillCount(g, "hunter") * 0.35;
+  const forageRate = (season === "ฤดูหนาว" ? 3 : season === "ฤดูฝน" ? 4 : 5) + (g.origin === "hunter" ? 1 : 0) + skillCount(g, "hunter") * 0.35;
+  const farmRate = l.farm ? ((season === "ฤดูหนาว" ? 1 : season === "ฤดูฝน" ? 6 : warmFood ? 7 : 4) + g.buildings.farmPlot * 1.5 + (g.researchDone.basicFarming ? 1 : 0)) : 0;
   const woodRate = 5 + (g.researchDone.stoneTools ? 1 : 0) + (g.buildings.workshop ? 1.2 : 0) + skillCount(g, "builder") * 0.25;
   const stoneRate = 2.5 + (g.researchDone.stoneTools ? 0.8 : 0) + (g.buildings.workshop ? 0.7 : 0) + skillCount(g, "builder") * 0.15;
   const researchRate = 4 + (g.origin === "keeper" ? 1 : 0) + (g.leaderFocus === "study" ? 2 : 0) + skillCount(g, "keeper") * 0.35;
-  const foodGain = Math.round(l.forage * forageRate);
+  const foodGain = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5);
   const woodGain = Math.round(l.wood * woodRate);
   const stoneGain = Math.round(l.stone * stoneRate);
-  const knowledgeGain = Math.round(l.research * researchRate + (g.leaderFocus === "study" ? 4 : 0));
+  const knowledgeGain = Math.round(l.research * researchRate + l.teach * 4 + (g.leaderFocus === "study" ? 4 : 0));
+  const waterGain = Math.round(l.water * (g.buildings.well ? 9 : 5) + (g.researchDone.waterFinding ? 2 : 0));
   const fuelGain = Math.floor(l.wood * 1.4);
-  g = { ...g, resources: changeResources(g.resources, { food: foodGain, wood: woodGain, stone: stoneGain, knowledge: knowledgeGain, fuel: fuelGain }) };
-  const changes = [`ผลิตอาหาร +${foodGain}`, `ไม้ +${woodGain}`, `หิน +${stoneGain}`, `ความรู้ +${knowledgeGain}`, `ฟืน +${fuelGain}`];
+  const toolsGain = Math.floor(l.craft * (g.buildings.workshop ? 1.5 : 0.8));
+  const toolWoodCost = l.craft > 0 ? Math.min(g.resources.wood, l.craft * 2) : 0;
+  const herbsGain = Math.round(l.herbs * (g.researchDone.herbalCare ? 3 : 2) + (g.buildings.healerHut ? 1 : 0));
+  const tradeFood = l.trade ? Math.min(Math.max(0, g.resources.food - foodNeedFor(g) * 2), l.trade * 3) : 0;
+  const tradeHides = l.trade ? Math.min(g.resources.hides, l.trade) : 0;
+  const tradeHerbs = l.trade ? Math.min(g.resources.herbs, l.trade) : 0;
+  const goldGain = Math.round(l.trade * 2 + tradeFood * 0.8 + tradeHides * 2 + tradeHerbs * 1.5);
+  g = { ...g, resources: changeResources(g.resources, { food: foodGain - tradeFood, wood: woodGain - toolWoodCost, stone: stoneGain, knowledge: knowledgeGain, water: waterGain, fuel: fuelGain, tools: toolsGain, herbs: herbsGain - tradeHerbs, hides: -tradeHides, gold: goldGain }) };
+  if (l.patrol > 0) g = { ...g, metrics: changeMetrics(g.metrics, { security: Math.min(5, l.patrol * 2) }), threat: clamp(g.threat - l.patrol * 3, 0, 100) };
+  if (l.water > 0) g = { ...g, metrics: changeMetrics(g.metrics, { health: Math.min(4, l.water) }) };
+  if (l.herbs > 0) g = { ...g, metrics: changeMetrics(g.metrics, { health: Math.min(4, l.herbs) }) };
+  if (l.teach > 0) g = { ...g, metrics: changeMetrics(g.metrics, { cohesion: Math.min(4, l.teach * 2), morale: Math.min(3, l.teach) }) };
+  const changes = [`ผลิตอาหาร +${foodGain}`, `ไม้ +${woodGain}`, `หิน +${stoneGain}`, `ความรู้ +${knowledgeGain}`, `น้ำ +${waterGain}`, `ฟืน +${fuelGain}`];
+  if (toolsGain) changes.push(`เครื่องมือ +${toolsGain}`);
+  if (herbsGain) changes.push(`สมุนไพร +${herbsGain}`);
+  if (goldGain) changes.push(`ทอง +${goldGain} จากการแลกเปลี่ยนของส่วนเกิน`);
+  if (toolWoodCost) changes.push(`ใช้ไม้ซ่อม/ผลิตเครื่องมือ -${toolWoodCost}`);
   const foodNeed = foodNeedFor(g);
   if (g.resources.food >= foodNeed) {
     g = { ...g, resources: changeResources(g.resources, { food: -foodNeed }), metrics: changeMetrics(g.metrics, { morale: g.resources.food > foodNeed * 2 ? 1 : 0 }) };
@@ -1289,13 +1350,18 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
     }
   }
   const spoilBase = g.buildings.storage > 0 ? 0.03 : 0.13;
-  const spoilResearch = g.researchDone.foodPreservation ? 0.04 : 0;
+  const spoilResearch = (g.researchDone.foodPreservation ? 0.04 : 0) + l.preserve * 0.025;
   const spoilSeason = season === "ฤดูฝน" || season === "ฤดูร้อน" ? 0.05 : 0;
   const excess = Math.max(0, g.resources.food - 35 - g.buildings.storage * 40);
   const spoil = Math.floor(excess * Math.max(0, spoilBase + spoilSeason - spoilResearch));
   if (spoil > 0) {
     g = { ...g, resources: changeResources(g.resources, { food: -spoil }), metrics: changeMetrics(g.metrics, { morale: -1 }) };
     changes.push(`อาหารเสีย -${spoil}`);
+  }
+  if (l.preserve > 0) {
+    const preserveFuel = Math.min(g.resources.fuel, l.preserve);
+    g = { ...g, resources: changeResources(g.resources, { fuel: -preserveFuel }), metrics: changeMetrics(g.metrics, { trust: 1 }) };
+    if (preserveFuel) changes.push(`ถนอมอาหาร ใช้ฟืน -${preserveFuel}`);
   }
   if (g.construction) {
     const data = buildingData[g.construction.id];
@@ -1318,7 +1384,7 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   }
   if (g.activeResearch) {
     const data = researchData[g.activeResearch.id];
-    const power = l.research * (6 + (g.origin === "keeper" ? 1 : 0)) + (g.leaderFocus === "study" ? 5 : 0);
+    const power = (l.research + Math.floor(l.teach * 0.6)) * (6 + (g.origin === "keeper" ? 1 : 0)) + (g.leaderFocus === "study" ? 5 : 0);
     const progress = g.activeResearch.progress + Math.round(power);
     if (progress >= data.cost) {
       g = { ...g, researchDone: { ...g.researchDone, [g.activeResearch.id]: true }, activeResearch: null, metrics: changeMetrics(g.metrics, { morale: 3 }) };
@@ -1383,7 +1449,7 @@ function applyRealismRisks(game: GameState, changes: string[]): GameState {
     g = { ...g, metrics: changeMetrics(g.metrics, { health: -3, morale: -2 }) };
     changes.push("สภาพอากาศกัดกร่อนสุขภาพ");
   }
-  const healPower = g.labor.care + g.buildings.healerHut * 2 + (g.origin === "healer" ? 1 : 0) + Math.floor(skillCount(g, "healer") / 2);
+  const healPower = g.labor.care + Math.floor(g.labor.herbs * 0.8) + g.buildings.healerHut * 2 + (g.origin === "healer" ? 1 : 0) + Math.floor(skillCount(g, "healer") / 2);
   if (healPower > 0) {
     let healed = 0;
     const people = g.people.map((p) => {
@@ -1400,7 +1466,7 @@ function applyRealismRisks(game: GameState, changes: string[]): GameState {
   const overwork = Math.max(0, laborTotal(g.labor) - adultWorkers(g));
   const people = g.people.map((p) => {
     if (!p.alive) return p;
-    const fatigueGain = p.age >= 16 && p.age < 62 && !p.injured ? Math.max(0, laborTotal(g.labor) / Math.max(1, adultWorkers(g)) * 5 + overwork * 5 - g.labor.care) : -6;
+    const fatigueGain = p.age >= 16 && p.age < 62 && !p.injured ? Math.max(0, laborTotal(g.labor) / Math.max(1, adultWorkers(g)) * 5 + overwork * 5 - g.labor.care - Math.floor(g.labor.teach * 0.5)) : -6;
     const fatigue = clamp(p.fatigue + fatigueGain - (g.leaderFocus === "family" ? 2 : 0));
     const health = clamp(p.health - (fatigue > 80 ? 3 : fatigue > 60 ? 1 : 0) + (g.labor.care > 0 ? 1 : 0));
     return { ...p, fatigue, health };
@@ -1507,7 +1573,7 @@ export default function GamePage() {
     if (saveText) {
       try {
         const loaded = JSON.parse(saveText) as GameState;
-        if (loaded.version === "0.9.7") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
+        if (loaded.version === "0.9.8") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
       } catch {}
     }
     setGame(createInitialGame(setup));
@@ -1540,9 +1606,11 @@ export default function GamePage() {
   function updateGame(fn: (g: GameState) => GameState) { setGame((prev) => prev ? fn(prev) : prev); }
   function adjustLabor(key: LaborKey, amount: number) {
     updateGame((g) => {
-      const current = g.labor[key];
-      if (amount > 0 && laborTotal(g.labor) >= adultWorkers(g)) return g;
-      const labor = { ...g.labor, [key]: Math.max(0, current + amount) };
+      const current = g.labor[key] ?? 0;
+      const allowed = new Set(unlockedLaborOptions(g).map((item) => item.id));
+      if (!allowed.has(key)) return g;
+      if (amount > 0 && laborTotal(g.labor) >= adultWorkers(g)) return { ...g, savedText: "แรงงานเต็มแล้ว" };
+      const labor = { ...normalizeLabor(g), [key]: Math.max(0, current + amount) };
       return { ...g, labor };
     });
   }
@@ -1558,7 +1626,12 @@ export default function GamePage() {
       return { ...g, activeResearch: { id, progress: 0 } };
     });
   }
-  function endTurn() { updateGame((g) => g.gameOver ? g : advanceMonth(g)); }
+  function endTurn() { updateGame((g) => {
+    const used = laborTotal(g.labor);
+    const available = adultWorkers(g);
+    if (used > available) return { ...g, savedText: `ใช้แรงงานเกิน ${used - available} คน กรุณาลดงานก่อนจบเดือน` };
+    return g.gameOver ? g : advanceMonth(g);
+  }); }
   function restartSameSetup() {
     if (!game) return;
     const setup = { leaderName: game.leaderName, houseName: game.houseName, origin: game.origin };
@@ -1600,6 +1673,7 @@ export default function GamePage() {
           <span className="pill">ตระกูล {game.houseName}</span>
           <span className="pill warn">ภัยภายนอก {pct(game.threat)}</span>
           <span className={crisisLevel(game) === "ใกล้ล่มสลาย" || crisisLevel(game) === "วิกฤต" ? "pill danger-pill" : "pill good"}>วิกฤต: {crisisLevel(game)}</span>
+          <span className="pill">Alpha v{GAME_VERSION}</span>
           <span className="pill good">{game.savedText}</span>
         </div>
         <button className="icon-btn" onClick={() => setView("ตั้งค่า")}>⚙️</button>
@@ -1792,7 +1866,10 @@ function ForecastPanel({ game }: { game: GameState }) {
 }
 function CityView({ game, adjustLabor, applyRecommendedLabor, setFocus }: { game: GameState; adjustLabor: (key: LaborKey, amount: number) => void; applyRecommendedLabor: () => void; setFocus: (key: LeaderFocusKey) => void }) {
   const resources = game.resources;
-  const laborLeft = adultWorkers(game) - laborTotal(game.labor);
+  const normalizedLabor = normalizeLabor(game);
+  const laborLeft = adultWorkers(game) - laborTotal(normalizedLabor);
+  const visibleJobs = unlockedLaborOptions(game);
+  const lockedJobs = lockedLaborOptions(game).slice(0, 4);
   const quality = qualityStatus(game);
   const pop = populationBreakdown(game);
   return (
@@ -1806,11 +1883,12 @@ function CityView({ game, adjustLabor, applyRecommendedLabor, setFocus }: { game
       <section className="panel pad" style={{ marginBottom: 14 }}>
         <div className="split"><div><h2 className="title">จัดแรงงานรายเดือน</h2><p className="muted">แรงงานว่าง {laborLeft} คน · งานหนักมากเกินไปจะเพิ่มความเหนื่อยและอุบัติเหตุ</p></div><div className="flex"><button className="secondary" onClick={applyRecommendedLabor}>แนะนำการจัดแรงงาน</button><span className="badge green">ใช้แล้ว {laborTotal(game.labor)}/{adultWorkers(game)}</span></div></div>
         <div className="work-grid">
-          {laborMeta.map((item) => <div className="work-card" key={item.id}><div className="work-head"><div><b>{item.icon} {item.title}</b><p className="muted small">{item.text}</p></div><div className="counter"><button onClick={() => adjustLabor(item.id, -1)}>-</button><strong>{game.labor[item.id]}</strong><button onClick={() => adjustLabor(item.id, 1)}>+</button></div></div></div>)}
+          {visibleJobs.map((item) => <div className="work-card" key={item.id}><div className="work-head"><div><b>{item.icon} {item.title}</b><p className="muted small">{item.text}</p><small className="context-text">{item.category}</small></div><div className="counter"><button onClick={() => adjustLabor(item.id, -1)}>-</button><strong>{normalizedLabor[item.id]}</strong><button onClick={() => adjustLabor(item.id, 1)}>+</button></div></div></div>)}
         </div>
+        {lockedJobs.length > 0 && <div className="locked-jobs"><b>งานที่จะปลดล็อกต่อไป</b>{lockedJobs.map((item) => <span key={`locked-${item.id}`} className="badge">{item.icon} {item.title}: {item.lockedText}</span>)}</div>}
       </section>
       <section className="two-col" style={{ marginBottom: 14 }}>
-        <div className="panel pad"><h3 className="section-title">บัญชีทรัพยากรเดือนนี้</h3><table className="report-table"><thead><tr><th>รายการ</th><th>คงเหลือ</th><th>ผลิต</th><th>ใช้</th><th>สุทธิ</th></tr></thead><tbody>{resourceLedger(game).map((row) => <tr key={row.name}><td>{row.name}<br /><small className="muted">{row.note}</small></td><td>{fmt(row.stock)}</td><td className="good-text">+{fmt(row.produced)}</td><td className="danger-text">-{fmt(row.used)}</td><td className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</td></tr>)}</tbody></table></div>
+        <div className="panel pad"><h3 className="section-title">บัญชีทรัพยากรเดือนนี้</h3><table className="report-table"><thead><tr><th>รายการ</th><th>คงเหลือ</th><th>ผลิต</th><th>ใช้</th><th>สุทธิ</th></tr></thead><tbody>{resourceLedger(game).map((row) => <tr key={row.name}><td><b>{row.icon} {row.name}</b><br /><small className="muted">{row.note}</small></td><td>{fmt(row.stock)}</td><td className="good-text">+{fmt(row.produced)}</td><td className="danger-text">-{fmt(row.used)}</td><td className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</td></tr>)}</tbody></table></div>
         <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{alivePeople(game).filter((p) => ["leader", "kael", "tovin", "old-ren", "sela"].includes(p.id)).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div>
       </section>
       <section className="panel pad">
@@ -1891,13 +1969,13 @@ function ChronicleView({ game }: { game: GameState }) {
 }
 function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void }) {
   const exportText = JSON.stringify(game, null, 2);
-  return <section className="panel pad"><h2 className="title">ตั้งค่าและตรวจสอบระบบ</h2><div className="two-col"><div className="panel pad" style={{ boxShadow: "none" }}><h3>ลำดับการเล่นที่ตรวจแล้ว</h3><ol><li>เปิดระบบสอนเล่นหลังเริ่มเกมครั้งแรก</li><li>จัดแรงงาน</li><li>เลือกสิ่งก่อสร้างหรือวิจัย</li><li>เลือกการกระทำผู้นำแบบ Dynamic ตามเหตุการณ์</li><li>ตอบเหตุการณ์เดือนนี้</li><li>จบเดือน ระบบคำนวณผลผลิต การบริโภค ความเสี่ยง บาดเจ็บ ตาย ความทรงจำ เหตุการณ์ต่อเนื่อง และเงื่อนไขแพ้</li></ol></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>ระบบความสมจริงที่เปิดใช้งาน</h3><p className="muted">อาหารเสีย, น้ำ, ฟืน, ฤดูกาล, โรค, แผลติดเชื้อ, อุบัติเหตุงาน, ล่าสัตว์, สัตว์ป่า, โจร, ความขัดแย้ง, ความเหนื่อย, การเกิด, ชราภาพ, ผู้ตายรายชื่อจริง, ระดับวิกฤต, การกระทำผู้นำตามสถานการณ์, Tutorial, และ Game Over จากการล่มสลายหลายรูปแบบ</p></div></div><textarea className="input" readOnly rows={10} value={exportText} style={{ marginTop: 14, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 14 }}><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและเริ่มใหม่</button></div></section>;
+  return <section className="panel pad"><h2 className="title">ตั้งค่าและตรวจสอบระบบ</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>ใช้สำหรับแจ้งบัคและทดสอบกับเพื่อน</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ระบบกันใช้แรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">ทอง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ได้จากงานแลกเปลี่ยน/ขายของส่วนเกิน</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>ลำดับการเล่นที่ตรวจแล้ว</h3><ol><li>เปิดระบบสอนเล่นหลังเริ่มเกมครั้งแรก</li><li>จัดแรงงานและปลดล็อกงานตามวิจัย/อาคาร</li><li>เลือกสิ่งก่อสร้างหรือวิจัย</li><li>เลือกการกระทำผู้นำแบบ Dynamic ตามเหตุการณ์</li><li>ตอบเหตุการณ์เดือนนี้</li><li>จบเดือน ระบบคำนวณผลผลิต การบริโภค ความเสี่ยง บาดเจ็บ ตาย ความทรงจำ เหตุการณ์ต่อเนื่อง และเงื่อนไขแพ้</li></ol></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ปุ่มนี้จะลบเซฟในเครื่องและกลับไปหน้าเริ่มเกม เหมาะสำหรับให้เพื่อนเริ่มทดสอบรอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><h3 className="section-title" style={{ marginTop: 16 }}>Debug Report</h3><p className="muted small">คัดลอกส่วนนี้ส่งให้ผู้พัฒนาเมื่อเจอบัค</p><textarea className="input" readOnly rows={10} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></section>;
 }
 function EventPanel({ game, event, selectChoice, endTurn }: { game: GameState; event: GameEvent; selectChoice: (id: string) => void; endTurn: () => void }) {
   const selected = game.selectedChoiceId ?? event.choices[0]?.id;
-  return <section className="panel event-card"><div className="kicker">เหตุการณ์ประจำเดือน · {event.category}</div><h2>{event.rare ? "✦ " : ""}{event.title}</h2><p>{event.text}</p><div className="option-list">{event.choices.map((c) => <button key={c.id} className={selected === c.id ? "option active" : "option"} onClick={() => selectChoice(c.id)}><span className="emoji">{c.icon}</span><span><b>{c.title}</b><br /><small className="muted">{c.tone} · {c.hint}</small></span></button>)}</div><button className="primary" onClick={endTurn} style={{ width: "100%", marginTop: 14 }}>ยืนยันและจบเดือน →</button><p className="muted small">ทุกตัวเลือกจะส่งผลต่อทรัพยากร คน ความเสี่ยง พงศาวดารและเหตุการณ์ต่อเนื่อง</p></section>;
+  const laborOver = laborTotal(game.labor) > adultWorkers(game);
+  return <section className="panel event-card"><div className="kicker">เหตุการณ์ประจำเดือน · {event.category}</div><h2>{event.rare ? "✦ " : ""}{event.title}</h2><p>{event.text}</p><div className="option-list">{event.choices.map((c) => <button key={c.id} className={selected === c.id ? "option active" : "option"} onClick={() => selectChoice(c.id)}><span className="emoji">{c.icon}</span><span><b>{c.title}</b><br /><small className="muted">{c.tone} · {c.hint}</small></span></button>)}</div>{laborOver && <p className="danger-text small">ใช้แรงงานเกิน {laborTotal(game.labor) - adultWorkers(game)} คน กรุณาลดงานก่อนจบเดือน</p>}<button className="primary" disabled={laborOver} onClick={endTurn} style={{ width: "100%", marginTop: 14, opacity: laborOver ? .55 : 1 }}>ยืนยันและจบเดือน →</button><p className="muted small">ทุกตัวเลือกจะส่งผลต่อทรัพยากร คน ความเสี่ยง พงศาวดารและเหตุการณ์ต่อเนื่อง</p></section>;
 }
 function RumorPanel({ game }: { game: GameState }) {
   return <section className="panel pad"><h3 className="section-title">ข่าวลือ / สิ่งที่ยังไม่รู้</h3>{game.rumors.length ? <div className="timeline">{game.rumors.slice(0, 4).map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><span className="badge blue">อันตราย: {r.danger}</span></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ หากอยากเปิดเส้นทางเรื่องราว ลองให้ผู้นำออกสำรวจพื้นที่</div>}</section>;
 }
-
