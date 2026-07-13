@@ -1,0 +1,37 @@
+[
+  {
+    "id": "hunter_rest",
+    "name": "จุดพักพราน",
+    "locationTypes": [
+      "forest",
+      "hunting"
+    ],
+    "effects": [
+      "food_up",
+      "lost_risk_down"
+    ]
+  },
+  {
+    "id": "route_marker",
+    "name": "หลักบอกทาง",
+    "locationTypes": [
+      "route",
+      "forest",
+      "rock"
+    ],
+    "effects": [
+      "exploration_speed_up"
+    ]
+  },
+  {
+    "id": "water_cache",
+    "name": "จุดเก็บน้ำ",
+    "locationTypes": [
+      "water",
+      "marsh"
+    ],
+    "effects": [
+      "water_stability_up"
+    ]
+  }
+]

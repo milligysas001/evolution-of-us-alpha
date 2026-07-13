@@ -1,0 +1,37 @@
+[
+  {
+    "id": "stream_clean_water",
+    "location": "shallowStream",
+    "title": "พบน้ำใสใต้รากไม้",
+    "effect": {
+      "water": 10,
+      "health": 1
+    }
+  },
+  {
+    "id": "forest_deer_track",
+    "location": "deepWoods",
+    "title": "พบรอยกวางใหม่",
+    "effect": {
+      "food": 12,
+      "hides": 1
+    }
+  },
+  {
+    "id": "road_cart_marks",
+    "location": "oldTradeRoad",
+    "title": "รอยล้อเกวียนยังสด",
+    "effect": {
+      "pendingEvent": "merchant_arrival"
+    }
+  },
+  {
+    "id": "ruin_old_tools",
+    "location": "abandonedCamp",
+    "title": "พบเครื่องมือเก่าในซากค่าย",
+    "effect": {
+      "tools": 2,
+      "diseaseRisk": 3
+    }
+  }
+]

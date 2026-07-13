@@ -34,3 +34,10 @@ Godot should treat `data/game/terrain.json` and `data/game/people_passives.json`
 - `data/game/migration.json` defines migration candidate types and policy options for future Godot selection UI.
 - Resource flow display should map to a compact HUD: `stock + net` rather than a full accounting table.
 - Important event categories should open modal/scene overlay automatically: trade, migration, crime, threat, rare.
+
+
+## v0.9.20 Local Map & Migration Selection
+- Added Godot-ready location data: locations, exploration jobs, location events, travel risks and outposts.
+- Added exploration target state and location progress/status model for future node-map porting.
+- Migrant event now generates a concrete candidate list and applies actual named migrants based on the chosen policy instead of adding anonymous population.
+- Flow check: named labor -> explore target -> monthly event choice -> resolve production -> resolve exploration -> realism risks -> next event.

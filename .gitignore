@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .next/
 .vercel/
 .env
@@ -7,7 +7,5 @@
 *.zip
 *backup*/
 app_backup*/
-app_backup_*/
-app_backup_before_*/
 src_app_backup*/
 public_backup*/

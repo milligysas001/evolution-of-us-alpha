@@ -1,0 +1,30 @@
+[
+  {
+    "id": "explore",
+    "name": "สำรวจพื้นที่รอบค่าย",
+    "unlocked": "start",
+    "effects": [
+      "location_progress",
+      "rumor_discovery",
+      "travel_risk"
+    ]
+  },
+  {
+    "id": "patrol_route",
+    "name": "ทำเครื่องหมายเส้นทาง",
+    "unlocked": "watchRoutine",
+    "effects": [
+      "risk_down",
+      "location_control"
+    ]
+  },
+  {
+    "id": "map_trade_road",
+    "name": "สำรวจเส้นทางค้า",
+    "unlocked": "signalNetwork_or_town",
+    "effects": [
+      "merchant_weight_up",
+      "bandit_warning"
+    ]
+  }
+]

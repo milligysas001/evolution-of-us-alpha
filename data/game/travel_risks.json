@@ -1,0 +1,38 @@
+[
+  {
+    "id": "lost",
+    "name": "หลงทาง",
+    "reducedBy": [
+      "hunter",
+      "keeper",
+      "route_marking"
+    ]
+  },
+  {
+    "id": "beast_attack",
+    "name": "สัตว์ป่าโจมตี",
+    "reducedBy": [
+      "guard",
+      "patrol",
+      "dogs"
+    ]
+  },
+  {
+    "id": "sickness_return",
+    "name": "นำโรคกลับมา",
+    "reducedBy": [
+      "healer",
+      "sanitation",
+      "clean_water"
+    ]
+  },
+  {
+    "id": "bandit_contact",
+    "name": "พบคนร้ายหรือโจรสอดแนม",
+    "reducedBy": [
+      "guard",
+      "intel",
+      "palisade"
+    ]
+  }
+]

@@ -10,3 +10,10 @@
 
 ## Godot Porting Note
 ระบบแรงงานตอนนี้แยกแนวคิดเป็น `assignment load` และ `effective output` ชัดเจนขึ้น ซึ่งสำคัญต่อการพอร์ตไป Godot ในอนาคต
+
+
+## v0.9.20 Local Map & Migration Selection
+- Added Godot-ready location data: locations, exploration jobs, location events, travel risks and outposts.
+- Added exploration target state and location progress/status model for future node-map porting.
+- Migrant event now generates a concrete candidate list and applies actual named migrants based on the chosen policy instead of adding anonymous population.
+- Flow check: named labor -> explore target -> monthly event choice -> resolve production -> resolve exploration -> realism risks -> next event.

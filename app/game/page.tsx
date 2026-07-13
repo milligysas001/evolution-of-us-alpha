@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
-type View = "เมือง" | "คน" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
+type View = "เมือง" | "คน" | "แผนที่" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
 type DeviceMode = "desktop" | "tablet" | "mobile";
 type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
-type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "feed" | "patrol" | "trade" | "teach" | "intel";
+type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "feed" | "patrol" | "explore" | "trade" | "teach" | "intel";
 type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "knowledge" | "fuel" | "ore" | "gold" | "feed";
 type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "animalPen" | "palisade" | "graveyard" | "meetingHall";
 type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "sanitation" | "animalKeeping" | "fodderPrep" | "storyRecords" | "palisadeCraft" | "signalNetwork";
@@ -17,6 +17,9 @@ type LogKind = "normal" | "good" | "bad" | "death" | "rare" | "milestone";
 type MetricKey = "morale" | "security" | "trust" | "health" | "cohesion" | "fairness";
 type SkillKey = "hunter" | "builder" | "healer" | "keeper" | "guard" | "farmer" | "child" | "elder";
 type TerrainKey = "riverbank" | "forestEdge" | "rockyHollow" | "openMeadow" | "coldHighland" | "marshland";
+type LocationKey = "shallowStream" | "deepWoods" | "oldTradeRoad" | "rockyRidge" | "abandonedCamp" | "marshPools" | "huntingGround" | "oldCave";
+type LocationStatus = "ข่าวลือ" | "สำรวจบางส่วน" | "รู้เส้นทาง" | "ควบคุมได้";
+type LocationProgress = Record<LocationKey, { progress: number; status: LocationStatus; discovered: boolean; outpost: boolean }>;
 type LaborAssignments = Partial<Record<LaborKey, string[]>>;
 type NoticeKind = "event" | "warning" | "trade" | "threat" | "birth" | "system";
 type Notice = { id: string; year: number; month: number; kind: NoticeKind; title: string; text: string; read: boolean; eventId?: string };
@@ -124,6 +127,8 @@ type GameState = {
   labor: Labor;
   laborAssignments: LaborAssignments;
   terrain: TerrainKey;
+  locations: LocationProgress;
+  exploreTarget: LocationKey;
   notifications: Notice[];
   leaderFocus: LeaderFocusKey;
   leaderActionSelected: boolean;
@@ -190,7 +195,7 @@ type GameEvent = {
   choices: EventChoice[];
 };
 
-const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "สัตว์เลี้ยง", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
+const views: View[] = ["เมือง", "คน", "แผนที่", "ก่อสร้าง", "วิจัย", "สัตว์เลี้ยง", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
 const terrainData: Record<TerrainKey, { icon: string; title: string; text: string; effects: Partial<Record<ResourceKey, number>>; forage: number; wood: number; stone: number; water: number; disease: number; beast: number; weather: number; tags: string[] }> = {
   riverbank: { icon: "💧", title: "ริมลำธารเก่า", text: "มีน้ำเข้าถึงง่าย ดินชุ่ม และมีพืชริมน้ำ แต่ต้องระวังน้ำปนเปื้อนช่วงฝน", effects: { water: 14, food: 4 }, forage: 0.08, wood: 0, stone: 0, water: 0.25, disease: 8, beast: 1, weather: 0, tags: ["น้ำดี", "เกษตรดี"] },
   forestEdge: { icon: "🌲", title: "ชายป่าหนาทึบ", text: "ไม้และอาหารจากป่ามีมาก เหมาะกับพราน แต่เสียงสัตว์กลางคืนไม่เคยหายไป", effects: { wood: 12, food: 8, hides: 1 }, forage: 0.18, wood: 0.2, stone: -0.05, water: -0.05, disease: 2, beast: 12, weather: 0, tags: ["อาหารป่า", "สัตว์ป่า"] },
@@ -198,6 +203,17 @@ const terrainData: Record<TerrainKey, { icon: string; title: string; text: strin
   openMeadow: { icon: "🌾", title: "ทุ่งโล่งลมแรง", text: "มองเห็นศัตรูและสัตว์ได้ไกล เหมาะกับแปลงเพาะปลูกในอนาคต แต่ขาดร่มเงาและฟืน", effects: { food: 6, knowledge: 2 }, forage: 0.03, wood: -0.15, stone: 0, water: 0, disease: -1, beast: -4, weather: 8, tags: ["เกษตร", "เปิดโล่ง"] },
   coldHighland: { icon: "🏔️", title: "เนินสูงอากาศเย็น", text: "ปลอดน้ำขังและมองเห็นไกล แต่ฤดูหนาวรุนแรง ฟืนและที่พักสำคัญกว่าเดิม", effects: { stone: 6, fuel: -2 }, forage: -0.1, wood: 0.05, stone: 0.08, water: -0.08, disease: -4, beast: 0, weather: 14, tags: ["หนาว", "ปลอดน้ำขัง"] },
   marshland: { icon: "🪷", title: "หนองน้ำและดินชื้น", text: "น้ำและสมุนไพรมีมาก แต่ยุง ไข้ และทางเดินเละทำให้การอยู่รอดซับซ้อนขึ้น", effects: { water: 20, herbs: 4 }, forage: 0.05, wood: -0.05, stone: -0.08, water: 0.32, disease: 15, beast: 3, weather: 2, tags: ["น้ำมาก", "โรคสูง"] },
+};
+
+const locationData: Record<LocationKey, { icon: string; title: string; text: string; resource: string; risk: string; unlockHint: string; resourceBonus: Partial<Resources>; threat: number; disease: number; beast: number; trade: number; tags: string[] }> = {
+  shallowStream: { icon: "💧", title: "ลำธารตื้น", text: "น้ำไหลช้าและมีตลิ่งให้ลงตักได้ง่าย เหมาะกับการตั้งจุดเก็บน้ำ แต่รอยเท้าสัตว์มักปะปนอยู่แถวนั้น", resource: "น้ำและสมุนไพรริมน้ำ", risk: "สัตว์ป่า / น้ำปนเปื้อนหลังฝน", unlockHint: "รู้ข่าวลือทันทีเมื่อเริ่มเกม", resourceBonus: { water: 5, herbs: 1 }, threat: 1, disease: 3, beast: 4, trade: 0, tags: ["น้ำ", "สุขภาพ"] },
+  deepWoods: { icon: "🌲", title: "ป่าทึบทางเหนือ", text: "ไม้ อาหารป่า และสมุนไพรซ่อนอยู่ใต้เงาไม้ แต่คนที่เดินลึกเกินไปอาจกลับมาพร้อมบาดแผลหรือไม่กลับมาเลย", resource: "อาหารป่า ไม้ สมุนไพร หนังสัตว์", risk: "หลงป่า / สัตว์ใหญ่", unlockHint: "ต้องสำรวจใกล้ค่ายหรือมีพราน", resourceBonus: { food: 6, wood: 5, herbs: 1, hides: 1 }, threat: 2, disease: 1, beast: 9, trade: 0, tags: ["อาหาร", "ไม้", "เสี่ยงสูง"] },
+  oldTradeRoad: { icon: "🛤️", title: "ถนนการค้าเก่า", text: "ร่องล้อเกวียนเก่าพาดผ่านหญ้าสูง เส้นทางนี้อาจพาพ่อค้าเข้ามา หรือพาโจรเข้ามาก่อนพ่อค้า", resource: "พ่อค้า ข่าวสาร ของเก่า", risk: "โจร / คนแปลกหน้า", unlockHint: "เปิดจากข่าวสารหรือสายข่าว", resourceBonus: { gold: 2, knowledge: 2 }, threat: 9, disease: 0, beast: 1, trade: 10, tags: ["พ่อค้า", "โจร", "ข่าวสาร"] },
+  rockyRidge: { icon: "🪨", title: "แนวหินหลังเนิน", text: "หินแข็งและแร่ดิบโผล่ตามไหล่เขา เหมาะกับงานก่อสร้าง แต่การแบกหินกลับค่ายทำให้คนล้าและเสี่ยงอุบัติเหตุ", resource: "หินและแร่ดิบ", risk: "อุบัติเหตุ / อากาศเย็น", unlockHint: "สำรวจจากเนินหรือพื้นที่หิน", resourceBonus: { stone: 7, ore: 2 }, threat: 1, disease: 0, beast: 2, trade: 0, tags: ["หิน", "แร่", "อุบัติเหตุ"] },
+  abandonedCamp: { icon: "⛺", title: "ซากค่ายร้าง", text: "เสาไม้ผุและเศษผ้าขาดบอกว่ามีคนเคยพยายามอยู่ที่นี่มาก่อน สิ่งที่เหลืออาจเป็นเครื่องมือ หรือโรคที่ยังไม่หมดไป", resource: "เครื่องมือเก่า บันทึก ข่าวลือ", risk: "โรค / ความทรงจำไม่ดี", unlockHint: "มักเปิดจากข่าวลือหรือการสำรวจลึก", resourceBonus: { tools: 1, knowledge: 4 }, threat: 3, disease: 8, beast: 0, trade: 0, tags: ["ของเก่า", "โรค", "พงศาวดาร"] },
+  marshPools: { icon: "🪷", title: "บึงตื้นและดินชื้น", text: "น้ำและพืชสมุนไพรมีมาก แต่ยุง ไข้ และเท้าจมโคลนทำให้ทุกก้าวต้องคิด", resource: "น้ำ สมุนไพร หญ้าอาหารสัตว์", risk: "โรค / เดินทางช้า", unlockHint: "เห็นได้จากพื้นที่หนองน้ำหรือข่าวจากคนตักน้ำ", resourceBonus: { water: 6, herbs: 3, feed: 2 }, threat: 1, disease: 10, beast: 3, trade: 0, tags: ["น้ำ", "สมุนไพร", "โรค"] },
+  huntingGround: { icon: "🦌", title: "เขตล่าสัตว์", text: "รอยกวางและกระต่ายพาดผ่านพุ่มไม้ ถ้ามีพรานดี ที่นี่จะเป็นครัวสำรองก่อนฤดูหนาว", resource: "อาหารและหนังสัตว์", risk: "สัตว์ป่า / บาดเจ็บจากล่า", unlockHint: "เปิดจากพรานหรือการสำรวจป่า", resourceBonus: { food: 8, hides: 2 }, threat: 2, disease: 0, beast: 7, trade: 0, tags: ["อาหาร", "หนังสัตว์", "พราน"] },
+  oldCave: { icon: "🕳️", title: "ถ้ำเก่าหลังผาหิน", text: "ลมเย็นออกจากปากถ้ำพร้อมกลิ่นดินชื้น ข้างในอาจมีแร่ น้ำซึม หรือสิ่งที่ไม่ควรถูกปลุก", resource: "แร่ น้ำซึม ความลับ", risk: "หลงทาง / สัตว์ / อุบัติเหตุ", unlockHint: "ต้องสำรวจแนวหินให้มากพอ", resourceBonus: { ore: 3, stone: 3, knowledge: 3 }, threat: 4, disease: 2, beast: 6, trade: 0, tags: ["แร่", "ความลับ", "เสี่ยงสูง"] },
 };
 
 const originData: Record<Origin, { icon: string; title: string; story: string; bonuses: string[]; gameplay: string }> = {
@@ -243,7 +259,7 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.19";
+const GAME_VERSION = "0.9.20";
 const BUILD_LABEL = "Compact Labor, Quiet Events & Flow Polish";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
@@ -265,7 +281,12 @@ const portableDataSummary = {
     "data/game/threats.json",
     "data/game/merchant.json",
     "data/game/water.json",
-    "data/game/animals.json"
+    "data/game/animals.json",
+    "data/game/locations.json",
+    "data/game/exploration_jobs.json",
+    "data/game/location_events.json",
+    "data/game/travel_risks.json",
+    "data/game/outposts.json"
   ],
   godotNotes: "Godot can load these JSON files with FileAccess + JSON.parse_string and map ids to UI nodes/resources."
 };
@@ -296,6 +317,7 @@ const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string
   { id: "herbs", icon: "🍃", title: "เก็บสมุนไพร / ต้มยา", category: "สุขภาพ", text: "เพิ่มสมุนไพร ช่วยรักษา และลดโรคในค่าย", unlock: (game) => game.researchDone.herbalCare || game.buildings.healerHut > 0, lockedText: "ต้องวิจัยสมุนไพรพื้นบ้าน หรือมีกระท่อมหมอยา" },
   { id: "feed", icon: "🌿", title: "ตัดหญ้า / ทำอาหารสัตว์", category: "สัตว์เลี้ยง", text: "ผลิตอาหารสัตว์จากหญ้า เศษฟาง และพืชอาหาร เพื่อลดการแย่งอาหารคน", unlock: (game) => game.researchDone.fodderPrep || game.buildings.animalPen > 0, lockedText: "ต้องวิจัยการทำอาหารสัตว์ หรือสร้างคอกสัตว์" },
   { id: "patrol", icon: "🪤", title: "ลาดตระเวน / วางกับดัก", category: "ความปลอดภัย", text: "ลดสัตว์ป่า โจร และภัยภายนอก มีโอกาสได้อาหารเล็กน้อย", unlock: (game) => game.researchDone.watchRoutine || game.buildings.watchPost > 0 || game.buildings.palisade > 0, lockedText: "ต้องมีเวรยามเป็นระบบ ป้อมยาม หรือรั้วไม้" },
+  { id: "explore", icon: "🧭", title: "สำรวจพื้นที่รอบค่าย", category: "สำรวจ", text: "ส่งคนออกอ่านทาง น้ำ ป่า ถนนเก่า และร่องรอยภัย ยิ่งสำรวจมากยิ่งเปิดพื้นที่ ข่าวสาร และทรัพยากรใหม่", unlock: (game) => true, lockedText: "" },
   { id: "trade", icon: "🪙", title: "แลกเปลี่ยน / ขายของส่วนเกิน", category: "เศรษฐกิจ", text: "เปลี่ยนอาหาร หนัง สมุนไพร หรือเครื่องมือส่วนเกินเป็นทอง", unlock: (game) => game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0, lockedText: "ต้องพัฒนาเป็นชุมชนแรกเริ่ม หรือมีศาลาประชุม" },
   { id: "teach", icon: "👧", title: "สอนเด็ก / บันทึกความรู้", category: "สังคม", text: "เพิ่มความรู้ ความสามัคคี และทำให้คนรุ่นใหม่เติบโตดีขึ้น", unlock: (game) => game.researchDone.storyRecords || game.buildings.meetingHall > 0, lockedText: "ต้องวิจัยการบันทึกเรื่องเล่า หรือมีศาลาประชุม" },
   { id: "intel", icon: "🕊️", title: "สายข่าว / รับฟังข่าวสาร", category: "ข่าวสาร", text: "รวบรวมข่าวจากพ่อค้า คนเดินทาง และชาวบ้าน เพื่อเปิดเหตุการณ์พิเศษล่วงหน้า", unlock: (game) => game.researchDone.signalNetwork || game.stage === "เมืองเล็ก", lockedText: "ต้องเข้าสู่ระยะเมืองเล็ก หรือเรียนรู้เครือข่ายสายข่าว" },
@@ -462,6 +484,7 @@ function viewLabel(view: View) {
   const labels: Record<View, string> = {
     "เมือง": "🏕️ เมือง",
     "คน": "👥 คน",
+    "แผนที่": "🧭 แผนที่",
     "ก่อสร้าง": "🛖 ก่อสร้าง",
     "วิจัย": "📜 วิจัย",
     "สัตว์เลี้ยง": "🐐 สัตว์เลี้ยง",
@@ -591,7 +614,7 @@ function shelterCapacity(game: GameState) {
   return base + (game.buildings.meetingHall > 0 ? 4 : 0);
 }
 function emptyLabor(): Labor {
-  return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, feed: 0, patrol: 0, trade: 0, teach: 0, intel: 0 };
+  return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, feed: 0, patrol: 0, explore: 0, trade: 0, teach: 0, intel: 0 };
 }
 
 function emptyAnimalState(): AnimalState {
@@ -737,7 +760,9 @@ function ensureGameState(game: GameState): GameState {
   const buildings = { ...emptyBuildings(), ...game.buildings } as Buildings;
   const researchDone = { ...emptyResearch(), ...game.researchDone } as ResearchDone;
   const terrain = game.terrain ?? randomTerrain();
-  const temp = { ...game, resources, buildings, researchDone, terrain } as GameState;
+  const locations = normalizeLocations(game.locations);
+  const exploreTarget = (game.exploreTarget ?? "shallowStream") as LocationKey;
+  const temp = { ...game, resources, buildings, researchDone, terrain, locations, exploreTarget } as GameState;
   const laborAssignments = normalizeLaborAssignments(temp, game.laborAssignments ?? {});
   const labor = Object.values(laborAssignments).some((ids) => (ids ?? []).length > 0) ? deriveLaborFromAssignments(temp, laborAssignments) : ({ ...emptyLabor(), ...game.labor } as Labor);
   return {
@@ -749,6 +774,8 @@ function ensureGameState(game: GameState): GameState {
     labor,
     laborAssignments,
     terrain,
+    locations,
+    exploreTarget,
     notifications: game.notifications ?? [],
     pausedConstruction: game.pausedConstruction ?? [],
     pausedResearch: game.pausedResearch ?? [],
@@ -1211,8 +1238,9 @@ function recommendedLabor(game: GameState): Labor {
   if ((game.researchDone.simpleCraft || game.buildings.workshop > 0) && game.resources.tools <= 4) assign("craft", 1);
   if (game.activeResearch) assign("research", 1); else if (game.resources.knowledge < 25) assign("research", 1);
   if ((game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0) && game.resources.food > foodNeedFor(game) * 3) assign("trade", 1);
+  if (locationDiscoveryCount(game) < 4 || normalizeLocations(game.locations)[bestExploreTarget(game)].progress < 70) assign("explore", 1);
   if ((game.stage === "เมืองเล็ก" || game.researchDone.signalNetwork) && game.rumors.length < 3) assign("intel", 1);
-  const fallback: LaborKey[] = ["forage", "water", "feed", "wood", "farm", "build", "guard", "patrol", "research", "stone", "care", "preserve", "craft", "herbs", "teach", "intel", "trade"];
+  const fallback: LaborKey[] = ["forage", "water", "explore", "feed", "wood", "farm", "build", "guard", "patrol", "research", "stone", "care", "preserve", "craft", "herbs", "teach", "intel", "trade"];
   let i = 0;
   while (workers > 0) {
     const key = fallback[i % fallback.length];
@@ -1358,7 +1386,7 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
     collapse: { hungerMonths: 0, noWorkerMonths: 0, trustCrisisMonths: 0, assaultCrisisMonths: 0 }, gameOver: null,
-    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, animalState: emptyAnimalState(), animalAction: "keep", summaryModal: null, savedText: "ยังไม่เคยบันทึก",
+    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: emptyLocations(), exploreTarget: "shallowStream", animalState: emptyAnimalState(), animalAction: "keep", summaryModal: null, savedText: "ยังไม่เคยบันทึก",
   };
   return addNotice(addLog(base, "ค่ายแรกถูกตั้งขึ้น", `${setup.leaderName} แห่ง House ${setup.houseName} พาคนสิบชีวิตตั้งกองไฟแรกที่${terrainData[terrain].title} — ${terrainData[terrain].text}`, "milestone", ["เริ่มเกม", "พื้นที่เริ่มต้น"]), { kind: "system", title: `พื้นที่เริ่มต้น: ${terrainData[terrain].title}`, text: terrainData[terrain].text });
 }
@@ -1976,7 +2004,9 @@ function applyChoice(game: GameState, event: GameEvent, selected: EventChoice): 
     if ((r.food ?? 0) > 0) metricDelta.morale = -(r.food ?? 0) / 8;
     g = { ...g, metrics: changeMetrics(g.metrics, metricDelta), threat: clamp(g.threat + ((r.beast ?? 0) + (r.conflict ?? 0)) / 8, 0, 100) };
   }
-  if (selected.delta.population && selected.delta.population > 0) {
+  if (event.id === "migrant_group") {
+    g = addMigrantsByChoice(g, selected.id);
+  } else if (selected.delta.population && selected.delta.population > 0) {
     for (let i = 0; i < selected.delta.population; i++) g = addPerson(g);
   }
   if (selected.id === "name_child" || selected.id === "quiet_birth") g = addChild(g);
@@ -2280,6 +2310,7 @@ function advanceMonth(game: GameState): GameState {
   const prod = resolveProduction(g);
   g = prod.game;
   const changes = [...prod.changes];
+  g = resolveExploration(g, changes);
   g = applyRealismRisks(g, changes);
   g = resolveDelayed(g);
   g = maybeAdvanceStage(g);
@@ -2533,6 +2564,7 @@ export default function GamePage() {
           <span className="pill">ปี {game.year} · เดือน {game.month}</span>
           <span className="pill">{seasonOf(game.month)}</span>
           <span className="pill good">ระยะ: {game.stage}</span>
+          <span className="pill">แผนที่ {locationDiscoveryCount(game)}/8 · เป้าหมาย {locationData[bestExploreTarget(game)].title}</span>
           <span className="pill">ประชากร {alivePeople(game).length}</span>
           <span className="pill">ใช้คน {laborAssignmentLoad(game).toFixed(1)}/{workerCapacity(game).toFixed(1)} · ผลผลิต {laborTotal(game.labor).toFixed(1)}</span>
           <span className="pill">ตระกูล {game.houseName}</span>
@@ -2562,6 +2594,7 @@ export default function GamePage() {
           </nav>
           {view === "เมือง" && <CityView game={game} />}
           {view === "คน" && <PeopleView game={game} assignPersonLabor={assignPersonLabor} applyRecommendedAssignments={() => updateGame((g) => { const laborAssignments = recommendedAssignments(g); return { ...g, laborAssignments, labor: deriveLaborFromAssignments(g, laborAssignments), savedText: "จัดแรงงานตามความถนัดแล้ว" }; })} />}
+          {view === "แผนที่" && <MapView game={game} setExploreTarget={(target) => updateGame((g) => ({ ...g, exploreTarget: target, savedText: `เลือกเส้นทางสำรวจ: ${locationData[target].title}` }))} />}
           {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} pauseConstruction={pauseConstruction} cancelConstruction={cancelConstruction} />}
           {view === "วิจัย" && <ResearchView game={game} startResearch={startResearch} pauseResearch={pauseResearch} cancelResearch={cancelResearch} />}
           {view === "สัตว์เลี้ยง" && <AnimalsView game={game} setAnimalAction={(action) => updateGame((g) => ({ ...g, animalAction: action, savedText: `ตั้งแผนสัตว์เลี้ยง: ${animalActionLabel(action)}` }))} />}
@@ -2828,6 +2861,54 @@ function OriginBuffPanel({ game }: { game: GameState }) {
   );
 }
 
+
+function migrantSeed(game: GameState) { return game.year * 97 + game.month * 53 + alivePeople(game).length * 11 + game.resources.food; }
+function buildMigrantCandidates(game: GameState): Person[] {
+  const seed = migrantSeed(game);
+  const count = Math.max(1, Math.min(10, (seed % 10) + 1));
+  const names = ["Nalan", "Tira", "Sovan", "Keth", "Mali", "Arun", "Lysa", "Ren", "Daro", "Pim", "Noa", "Yen", "Kavi", "Sira"];
+  const roles: Array<{ skill: SkillKey; role: string; trait: string }> = [
+    { skill: "farmer", role: "ชาวไร่เร่ร่อน", trait: "คุ้นงานดิน" },
+    { skill: "builder", role: "ช่างซ่อมเกวียน", trait: "มือไม้มั่นคง" },
+    { skill: "hunter", role: "พรานหลงทาง", trait: "อ่านรอยเท้า" },
+    { skill: "healer", role: "ผู้ต้มยา", trait: "รู้สมุนไพร" },
+    { skill: "keeper", role: "ผู้จดจำเรื่องเก่า", trait: "จำเก่ง" },
+    { skill: "guard", role: "อดีตเวรยาม", trait: "ระวังภัย" },
+  ];
+  return Array.from({ length: count }).map((_, i) => {
+    const child = i % 5 === 0;
+    const elder = !child && i % 7 === 0;
+    const age = child ? 5 + ((seed + i * 7) % 10) : elder ? 60 + ((seed + i * 3) % 18) : 15 + ((seed + i * 9) % 42);
+    const base = roles[(seed + i * 5) % roles.length];
+    const skill: SkillKey = age < 12 ? "child" : age >= 60 ? "elder" : base.skill;
+    const role = age < 12 ? "เด็กผู้ลี้ภัย" : age >= 60 ? "ผู้เฒ่าไร้บ้าน" : base.role;
+    const health = 35 + ((seed + i * 13) % 58);
+    const traits = [age < 12 ? "ต้องดูแล" : age >= 60 ? "มีประสบการณ์" : base.trait, health < 45 ? "อ่อนแรง" : "ยังมีแรงเดิน"];
+    return { id: `migrant-${seed}-${i}`, name: `${names[(seed + i * 2) % names.length]} ${i + 1}`, age, kin: "ผู้มาใหม่", role, skill, health, morale: 44 + ((seed + i * 11) % 26), fatigue: 20 + ((seed + i * 5) % 35), injured: health < 40, alive: true, traits };
+  });
+}
+function migrantsForChoice(game: GameState, choiceId: string): Person[] {
+  const candidates = buildMigrantCandidates(game);
+  if (choiceId === "accept_all_migrants") return candidates;
+  if (choiceId === "accept_skilled_migrants") {
+    const picked = candidates.filter((p) => p.age >= 15 && p.age < 60 && p.health >= 48 && !["child", "elder"].includes(p.skill)).slice(0, 5);
+    return picked.length ? picked : candidates.filter((p) => p.age >= 15).slice(0, 2);
+  }
+  if (choiceId === "accept_children_healer") {
+    const picked = candidates.filter((p) => p.age < 15 || p.skill === "healer").slice(0, 5);
+    return picked.length ? picked : candidates.slice(0, Math.min(3, candidates.length));
+  }
+  return [];
+}
+function addMigrantsByChoice(game: GameState, choiceId: string): GameState {
+  const incoming = migrantsForChoice(game, choiceId).map((p) => ({ ...p, id: uid("migrant"), kin: `เข้าร่วม House ${game.houseName}`, traits: [...p.traits, "ผู้มาใหม่"] }));
+  if (!incoming.length) return game;
+  let g = { ...game, people: [...game.people, ...incoming] };
+  g = addNotice(g, { kind: "event", title: `รับผู้มาใหม่ ${incoming.length} คน`, text: incoming.map((p) => `${p.name} (${skillLabel(p.skill)}, อายุ ${p.age})`).join(" · ") });
+  g = addLog(g, "รายชื่อผู้มาใหม่", incoming.map((p) => `• ${p.name} — ${p.role}, อายุ ${p.age}, สุขภาพ ${p.health}%`).join("\n"), "good", ["อพยพ", "คนเข้าเมือง"]);
+  return g;
+}
+
 function skillLabel(skill: SkillKey) {
   const labels: Record<SkillKey, string> = { hunter: "พราน", builder: "ช่าง", healer: "ผู้รักษา", keeper: "ผู้จดจำ", guard: "เวรยาม", farmer: "แรงงาน/ชาวไร่", child: "เด็ก", elder: "ผู้เฒ่า" };
   return labels[skill] ?? skill;
@@ -2835,21 +2916,19 @@ function skillLabel(skill: SkillKey) {
 
 function MigrantPreview({ game, event }: { game: GameState; event: GameEvent }) {
   if (event.id !== "migrant_group") return null;
-  const seed = game.year * 17 + game.month * 13 + alivePeople(game).length;
-  const count = Math.max(1, Math.min(10, (seed % 10) + 1));
-  const skills: SkillKey[] = ["farmer", "builder", "hunter", "healer", "keeper", "guard", "child", "elder"];
+  const migrants = buildMigrantCandidates(game);
+  const choiceId = game.selectedChoiceId ?? "";
+  const selectedIds = new Set(migrantsForChoice(game, choiceId).map((p) => p.id));
   return (
-    <div className="migrant-preview">
-      <div className="split"><h3 className="section-title">ผู้ลี้ภัยที่รอการตัดสินใจ</h3><span className="badge">สุ่ม {count} คน</span></div>
+    <div className="migrant-preview selection-window">
+      <div className="split"><div><h3 className="section-title">หน้าต่างคัดเลือกผู้มาใหม่</h3><p className="muted small">กลุ่มนี้ถูกสุ่มจากเหตุการณ์จริงของเดือนนี้ รายชื่อด้านล่างคือคนที่จะยืนรอคำตอบหน้าค่าย การเลือกแต่ละทางด้านล่างจะรับคนต่างกลุ่มเข้ามา ไม่ใช่เพิ่มประชากรแบบตัวเลขลอย ๆ</p></div><span className="badge">ทั้งหมด {migrants.length} คน</span></div>
       <div className="migrant-grid">
-        {Array.from({ length: count }).map((_, i) => {
-          const age = i % 5 === 0 ? 8 + (seed + i) % 7 : i % 6 === 0 ? 62 + (seed + i) % 12 : 16 + ((seed + i * 7) % 38);
-          const skill = age < 12 ? "child" : age >= 60 ? "elder" : skills[(seed + i * 3) % 6];
-          const hp = 38 + ((seed + i * 11) % 55);
-          return <article className="migrant-card" key={`migrant-${i}`}><b>{i + 1}. {skillLabel(skill)}</b><small>อายุ {age} · สุขภาพ {hp}%</small><span className={hp < 45 ? "badge red" : "badge green"}>{hp < 45 ? "ต้องดูแล" : "พร้อมช่วยงาน"}</span></article>;
+        {migrants.map((p) => {
+          const selected = selectedIds.has(p.id);
+          return <article className={selected ? "migrant-card selected" : "migrant-card"} key={p.id}><b>{selected ? "✅" : "▫️"} {p.name}</b><small>{skillLabel(p.skill)} · อายุ {p.age} · สุขภาพ {p.health}%</small><span className={p.health < 45 ? "badge red" : p.age < 12 ? "badge blue" : "badge green"}>{p.health < 45 ? "ต้องดูแล" : p.age < 12 ? "เด็ก" : "พร้อมช่วยงาน"}</span><em>{p.traits.join(" · ")}</em></article>;
         })}
       </div>
-      <p className="muted small">การเลือกด้านล่างจะกำหนดว่าจะรับกลุ่มแบบใด ระบบจะสุ่มรายชื่อและ passive จริงเมื่อเข้าร่วมค่าย</p>
+      <p className="muted small">เลือก “รับทุกคน” เพื่อรับรายชื่อทั้งหมด หรือเลือก “คัดรับเฉพาะคนมีทักษะ” / “รับเด็กและผู้รักษา” เพื่อคัดตามสถานการณ์ของค่าย</p>
     </div>
   );
 }
@@ -2938,6 +3017,48 @@ function traitEmoji(trait: string) {
   if (trait.includes("ใจดี") || trait.includes("ละเอียด")) return "🤲";
   return "•";
 }
+
+function MapView({ game, setExploreTarget }: { game: GameState; setExploreTarget: (target: LocationKey) => void }) {
+  const locations = normalizeLocations(game.locations);
+  const target = bestExploreTarget(game);
+  const discovered = (Object.keys(locationData) as LocationKey[]).filter((key) => locations[key].discovered);
+  const hidden = (Object.keys(locationData) as LocationKey[]).filter((key) => !locations[key].discovered);
+  return (
+    <section className="panel pad map-view">
+      <div className="split">
+        <div>
+          <h2 className="title">แผนที่รอบถิ่นฐาน</h2>
+          <p className="muted">โลกไม่ได้จบที่แนวค่าย การสำรวจจะเปิดน้ำ ป่า ถนนเก่า ถ้ำ ซากค่าย และภัยที่กำลังเคลื่อนเข้าหาเรา ข้อมูลชุดนี้ถูกแยกเป็น data เพื่อย้ายไป Godot เป็น node map ได้ในอนาคต</p>
+        </div>
+        <span className="badge green">เป้าหมายสำรวจ: {locationData[target].title}</span>
+      </div>
+      <div className="map-summary-grid">
+        <div className="map-summary"><b>พื้นที่รู้จัก</b><span>{discovered.length}/{Object.keys(locationData).length}</span></div>
+        <div className="map-summary"><b>แรงงานสำรวจ</b><span>{(normalizeLabor(game).explore ?? 0).toFixed(1)}</span></div>
+        <div className="map-summary"><b>ข่าวที่เปิดทาง</b><span>{game.rumors.length}</span></div>
+        <div className="map-summary"><b>ภัยจากเส้นทาง</b><span>{pct(game.threat)}</span></div>
+      </div>
+      <div className="location-grid">
+        {(Object.keys(locationData) as LocationKey[]).map((key) => {
+          const data = locationData[key];
+          const loc = locations[key];
+          const active = key === target;
+          return (
+            <article className={active ? "location-card active" : "location-card"} key={key}>
+              <div className="split"><h3>{data.icon} {loc.discovered ? data.title : "พื้นที่ยังไม่ยืนยัน"}</h3><span className="badge">{locationProgressText(loc)}</span></div>
+              <p className="muted small">{loc.discovered ? data.text : data.unlockHint}</p>
+              <div className="bar"><div className="fill" style={{ width: `${loc.progress}%` }} /></div>
+              {loc.discovered && <div className="deltas"><span className="badge blue">ทรัพยากร: {data.resource}</span><span className="badge red">เสี่ยง: {data.risk}</span>{data.tags.map((tag) => <span className="badge" key={`${key}-${tag}`}>{tag}</span>)}</div>}
+              <div className="location-actions"><button className={active ? "primary" : "secondary"} onClick={() => setExploreTarget(key)}>{active ? "กำลังสำรวจ" : "ตั้งเป็นเป้าหมายสำรวจ"}</button></div>
+            </article>
+          );
+        })}
+      </div>
+      {hidden.length > 0 && <p className="muted small">ยังมีพื้นที่ที่รู้เพียงข่าวลืออีก {hidden.length} แห่ง การส่งคนสำรวจหรือใช้สายข่าวจะค่อย ๆ เปิดเส้นทางเหล่านี้</p>}
+    </section>
+  );
+}
+
 function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignments }: { game: GameState; assignPersonLabor: (personId: string, job: LaborKey | "") => void; applyRecommendedAssignments: () => void }) {
   const [skillFilter, setSkillFilter] = useState<SkillKey | "all">("all");
   const jobs = unlockedLaborOptions(game);
@@ -3325,3 +3446,85 @@ function NewsView({ game, applyTrade }: { game: GameState; applyTrade: (offerId:
 function RumorPanel({ game }: { game: GameState }) {
   return <section className="panel pad"><h3 className="section-title">ข่าวลือ / สิ่งที่ยังไม่รู้</h3>{game.rumors.length ? <div className="timeline">{game.rumors.slice(0, 4).map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><span className="badge blue">อันตราย: {r.danger}</span></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ หากอยากเปิดเส้นทางเรื่องราว ลองให้ผู้นำออกสำรวจพื้นที่</div>}</section>;
 }
+function emptyLocations(): LocationProgress {
+  return {
+    shallowStream: { progress: 20, status: "ข่าวลือ", discovered: true, outpost: false },
+    deepWoods: { progress: 10, status: "ข่าวลือ", discovered: true, outpost: false },
+    oldTradeRoad: { progress: 0, status: "ข่าวลือ", discovered: false, outpost: false },
+    rockyRidge: { progress: 0, status: "ข่าวลือ", discovered: false, outpost: false },
+    abandonedCamp: { progress: 0, status: "ข่าวลือ", discovered: false, outpost: false },
+    marshPools: { progress: 0, status: "ข่าวลือ", discovered: false, outpost: false },
+    huntingGround: { progress: 0, status: "ข่าวลือ", discovered: false, outpost: false },
+    oldCave: { progress: 0, status: "ข่าวลือ", discovered: false, outpost: false },
+  };
+}
+function normalizeLocations(locations?: Partial<LocationProgress>): LocationProgress {
+  const base = emptyLocations();
+  (Object.keys(base) as LocationKey[]).forEach((key) => {
+    const src = locations?.[key];
+    if (src) base[key] = { progress: clamp(src.progress ?? 0), status: src.status ?? locationStatusFromProgress(src.progress ?? 0), discovered: !!src.discovered || (src.progress ?? 0) > 0, outpost: !!src.outpost };
+  });
+  return base;
+}
+function locationStatusFromProgress(progress: number): LocationStatus {
+  if (progress >= 100) return "ควบคุมได้";
+  if (progress >= 70) return "รู้เส้นทาง";
+  if (progress >= 30) return "สำรวจบางส่วน";
+  return "ข่าวลือ";
+}
+function locationDiscoveryCount(game: GameState) {
+  return (Object.keys(locationData) as LocationKey[]).filter((key) => (game.locations ?? emptyLocations())[key]?.discovered).length;
+}
+function locationProgressText(item: { progress: number; status: LocationStatus; discovered: boolean }) {
+  if (!item.discovered) return "ยังไม่ยืนยัน";
+  return `${item.status} · ${Math.round(item.progress)}%`;
+}
+function bestExploreTarget(game: GameState): LocationKey {
+  const locations = normalizeLocations(game.locations);
+  const target = game.exploreTarget ?? "shallowStream";
+  if (locations[target]) return target;
+  return "shallowStream";
+}
+function resolveExploration(game: GameState, changes: string[]): GameState {
+  let g = { ...game, locations: normalizeLocations(game.locations) };
+  const l = normalizeLabor(g);
+  const explorePower = (l.explore ?? 0) + (g.leaderFocus === "scout" ? 0.8 : 0) + (g.labor.intel ?? 0) * 0.25;
+  if (explorePower <= 0) return g;
+  const target = bestExploreTarget(g);
+  const before = g.locations[target];
+  const data = locationData[target];
+  const gain = Math.max(6, Math.round(explorePower * (8 + skillCount(g, "hunter") * 0.35 + skillCount(g, "keeper") * 0.25)));
+  const progress = clamp((before.progress ?? 0) + gain);
+  const newlyDiscovered = !before.discovered;
+  const newStatus = locationStatusFromProgress(progress);
+  g = { ...g, locations: { ...g.locations, [target]: { ...before, progress, status: newStatus, discovered: true } } };
+  if (newlyDiscovered) {
+    g = addNotice(g, { kind: "event", title: `พบพื้นที่ใหม่: ${data.title}`, text: data.text });
+    g = addLog(g, `พบพื้นที่ใหม่: ${data.title}`, `${data.icon} ${data.text}`, "good", ["สำรวจ", data.title]);
+    changes.push(`พบพื้นที่ใหม่: ${data.title}`);
+  } else {
+    changes.push(`สำรวจ${data.title} +${gain}%`);
+  }
+  if (before.status !== newStatus && progress >= 30) {
+    g = addLog(g, `${data.title}: ${newStatus}`, `คนสำรวจเริ่มเข้าใจพื้นที่นี้ดีขึ้น — ${data.resource} แต่ยังมีความเสี่ยงเรื่อง${data.risk}`, "normal", ["แผนที่", newStatus]);
+    if (newStatus === "สำรวจบางส่วน") g = { ...g, resources: changeResources(g.resources, data.resourceBonus), metrics: changeMetrics(g.metrics, { trust: 1 }) };
+    if (newStatus === "รู้เส้นทาง") {
+      g = { ...g, threat: clamp(g.threat + data.threat / 4 - (g.labor.patrol ?? 0), 0, 100), metrics: changeMetrics(g.metrics, { security: 1, morale: 1 }) };
+      g = addNotice(g, { kind: data.trade > 0 ? "trade" : data.beast > 6 ? "threat" : "event", title: `เส้นทางเริ่มชัด: ${data.title}`, text: `พื้นที่นี้เปิดทางให้${data.resource} แต่ต้องระวัง${data.risk}` });
+    }
+    if (newStatus === "ควบคุมได้") {
+      g = { ...g, resources: changeResources(g.resources, data.resourceBonus), metrics: changeMetrics(g.metrics, { cohesion: 2, security: data.beast > 6 ? 1 : 0 }) };
+      changes.push(`${data.title} ถูกควบคุมเป็นเส้นทางปลอดภัยมากขึ้น`);
+    }
+  }
+  const travelRisk = Math.max(0, data.beast + data.threat + data.disease - (g.labor.guard ?? 0) * 3 - (g.labor.patrol ?? 0) * 4 - (g.researchDone.watchRoutine ? 3 : 0));
+  if (Math.random() * 100 < Math.min(28, travelRisk)) {
+    g = Math.random() > 0.45 ? woundSomeone(g, `การสำรวจ${data.title}`) : addLog(g, `เกือบเกิดเหตุที่${data.title}`, `คนสำรวจกลับมาช้าพร้อมเรื่องเล่าว่า${data.risk}ไม่ใช่แค่ข่าวลือ`, "bad", ["สำรวจ", "เสี่ยง"]);
+    changes.push(`การสำรวจ${data.title}เกิดความเสี่ยง`);
+  }
+  if (progress >= 60 && data.trade > 0 && !g.pendingEvents.includes("merchant_arrival")) g = { ...g, pendingEvents: ["merchant_arrival", ...g.pendingEvents] };
+  if (progress >= 55 && data.threat >= 7 && !g.pendingEvents.includes("winter_raider_warning")) g = { ...g, pendingEvents: ["winter_raider_warning", ...g.pendingEvents] };
+  if (progress >= 45 && data.beast >= 7 && !g.pendingEvents.includes("tracks_near_camp")) g = { ...g, pendingEvents: ["tracks_near_camp", ...g.pendingEvents] };
+  return g;
+}
+

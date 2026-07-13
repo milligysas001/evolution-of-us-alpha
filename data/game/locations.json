@@ -1,0 +1,66 @@
+[
+  {
+    "id": "shallowStream",
+    "name": "ลำธารตื้น",
+    "type": "water",
+    "resource": "water, herbs",
+    "risk": "beast, disease",
+    "godotNode": "map_node_stream"
+  },
+  {
+    "id": "deepWoods",
+    "name": "ป่าทึบทางเหนือ",
+    "type": "forest",
+    "resource": "food, wood, herbs, hides",
+    "risk": "beast, lost",
+    "godotNode": "map_node_forest"
+  },
+  {
+    "id": "oldTradeRoad",
+    "name": "ถนนการค้าเก่า",
+    "type": "route",
+    "resource": "merchant, rumors, gold",
+    "risk": "bandit",
+    "godotNode": "map_node_trade_road"
+  },
+  {
+    "id": "rockyRidge",
+    "name": "แนวหินหลังเนิน",
+    "type": "stone",
+    "resource": "stone, ore",
+    "risk": "accident, weather",
+    "godotNode": "map_node_rock"
+  },
+  {
+    "id": "abandonedCamp",
+    "name": "ซากค่ายร้าง",
+    "type": "ruin",
+    "resource": "tools, knowledge",
+    "risk": "disease, conflict",
+    "godotNode": "map_node_ruin"
+  },
+  {
+    "id": "marshPools",
+    "name": "บึงตื้นและดินชื้น",
+    "type": "marsh",
+    "resource": "water, herbs, feed",
+    "risk": "disease",
+    "godotNode": "map_node_marsh"
+  },
+  {
+    "id": "huntingGround",
+    "name": "เขตล่าสัตว์",
+    "type": "hunting",
+    "resource": "food, hides",
+    "risk": "beast",
+    "godotNode": "map_node_hunting"
+  },
+  {
+    "id": "oldCave",
+    "name": "ถ้ำเก่าหลังผาหิน",
+    "type": "cave",
+    "resource": "ore, stone, knowledge",
+    "risk": "beast, accident",
+    "godotNode": "map_node_cave"
+  }
+]
