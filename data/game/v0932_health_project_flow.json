@@ -1,0 +1,17 @@
+{
+  "version": "0.9.32",
+  "systems": [
+    "health_conditions",
+    "categorized_buildings",
+    "categorized_research",
+    "guard_reduces_theft",
+    "leader_action_relevance",
+    "infection_isolation"
+  ],
+  "health_conditions": {
+    "sick": "แพร่เชื้อได้ ต้องแยกผู้ป่วย น้ำสะอาด สมุนไพร และงานดูแล",
+    "injured": "ไม่แพร่เชื้อ ต้องพัก รักษาบาดแผล และหลีกเลี่ยงงานหนัก",
+    "both": "ต้องรักษาทั้งโรคและแผล"
+  },
+  "leader_actions": "แสดงสูงสุด 3 ตัวเลือกเฉพาะเหตุการณ์ + 3 ตัวเลือกสัมพันธ์กับสภาพค่าย + ตัวเลือกล็อกที่เกี่ยวข้องเท่านั้น"
+}

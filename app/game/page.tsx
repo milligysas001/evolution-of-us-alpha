@@ -59,6 +59,7 @@ type Person = {
   morale: number;
   fatigue: number;
   injured: boolean;
+  sick?: boolean;
   alive: boolean;
   traits: string[];
   xp?: SkillXP;
@@ -285,7 +286,7 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.31";
+const GAME_VERSION = "0.9.32";
 const BUILD_LABEL = "Labor Filter Audit · Rest Recovery Rates";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
@@ -433,6 +434,26 @@ function makeLeaderAction(id: LeaderFocusKey, icon: string, title: string, text:
   return { id, icon, title, text, reason, priority, locked, lockReason };
 }
 
+function leaderActionIsEventSpecific(action: LeaderAction, event: GameEvent) {
+  const text = `${event.id} ${event.title} ${event.category}`;
+  if (String(action.reason ?? "").includes("เฉพาะ")) return true;
+  const map: Array<[RegExp, LeaderFocusKey[]]> = [
+    [/อาหาร|เสบียง|คลัง|ขโมย/, ["inspectRations", "leadForage", "rationKitchen", "campRules", "justiceHearing"]],
+    [/โรค|ไข้|ป่วย|แผล|ติดเชื้อ|สมุนไพร/, ["boilHerbs", "isolateSick", "sicknessLedger", "herbWalk"]],
+    [/สัตว์|หมาป่า|รอยเท้า|คอก/, ["nightPatrol", "trackBeasts", "beastFence", "dogTrail", "animalLedger", "cowCare", "pigWaste", "chickenRoost"]],
+    [/ฝน|หนาว|ฟืน|อากาศ|พายุ|ควัน/, ["firewoodPlan", "winterWatch", "rainShelter", "weatherReading", "smokeWatch", "shelterRounds", "fireDiscipline"]],
+    [/ก่อสร้าง|เครื่องมือ|หิน|โครง|ซ่อม/, ["repairTools", "constructionBrief", "stoneMeasure", "toolAudit", "woodlineSurvey", "craftMentor"]],
+    [/สำรวจ|ถนน|ซาก|แผนที่|คาราวาน|พ่อค้า/, ["scout", "trailMarkers", "roadWhisper", "mapCouncil", "marketGreeting"]],
+    [/อพยพ|ผู้ลี้ภัย|เกิด|เด็ก|ครอบครัว/, ["migrantInterview", "birthSupport", "childLessons", "elderCouncil", "quietMeal", "nightStories"]],
+    [/ทะเลาะ|ข้อพิพาท|ยุติธรรม|ความไว้ใจ/, ["mediate", "holdCouncil", "campRules", "justiceHearing", "sharedOath"]],
+  ];
+  return map.some(([re, ids]) => re.test(text) && ids.includes(action.id));
+}
+function leaderActionIsGenerallyRelevant(action: LeaderAction, game: GameState, event: GameEvent) {
+  if (leaderActionIsEventSpecific(action, event)) return true;
+  return expandedLeaderActionAvailable(action.id, game, event) || ["workWithPeople", "study", "trainGuard", "scout", "quietRest", "restPlan"].includes(action.id);
+}
+
 function dynamicLeaderActions(game: GameState, event: GameEvent): LeaderAction[] {
   const risk = riskPreview(game);
   const season = seasonOf(game.month);
@@ -490,9 +511,11 @@ function dynamicLeaderActions(game: GameState, event: GameEvent): LeaderAction[]
     if (!existing || (a.priority ?? 0) > (existing.priority ?? 0)) map.set(a.id, a);
   });
   const result = Array.from(map.values()).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
-  const unlocked = result.filter((a) => !a.locked).slice(0, 7);
-  const locked = result.filter((a) => a.locked).slice(0, 3);
-  return [...unlocked, ...locked];
+  const specific = result.filter((a) => !a.locked && leaderActionIsEventSpecific(a, event)).slice(0, 3);
+  const used = new Set(specific.map((a) => a.id));
+  const related = result.filter((a) => !a.locked && !used.has(a.id) && leaderActionIsGenerallyRelevant(a, game, event)).slice(0, 3);
+  const locked = result.filter((a) => a.locked && (leaderActionIsEventSpecific(a, event) || leaderActionIsGenerallyRelevant(a, game, event))).slice(0, 3);
+  return [...specific, ...related, ...locked];
 }
 
 
@@ -728,14 +751,48 @@ function workAgeLabel(person: Person) {
 function helperTraitBoost(person: Person) {
   return person.traits.includes("ขยันเป็นพิเศษ") || person.traits.includes("ชอบช่วยงาน") || person.traits.includes("เรียนรู้ไว") || person.traits.includes("อดทน");
 }
+function causeLooksSickness(cause?: string | null) {
+  const text = String(cause ?? "");
+  return /โรค|ไข้|ป่วย|ติดเชื้อ|ท้องเสีย|น้ำขุ่น|คอกสัตว์|ไอ|หนาวจัด|อ่อนแรง/.test(text);
+}
+function personIsSick(person: Person) {
+  return person.alive && (!!person.sick || causeLooksSickness(person.cause) || (!person.injured && person.health < 45));
+}
+function personIsInjured(person: Person) {
+  return person.alive && !!person.injured;
+}
+function personHasBothConditions(person: Person) {
+  return personIsSick(person) && personIsInjured(person);
+}
 function personNeedsCare(person: Person) {
-  return person.alive && (person.injured || person.health < 45);
+  return person.alive && (personIsInjured(person) || personIsSick(person) || person.health < 45);
+}
+function personConditionLabel(person: Person) {
+  if (!person.alive) return "เสียชีวิต";
+  const sick = personIsSick(person);
+  const injured = personIsInjured(person);
+  if (sick && injured) return "ป่วยและบาดเจ็บ";
+  if (sick) return "ป่วย";
+  if (injured) return "บาดเจ็บ";
+  if (person.fatigue >= 70) return "ล้าสูง";
+  if (person.health < 60) return "อ่อนแรง";
+  return "พร้อม";
+}
+function personConditionEmoji(person: Person) {
+  const label = personConditionLabel(person);
+  if (label === "ป่วยและบาดเจ็บ") return "🦠🩹";
+  if (label === "ป่วย") return "🤒";
+  if (label === "บาดเจ็บ") return "🩹";
+  if (label === "ล้าสูง") return "😓";
+  if (label === "อ่อนแรง") return "⚠️";
+  if (label === "เสียชีวิต") return "🕯️";
+  return "✅";
 }
 function personIsExhausted(person: Person) {
   return person.alive && person.fatigue >= 70;
 }
 function baseWorkFactor(person: Person) {
-  if (!person.alive || person.injured || person.health < 45) return 0;
+  if (!person.alive || personIsInjured(person) || personIsSick(person) || person.health < 45) return 0;
   if (person.age < 12) return 0;
   if (person.age < 15) return helperTraitBoost(person) ? 0.8 : 0.5;
   if (person.age < 60) return 1;
@@ -761,7 +818,9 @@ function eligibleWorkers(game: GameState) {
 function alivePeople(game: GameState) { return game.people.filter((p) => p.alive); }
 function childrenCount(game: GameState) { return alivePeople(game).filter((p) => p.age < 16).length; }
 function eldersCount(game: GameState) { return alivePeople(game).filter((p) => p.age >= 62).length; }
-function woundedCount(game: GameState) { return alivePeople(game).filter((p) => p.injured || p.health < 45).length; }
+function woundedCount(game: GameState) { return alivePeople(game).filter((p) => personNeedsCare(p)).length; }
+function sickCount(game: GameState) { return alivePeople(game).filter((p) => personIsSick(p)).length; }
+function injuredCount(game: GameState) { return alivePeople(game).filter((p) => personIsInjured(p)).length; }
 function shelterCapacity(game: GameState) {
   const base = game.buildings.shelter * (game.researchDone.woodShelter ? 8 : 6);
   return base + (game.buildings.meetingHall > 0 ? 4 : 0);
@@ -933,7 +992,7 @@ function normalizeAdvancedSystems(game: GameState): GameState {
     resources: { ...baseResources(game.origin), ...game.resources },
     researchDone: { ...emptyResearch(), ...game.researchDone },
     buildings: { ...emptyBuildings(), ...game.buildings },
-    people: game.people.map((p) => ({ ...p, xp: p.xp ?? {}, grief: p.grief ?? 0, closeKin: p.closeKin ?? [] })),
+    people: game.people.map((p) => ({ ...p, sick: p.sick ?? (causeLooksSickness(p.cause) || (!p.injured && p.health < 45)), xp: p.xp ?? {}, grief: p.grief ?? 0, closeKin: p.closeKin ?? [] })),
   };
 }
 function seasonalWeatherLabel(game: GameState) {
@@ -1182,7 +1241,7 @@ function jobHasAdultWorker(game: GameState, job: LaborKey, assignments: LaborAss
   const ids = assignments[job] ?? [];
   return ids.some((id) => {
     const p = game.people.find((x) => x.id === id);
-    return !!p && p.alive && p.age >= 15 && p.age < 60 && !p.injured && p.health > 28;
+    return !!p && p.alive && p.age >= 15 && p.age < 60 && !personIsInjured(p) && !personIsSick(p) && p.health > 28;
   });
 }
 function normalizeLaborAssignments(game: GameState, assignments?: LaborAssignments): LaborAssignments {
@@ -1216,7 +1275,7 @@ function deriveLaborFromAssignments(game: GameState, assignments: LaborAssignmen
 }
 function foodNeedForPerson(person: Person) {
   let need = person.age < 12 ? 0.75 : person.age < 16 ? 1.15 : person.age < 60 ? 1.65 : 1.05;
-  if (person.injured || person.health < 45) need += 0.15;
+  if (personNeedsCare(person)) need += 0.15;
   if (person.traits.includes("กินจุ")) need += 0.75;
   if (person.traits.includes("กินน้อย")) need -= 0.25;
   return Math.max(0.45, need);
@@ -1258,7 +1317,7 @@ function skillIcon(skill?: SkillKey | string | null) {
 }
 function crewNameList(people: Person[]) {
   if (!people.length) return "ยังไม่มีคนถูกจัดเข้าหมวดนี้";
-  return people.map((p) => `${p.name} ${skillIcon(p.skill)}${p.injured ? " บาดเจ็บ" : p.age < 15 ? " เด็กช่วยงาน" : p.age >= 60 ? " ผู้เฒ่า" : ""}`).join(" · ");
+  return people.map((p) => `${p.name} ${skillIcon(p.skill)} ${personConditionEmoji(p)} ${personConditionLabel(p)}${p.age < 15 ? " · เด็กช่วยงาน" : p.age >= 60 ? " · ผู้เฒ่า" : ""}`).join(" · ");
 }
 function animalWaterNeed(game: GameState) {
   const a = normalizeAnimalState(game.animalState).animals;
@@ -1501,7 +1560,7 @@ function riskPreview(game: GameState): Risks {
   return {
     food: clamp(20 + (foodNeed > game.resources.food ? 35 : 0) + (game.resources.food < foodNeed * 1.6 ? 18 : 0) + (weather.kind === "แล้งจัด" || weather.kind === "หนาวยาว" ? weatherPressure : 0) - game.buildings.storage * 8 * buildingEfficiency(game, "storage") - game.buildings.dryingRack * 5 * buildingEfficiency(game, "dryingRack") - labor.forage * 3 - labor.farm * 4 - labor.preserve * 3),
     shelter: clamp(16 + shelterShort * 8 + (season === "ฤดูหนาว" ? 18 : 0) + (season === "ฤดูฝน" ? 12 : 0) + structurePenalty + (weather.kind === "พายุเข้าเร็ว" || weather.kind === "หนาวยาว" ? weatherPressure : 0) - game.buildings.campfire * 5 * buildingEfficiency(game, "campfire") - game.buildings.smokeVent * 5 * buildingEfficiency(game, "smokeVent") - (game.researchDone.shelterHygiene ? 4 : 0) - maintenanceBonus),
-    disease: clamp(18 + terrain.disease + woundedCount(game) * 8 + shelterShort * 4 + (game.buildings.well ? -12 : 10) + (season === "ฤดูฝน" ? 16 : 0) + (weather.kind === "หมอกชื้น" || weather.kind === "ฝนหลงฤดู" ? weatherPressure : 0) - labor.care * 8 - game.buildings.smokeVent * 7 * buildingEfficiency(game, "smokeVent") - game.buildings.dryingRack * 4 - game.buildings.healerHut * 4 - (game.researchDone.sanitation ? 14 : 0) - (game.researchDone.herbalWorkshop ? 8 : 0) - (game.researchDone.animalQuarantine ? 5 : 0)),
+    disease: clamp(18 + terrain.disease + sickCount(game) * 10 + injuredCount(game) * 4 + shelterShort * 4 + (game.buildings.well ? -12 : 10) + (season === "ฤดูฝน" ? 16 : 0) + (weather.kind === "หมอกชื้น" || weather.kind === "ฝนหลงฤดู" ? weatherPressure : 0) - labor.care * 8 - labor.herbs * 3 - (game.leaderFocus === "isolateSick" ? 18 : 0) - game.buildings.smokeVent * 7 * buildingEfficiency(game, "smokeVent") - game.buildings.dryingRack * 4 - game.buildings.healerHut * 5 - (game.researchDone.sanitation ? 14 : 0) - (game.researchDone.herbalWorkshop ? 8 : 0) - (game.researchDone.animalQuarantine ? 5 : 0)),
     beast: clamp(18 + terrain.beast + (labor.forage >= 4 ? 16 : 0) + (game.metrics.security < 40 ? 18 : 0) - labor.guard * 9 - labor.patrol * 5 - game.buildings.watchPost * 9 - game.buildings.palisade * 14 - game.buildings.livestockShed * 4),
     conflict: clamp(15 + (game.metrics.trust < 45 ? 16 : 0) + (game.metrics.fairness < 45 ? 14 : 0) + (game.resources.food < foodNeed ? 18 : 0) - (game.leaderFocus === "mediate" ? 12 : 0) - game.buildings.meetingHall * 4),
     weather: clamp(12 + terrain.weather + weatherPressure + (season === "ฤดูหนาว" ? 25 : 0) + (season === "ฤดูฝน" ? 18 : 0) + shelterShort * 4 - game.buildings.shelter * 4 * buildingEfficiency(game, "shelter") - game.buildings.campfire * 3 * buildingEfficiency(game, "campfire") - game.buildings.smokeVent * 3 - game.buildings.cistern * 2 - (game.researchDone.weatherReading ? 6 : 0) - (game.researchDone.stormPrep ? 8 : 0)),
@@ -2276,7 +2335,7 @@ const events: GameEvent[] = [
   {
     id: "small_theft", title: "อาหารหายจากถุงกลาง", category: "ความไว้ใจ",
     text: "มีอาหารแห้งหายไปจากมุมเก็บของ ไม่มีร่องรอยสัตว์ บางคนเริ่มมองหน้ากันเองด้วยความสงสัย",
-    weight: (g) => 5 + (g.metrics.trust < 48 ? 10 : 0) + (g.resources.food < foodNeedFor(g) * 1.7 ? 8 : 0),
+    weight: (g) => Math.max(0, 5 + (g.metrics.trust < 48 ? 10 : 0) + (g.resources.food < foodNeedFor(g) * 1.7 ? 8 : 0) - normalizeLabor(g).guard * 4 - normalizeLabor(g).patrol * 3 - g.buildings.watchPost * 5),
     choices: [
       choice("quiet_investigate", "👁️", "สืบเงียบ ๆ ก่อนกล่าวหา", "รอบคอบ", "รักษาความสงบและอาจพบความจริง", { resources: { knowledge: 2 }, metrics: { trust: 2, security: 2 }, path: { survival: 1 } }, ["ผู้นำไม่ได้ประกาศต่อหน้าไฟกลางค่าย แต่เริ่มถามคำถามสั้น ๆ ในเวลาที่ไม่มีใครตั้งตัว", "บางความจริงไม่ควรถูกลากออกมากลางลาน ถ้ายังไม่รู้ว่ามันเป็นแผลหรือรอยขีดข่วน"]),
       choice("public_count", "⚖️", "นับเสบียงต่อหน้าทุกคน", "โปร่งใส", "ลดข่าวลือแต่ทำให้บรรยากาศตึง", { metrics: { fairness: 6, trust: 2, morale: -2 }, path: { family: 1 } }, ["ถุงอาหารถูกนับทีละใบต่อหน้าทุกคน เสียงเมล็ดแห้งในถุงดังเหมือนค้อนของผู้พิพากษา", "ข่าวลือลดลง แต่ไม่มีใครลืมว่ามันเคยเกิดขึ้น"]),
@@ -2589,7 +2648,7 @@ const events: GameEvent[] = [
     id: "supply_theft", title: "เสบียงหายจากคลังกลางคืน", category: "อาชญากรรม / ความยุติธรรม",
     text: "เช้าตรู่ คนดูแลคลังพบถุงอาหารฉีกออกและรอยเท้าเล็ก ๆ วนอยู่หลังที่พัก ไม่มีศัตรูบุก ไม่มีสัตว์ป่า มีเพียงคำถามหนัก ๆ ว่าใครในค่ายเป็นคนหยิบเสบียงไป",
     condition: (g) => g.resources.food > foodNeedFor(g) * 0.8 && alivePeople(g).length >= 8,
-    weight: (g) => 4 + (g.metrics.fairness < 50 ? 10 : 0) + (g.metrics.trust < 45 ? 8 : 0) + (g.resources.food < foodNeedFor(g) * 1.5 ? 6 : 0),
+    weight: (g) => Math.max(0, 4 + (g.metrics.fairness < 50 ? 10 : 0) + (g.metrics.trust < 45 ? 8 : 0) + (g.resources.food < foodNeedFor(g) * 1.5 ? 6 : 0) - normalizeLabor(g).guard * 5 - normalizeLabor(g).patrol * 4 - g.buildings.watchPost * 6 - g.buildings.palisade * 4),
     choices: [
       choice("investigate_theft", "🔎", "ตรวจคลังและสอบถามอย่างเป็นธรรม", "ยุติธรรม", "ใช้เวลาและความอดทน แต่ลดการลงโทษผิดคน", { resources: { food: -3 }, metrics: { fairness: 6, trust: 3, security: 2 }, path: { knowledge: 1 } }, ["ผู้นำให้ทุกคนพูดต่อหน้ากองไฟทีละคน ไม่มีการตะคอก ไม่มีการลากตัวใครออกมากลางลาน", "สุดท้ายพบว่าเสบียงบางส่วนถูกเด็กสองคนหยิบไปให้ผู้ป่วยที่กลัวถูกตัดส่วนแบ่ง ความผิดยังเป็นความผิด แต่สาเหตุของมันทำให้กฎต้องถูกเขียนใหม่"], { addMemory: { title: "คดีเสบียงคืนฝน", text: "ผู้นำเลือกค้นหาความจริงก่อนลงโทษ และค่ายได้เรียนรู้ว่าความหิวมักซ่อนอยู่หลังการขโมย", effect: "+ความยุติธรรมและความไว้ใจ", kind: "lesson" } }),
       choice("confine_thief", "⛓️", "ขังผู้ต้องสงสัยและให้ทำงานชดใช้", "เข้มงวด", "ลดการขโมยซ้ำ แต่ทำให้คนบางส่วนกลัวผู้นำ", { metrics: { security: 7, fairness: -2, trust: -3 }, threat: -2, path: { fortress: 2 } }, ["ผู้ต้องสงสัยถูกให้อยู่ใกล้กองไฟและถูกห้ามแตะคลัง เสียงซุบซิบลดลง แต่สายตาหลายคู่เริ่มหลบผู้นำ", "ค่ายปลอดภัยขึ้นในทางหนึ่ง และแข็งกระด้างขึ้นอีกทางหนึ่ง"]),
@@ -2804,7 +2863,7 @@ const survivalEventSeeds: ExtraEventSeed[] = [
   { id: "tool_handle_splits", icon: "🛠️", title: "ด้ามขวานแตกระหว่างผ่าฟืน", category: "เครื่องมือ / อุบัติเหตุ", text: "เสียงไม้แตกดังแหลมกว่าปกติ ด้ามขวานหนึ่งอันร้าวยาว หากฝืนใช้ต่อ มือของคนตัดไม้อาจไม่รอด", resources: { tools: -1, wood: 1 }, risk: { accident: 9 }, weight: (g) => 5 + (g.resources.tools <= 3 ? 8 : 0) },
   { id: "child_near_stream", icon: "🧒", title: "เด็กเล็กเดินตามเสียงน้ำ", category: "ครอบครัว / น้ำ", text: "เด็กคนหนึ่งหายจากกองไฟไปไม่นาน ก่อนมีคนเห็นรอยเท้าเล็ก ๆ ไปทางลำธาร เรื่องนี้ทำให้ทุกคนรู้ว่าค่ายยังไม่มีขอบเขตที่ปลอดภัย", metrics: { morale: -1, security: 2 }, risk: { accident: 10 }, weight: (g) => alivePeople(g).some(p=>p.age<12) ? 10 : 1 },
   { id: "old_cough_returns", icon: "🩺", title: "ไอเก่ากลับมาในที่พักรวม", category: "โรค / ที่พัก", text: "เสียงไอเดิมกลับมาอีกครั้งในที่พักรวม คราวนี้คนข้าง ๆ เริ่มหันหน้าหนี ก่อนจะมีใครกล้าพูดว่าโรคอาจอยู่ใกล้กว่าที่คิด", metrics: { health: -3 }, risk: { disease: 12 }, weight: (g) => 5 + (g.buildings.shelter < Math.ceil(alivePeople(g).length/5) ? 10 : 0) },
-  { id: "quiet_theft_hint", icon: "⚖️", title: "รอยนิ้วในถุงธัญพืช", category: "อาชญากรรม / เสบียง", text: "ถุงธัญพืชที่ผูกไว้ถูกคลายออกเล็กน้อย ไม่มีใครเห็นขโมย แต่ทุกคนเห็นว่าปมเชือกไม่เหมือนเดิม", resources: { food: -3 }, metrics: { trust: -2 }, risk: { conflict: 10 }, chainTo: "supply_theft", weight: (g) => 4 + (g.metrics.fairness < 55 ? 8 : 0) },
+  { id: "quiet_theft_hint", icon: "⚖️", title: "รอยนิ้วในถุงธัญพืช", category: "อาชญากรรม / เสบียง", text: "ถุงธัญพืชที่ผูกไว้ถูกคลายออกเล็กน้อย ไม่มีใครเห็นขโมย แต่ทุกคนเห็นว่าปมเชือกไม่เหมือนเดิม", resources: { food: -3 }, metrics: { trust: -2 }, risk: { conflict: 10 }, chainTo: "supply_theft", weight: (g) => Math.max(0, 4 + (g.metrics.fairness < 55 ? 8 : 0) - normalizeLabor(g).guard * 3 - g.buildings.watchPost * 4) },
   { id: "ashes_spread_by_wind", icon: "🌬️", title: "ลมแรงพัดเถ้าร้อนไปใกล้ที่พัก", category: "อากาศ / ไฟ", text: "เถ้าร้อนถูกลมพัดข้ามพื้นดินแห้งเกินไป ไฟยังไม่ลาม แต่กลิ่นไหม้ทำให้คนเฝ้ากองไฟหน้าซีด", resources: { fuel: -1 }, risk: { accident: 12, weather: 6 }, weight: (g) => 5 + (terrainData[g.terrain].weather > 5 ? 6 : 0) },
   { id: "sore_backs_after_build", icon: "🏗️", title: "หลังของแรงงานก่อสร้างเริ่มรับไม่ไหว", category: "แรงงาน / ก่อสร้าง", text: "คนที่ยกไม้และหินมาหลายวันเริ่มนั่งเงียบหลังเลิกงาน ไม่มีใครป่วยชัดเจน แต่ความเหนื่อยกำลังยืมร่างของวันหน้า", metrics: { health: -1, morale: -1 }, risk: { accident: 8 }, weight: (g) => g.labor.build > 1 ? 10 : 2 },
   { id: "strange_tracks_by_storage", icon: "🐾", title: "รอยเท้าเล็กใกล้คลัง", category: "สัตว์ป่า / คลัง", text: "รอยเท้าเล็ก ๆ วนอยู่ใกล้คลังอาหาร อาจเป็นสัตว์ตัวเล็ก หรือสัญญาณว่ากลิ่นอาหารของค่ายเริ่มเรียกแขกกลางคืน", resources: { food: -2 }, risk: { beast: 8, food: 3 }, weight: (g) => g.buildings.storage > 0 ? 8 : 4 },
@@ -3381,12 +3440,18 @@ function addChild(game: GameState): GameState {
   return { ...game, people: [...game.people, child] };
 }
 function woundSomeone(game: GameState, cause: string): GameState {
-  const targets = game.people.filter((p) => p.alive && !p.injured && p.age >= 16 && p.health > 35);
+  const illness = causeLooksSickness(cause);
+  const targets = game.people.filter((p) => p.alive && (illness ? !personIsSick(p) : !personIsInjured(p)) && p.age >= 12 && p.health > 25);
   if (targets.length === 0) return game;
-  const person = targets[Math.floor(Math.random() * targets.length)];
-  const people = game.people.map((p) => p.id === person.id ? { ...p, injured: true, health: clamp(p.health - (18 + Math.random() * 18)), fatigue: clamp(p.fatigue + 25) } : p);
+  const person = pickFrom(targets);
+  const people = game.people.map((p) => p.id === person.id
+    ? illness
+      ? { ...p, sick: true, health: clamp(p.health - (14 + Math.random() * 16)), fatigue: clamp(p.fatigue + 18), cause }
+      : { ...p, injured: true, health: clamp(p.health - (18 + Math.random() * 18)), fatigue: clamp(p.fatigue + 25), cause }
+    : p);
+  const label = illness ? "ล้มป่วย" : "บาดเจ็บ";
   let g = { ...game, people, metrics: changeMetrics(game.metrics, { health: -3, morale: -2 }) };
-  g = addLog(g, `${person.name} บาดเจ็บ`, `${person.name} ได้รับบาดเจ็บจาก${cause} ต้องพักงานและอาจแย่ลงหากไม่มีคนดูแล`, "bad", ["บาดเจ็บ", cause]);
+  g = addLog(g, `${person.name} ${label}`, `${person.name} ${label}จาก${cause} ต้องพักงานและได้รับการดูแลที่เหมาะกับอาการ`, "bad", [label, cause]);
   return g;
 }
 function killSomeone(game: GameState, cause: string): GameState {
@@ -3778,7 +3843,14 @@ function applyLeaderFocus(game: GameState, changes: string[]): GameState {
   if (f === "inspectRations") { g = { ...g, metrics: changeMetrics(g.metrics, { fairness: 4, trust: 2, morale: -1 }), resources: changeResources(g.resources, { food: 1 }) }; changes.push("ผู้นำเปิดคลังและนับเสบียงต่อหน้าทุกคน +ความยุติธรรม"); }
   if (f === "leadForage") { g = { ...g, resources: changeResources(g.resources, { food: 7, hides: Math.random() < 0.25 ? 1 : 0 }), metrics: changeMetrics(g.metrics, { trust: 2, health: -1 }), threat: clamp(g.threat + 1, 0, 100) }; changes.push("ผู้นำนำคนออกหาอาหารด้วยตนเอง บัฟงานหาอาหารของเดือนนี้และเพิ่มอาหารโดยตรง แต่เพิ่มความเสี่ยงจากป่า"); if (Math.random() < 0.14) { g = woundSomeone(g, "ผู้นำพาคนออกหาอาหารแล้วเกิดอุบัติเหตุในป่า"); changes.push("การออกหาอาหารนำบาดแผลกลับมาด้วย"); } }
   if (f === "boilHerbs") { if (g.resources.herbs < 2 && g.buildings.healerHut === 0) { changes.push("ตั้งใจจะต้มสมุนไพร แต่สมุนไพรไม่พอ จึงช่วยได้เพียงเฝ้าดูอาการ"); } else { const cost = g.resources.herbs >= 2 ? 2 : 0; g = { ...g, resources: changeResources(g.resources, { herbs: -cost }), metrics: changeMetrics(g.metrics, { health: 6, morale: 1 }) }; changes.push(cost ? "ต้มสมุนไพรแจกทั้งค่าย -สมุนไพร +สุขภาพ" : "หมอยาประคองไข้ด้วยความรู้ที่มี +สุขภาพ"); } }
-  if (f === "isolateSick") { g = { ...g, metrics: changeMetrics(g.metrics, { health: 5, trust: 1, morale: -1 }) }; changes.push("แยกผู้ป่วยออกจากที่พักรวม ลดโอกาสโรคแพร่"); }
+  if (f === "isolateSick") {
+    let isolated = 0;
+    g = { ...g, metrics: changeMetrics(g.metrics, { health: 6, trust: 1, morale: -1 }), people: g.people.map((p) => {
+      if (personIsSick(p)) { isolated++; return { ...p, fatigue: clamp(p.fatigue - 6), morale: clamp(p.morale - 2) }; }
+      return p;
+    }) };
+    changes.push(`แยกผู้ป่วย ${isolated} คนออกจากที่พักรวม ลดแรงแพร่เชื้อของเดือนนี้จริง แต่ทำให้บางคนรู้สึกโดดเดี่ยว`);
+  }
   if (f === "nightPatrol") { g = { ...g, metrics: changeMetrics(g.metrics, { security: 7, morale: -1 }), threat: clamp(g.threat - 5, 0, 100) }; changes.push("ผู้นำเดินเวรยามกลางคืน +ความปลอดภัย"); }
   if (f === "trackBeasts") { g = { ...g, metrics: changeMetrics(g.metrics, { security: 4 }), resources: changeResources(g.resources, { food: 3 }), threat: clamp(g.threat - 3, 0, 100) }; changes.push("ตามรอยสัตว์ก่อนมันกลับมา ลดภัยสัตว์ป่า"); if (Math.random() < 0.12) { g = woundSomeone(g, "ตามรอยสัตว์ในป่าลึก"); changes.push("การตามรอยสัตว์แลกมาด้วยความเสี่ยง"); } }
   if (f === "animalCare") {
@@ -3826,10 +3898,10 @@ function applyRealismRisks(game: GameState, changes: string[]): GameState {
     let healed = 0;
     const people = g.people.map((p) => {
       if (!p.alive) return p;
-      if ((p.injured || p.health < 75) && healed < healPower) {
+      if ((personNeedsCare(p) || p.health < 75) && healed < healPower) {
         healed++;
-        const newHealth = clamp(p.health + 14 + g.buildings.healerHut * 4);
-        return { ...p, health: newHealth, injured: newHealth < 58 ? p.injured : false, fatigue: clamp(p.fatigue - 20) };
+        const newHealth = clamp(p.health + 14 + g.buildings.healerHut * 4 + (g.leaderFocus === "isolateSick" && personIsSick(p) ? 4 : 0));
+        return { ...p, health: newHealth, sick: newHealth < 62 ? personIsSick(p) : false, injured: newHealth < 58 ? personIsInjured(p) : false, fatigue: clamp(p.fatigue - 20) };
       }
       return p;
     });
@@ -3853,14 +3925,14 @@ function applyRealismRisks(game: GameState, changes: string[]): GameState {
     const fatigueHealthCost = fatigue > 88 ? 7 : fatigue > 75 ? 4 : fatigue > 60 ? 1 : 0;
     const restHealthBonus = !assignedJob && fatigue < 55 ? 1 : 0;
     const health = clamp(p.health - fatigueHealthCost + (g.labor.care > 0 ? 1 : 0) + restHealthBonus);
-    return { ...p, fatigue, health, injured: health < 35 ? true : p.injured };
+    return { ...p, fatigue, health, sick: health < 35 ? true : p.sick, injured: p.injured };
   });
   g = { ...g, people };
   if (restingCount > 0 && recoveredFatigue > 0) changes.push(`คนพัก ${restingCount} คน ฟื้นความล้ารวม ${Math.round(recoveredFatigue)} หน่วย (${restRecoveryLabel(g)})`);
   const exhausted = alivePeople(g).filter((p) => p.fatigue >= 85 && p.health < 70 && !p.injured);
   if (exhausted.length && Math.random() * 100 < Math.min(35, exhausted.length * 8 + risk.disease * 0.08)) {
     const target = pickFrom(exhausted);
-    g = { ...g, people: g.people.map((p) => p.id === target.id ? { ...p, injured: true, health: clamp(p.health - 8), cause: "ความเหนื่อยสะสมทำให้ล้มป่วย" } : p), metrics: changeMetrics(g.metrics, { health: -3, morale: -1 }) };
+    g = { ...g, people: g.people.map((p) => p.id === target.id ? { ...p, sick: true, health: clamp(p.health - 8), cause: "ความเหนื่อยสะสมทำให้ล้มป่วย" } : p), metrics: changeMetrics(g.metrics, { health: -3, morale: -1 }) };
     changes.push(`${target.name} ล้มป่วยจากความเหนื่อยสะสม`);
   }
   return g;
@@ -4761,7 +4833,7 @@ function CityView({ game }: { game: GameState }) {
       <EndWarningPanel game={game} />
       <TerrainPanel game={game} />
       <section className="two-col" style={{ marginBottom: 14 }}>
-        <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{keyVillagers(game).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div>
+        <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{keyVillagers(game).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{personConditionEmoji(p)} {personConditionLabel(p)}</span></div>)}</div>
         <div className="panel pad"><h3 className="section-title">ผลจากพื้นหลังและพื้นที่</h3><p className="muted small">{originInfo(game.origin).story}</p><div className="terrain-tags">{terrainData[game.terrain].tags.map((tag) => <span className="badge" key={tag}>{tag}</span>)}</div></div>
       </section>
     </div>
@@ -4848,7 +4920,7 @@ function MapView({ game, setExploreTarget, establishOutpost }: { game: GameState
 }
 
 function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignments }: { game: GameState; assignPersonLabor: (personId: string, job: LaborKey | "") => void; applyRecommendedAssignments: () => void }) {
-  const [skillFilter, setSkillFilter] = useState<SkillKey | "all" | "free" | "sick" | "assigned" | "tired" | "resting">("all");
+  const [skillFilter, setSkillFilter] = useState<SkillKey | "all" | "free" | "sick" | "injured" | "both" | "assigned" | "tired" | "resting">("all");
   const jobs = unlockedLaborOptions(game);
   const assignments = normalizeLaborAssignments(game, game.laborAssignments ?? {});
   const labor = deriveLaborFromAssignments(game, assignments);
@@ -4859,15 +4931,19 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
   const peopleCounts = {
     free: workers.filter((p) => baseWorkFactor(p) > 0 && !assignedJobOf(game, p.id)).length,
     assigned: workers.filter((p) => Boolean(assignedJobOf(game, p.id))).length,
-    sick: workers.filter((p) => personNeedsCare(p)).length,
+    sick: workers.filter((p) => personIsSick(p)).length,
+    injured: workers.filter((p) => personIsInjured(p)).length,
+    both: workers.filter((p) => personHasBothConditions(p)).length,
     tired: workers.filter((p) => personIsExhausted(p)).length,
     resting: workers.filter((p) => !assignedJobOf(game, p.id)).length,
   };
-  const filters: Array<{ id: SkillKey | "all" | "free" | "sick" | "assigned" | "tired" | "resting"; label: string }> = [
+  const filters: Array<{ id: SkillKey | "all" | "free" | "sick" | "injured" | "both" | "assigned" | "tired" | "resting"; label: string }> = [
     { id: "all", label: `ทั้งหมด ${workers.length}` },
     { id: "free", label: `🟢 คนว่าง ${peopleCounts.free}` },
     { id: "assigned", label: `📌 มีงานแล้ว ${peopleCounts.assigned}` },
-    { id: "sick", label: `🤒 ป่วย/เจ็บ ${peopleCounts.sick}` },
+    { id: "sick", label: `🤒 ป่วย ${peopleCounts.sick}` },
+    { id: "injured", label: `🩹 บาดเจ็บ ${peopleCounts.injured}` },
+    { id: "both", label: `🦠🩹 ทั้งคู่ ${peopleCounts.both}` },
     { id: "tired", label: `😓 ล้าสูง ${peopleCounts.tired}` },
     { id: "resting", label: `🛌 กำลังพัก ${peopleCounts.resting}` },
     { id: "hunter", label: "🏹 อาหาร/ป่า" },
@@ -4883,7 +4959,9 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
     if (skillFilter === "all") return true;
     if (skillFilter === "free") return baseWorkFactor(person) > 0 && !assignedJobOf(game, person.id);
     if (skillFilter === "assigned") return Boolean(assignedJobOf(game, person.id));
-    if (skillFilter === "sick") return personNeedsCare(person);
+    if (skillFilter === "sick") return personIsSick(person);
+    if (skillFilter === "injured") return personIsInjured(person);
+    if (skillFilter === "both") return personHasBothConditions(person);
     if (skillFilter === "tired") return personIsExhausted(person);
     if (skillFilter === "resting") return !assignedJobOf(game, person.id);
     return person.skill === skillFilter || (skillFilter === "child" && person.age < 15) || (skillFilter === "elder" && person.age >= 60);
@@ -4916,8 +4994,10 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
               <div className="trait-line">
                 {person.traits.slice(0, 4).map((tr) => <span className="badge" key={`${person.id}-${tr}`}>{traitEmoji(tr)} {tr}</span>)}
                 {person.fatigue > 65 && <span className="badge red">😓 ล้า</span>}
-                {person.health < 45 && <span className="badge red">🤒 สุขภาพต่ำ</span>}
-                {person.injured && <span className="badge red">🩹 บาดเจ็บ</span>}
+                {personIsSick(person) && <span className="badge red">🤒 ป่วย</span>}
+                {personIsInjured(person) && <span className="badge red">🩹 บาดเจ็บ</span>}
+                {personHasBothConditions(person) && <span className="badge red">🦠🩹 ป่วยและบาดเจ็บ</span>}
+                {!personNeedsCare(person) && <span className="badge green">✅ {personConditionLabel(person)}</span>}
                 {currentJob && <span className="badge green">ทำอยู่: {currentJob.icon} {currentJob.title}</span>}
                 {!currentJob && <span className="badge blue">พักฟื้น {restRate}/เดือน</span>}
               </div>
@@ -4971,14 +5051,24 @@ function PeopleView({ game, assignPersonLabor, applyRecommendedAssignments }: { 
       <div className="split"><div><h2 className="title">คนในค่าย</h2><p className="muted">ทุกคนมีชื่อ อายุ สุขภาพ ความเหนื่อย และสถานะจริง คนสำคัญจะมีผลต่อการล่า ก่อสร้าง รักษา เวรยาม ข่าวสาร และพงศาวดาร</p></div><span className="badge">มีชีวิต {alivePeople(game).length}</span></div>
       <LaborAssignmentPanel game={game} assignPersonLabor={assignPersonLabor} applyRecommendedAssignments={applyRecommendedAssignments} />
       <RestSystemPanel game={game} />
-      <section className="panel pad" style={{ boxShadow: "none", margin: "12px 0" }}><h3 className="section-title">คนสำคัญของรอบนี้</h3><div className="work-grid">{keys.map((p) => <div className="key-villager" key={`key-${p.id}`}><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div></section>
+      <section className="panel pad" style={{ boxShadow: "none", margin: "12px 0" }}><h3 className="section-title">คนสำคัญของรอบนี้</h3><div className="work-grid">{keys.map((p) => <div className="key-villager" key={`key-${p.id}`}><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{personConditionEmoji(p)} {personConditionLabel(p)}</span></div>)}</div></section>
       <details className="details-box" style={{ marginTop: 12 }}><summary>ดูรายละเอียดรายคนทั้งหมด</summary><div className="people-grid">{game.people.map((p) => <PersonCard key={p.id} person={p} />)}</div></details>
     </section>
   );
 }
 function PersonCard({ person }: { person: Person; key?: string }) {
-  const dot = !person.alive || person.health < 35 ? "health-dot bad" : person.health < 60 || person.injured ? "health-dot warn" : "health-dot";
-  return <article className={person.alive ? "person-card" : "person-card dead"}><div className="person-top"><div className="flex"><div className="avatar">{person.name.slice(0, 1)}</div><div><b>{person.name}</b><br /><small className="muted">{person.role} · อายุ {person.age}</small></div></div><span className={dot} /></div><div className="deltas">{person.traits.map((t, i) => <span className="badge" key={`${person.id}-${t}-${i}`}>{t}</span>)}{person.injured && <span className="badge red">บาดเจ็บ</span>}{!person.alive && <span className="badge red">เสียชีวิต</span>}</div><table className="report-table" style={{ marginTop: 10 }}><tbody><tr><td>สุขภาพ</td><td><span className={statToneClass(person.health)}>{pct(person.health)}</span></td></tr><tr><td>กำลังใจ</td><td><span className={statToneClass(person.morale)}>{pct(person.morale)}</span></td></tr><tr><td>ความเหนื่อย</td><td><span className={statToneClass(person.fatigue, "badHigh")}>{pct(person.fatigue)}</span></td></tr><tr><td>อาหาร/เดือน</td><td>{foodNeedForPerson(person).toFixed(1)}</td></tr><tr><td>วัยทำงาน</td><td>{workAgeLabel(person)} · แรงงาน {baseWorkFactor(person)}</td></tr><tr><td>สาเหตุ</td><td>{person.cause ?? "-"}</td></tr></tbody></table></article>;
+  const dot = !person.alive || person.health < 35 ? "health-dot bad" : person.health < 60 || personNeedsCare(person) ? "health-dot warn" : "health-dot";
+  return <article className={person.alive ? "person-card" : "person-card dead"}>
+    <div className="person-top"><div className="flex"><div className="avatar">{person.name.slice(0, 1)}</div><div><b>{person.name}</b><br /><small className="muted">{person.role} · อายุ {person.age}</small></div></div><span className={dot} /></div>
+    <div className="deltas">
+      <span className={personNeedsCare(person) ? "badge red" : "badge green"}>{personConditionEmoji(person)} {personConditionLabel(person)}</span>
+      {person.traits.map((t, i) => <span className="badge" key={`${person.id}-${t}-${i}`}>{t}</span>)}
+      {personIsSick(person) && <span className="badge red">🤒 ป่วย</span>}
+      {personIsInjured(person) && <span className="badge red">🩹 บาดเจ็บ</span>}
+      {!person.alive && <span className="badge red">เสียชีวิต</span>}
+    </div>
+    <table className="report-table" style={{ marginTop: 10 }}><tbody><tr><td>สถานะ</td><td>{personConditionEmoji(person)} {personConditionLabel(person)}</td></tr><tr><td>สุขภาพ</td><td><span className={statToneClass(person.health)}>{pct(person.health)}</span></td></tr><tr><td>กำลังใจ</td><td><span className={statToneClass(person.morale)}>{pct(person.morale)}</span></td></tr><tr><td>ความเหนื่อย</td><td><span className={statToneClass(person.fatigue, "badHigh")}>{pct(person.fatigue)}</span></td></tr><tr><td>อาหาร/เดือน</td><td>{foodNeedForPerson(person).toFixed(1)}</td></tr><tr><td>วัยทำงาน</td><td>{workAgeLabel(person)} · แรงงาน {baseWorkFactor(person)}</td></tr><tr><td>สาเหตุ</td><td>{person.cause ?? "-"}</td></tr></tbody></table>
+  </article>;
 }
 function SettlementGrowthPanel({ game }: { game: GameState }) {
   const steps: Array<{ stage: Stage; title: string; text: string }> = [
@@ -5002,14 +5092,41 @@ function ProjectCrewCard({ game, title, jobs, hint }: { game: GameState; title: 
     <small className="muted">{hint}</small>
   </div>;
 }
+function buildingCategory(id: BuildingKey) {
+  if (["shelter", "campfire", "storage", "well", "cistern", "smokeVent", "dryingRack", "waterTrough"].includes(id)) return "ยังชีพ";
+  if (["watchPost", "palisade", "crisisBeacon", "castleKeep"].includes(id)) return "ป้องกัน";
+  if (["workshop", "repairShed", "sawmill", "brickKiln", "smeltery"].includes(id)) return "ช่าง/อุตสาหกรรม";
+  if (["healerHut", "graveyard", "meetingHall", "senateHouse"].includes(id)) return "สังคม/สุขภาพ";
+  if (["animalPen", "livestockShed"].includes(id)) return "สัตว์เลี้ยง";
+  if (["marketSquare", "caravanPost", "huntersGuildHall", "buildersGuildHall", "merchantsGuildHall"].includes(id)) return "เศรษฐกิจ";
+  return "อื่น ๆ";
+}
+function researchCategory(id: ResearchKey) {
+  if (["foodPreservation", "basicFarming", "waterFinding", "waterStorage", "weatherReading", "stormPrep"].includes(id)) return "เอาชีวิตรอด";
+  if (["herbalCare", "sanitation", "shelterHygiene", "herbalWorkshop", "animalQuarantine"].includes(id)) return "สุขภาพ";
+  if (["stoneTools", "woodShelter", "simpleCraft", "maintenanceRoutine", "masonry", "projectPlanning", "smelteryOps", "siegeEngineering"].includes(id)) return "ช่าง/ก่อสร้าง";
+  if (["animalKeeping", "fodderPrep", "animalBreeding"].includes(id)) return "สัตว์เลี้ยง";
+  if (["storyRecords", "familyRecords", "apprenticeship", "campPolicies", "bureaucracy", "dynasticSuccession"].includes(id)) return "สังคม/การปกครอง";
+  if (["signalNetwork", "guildCharters", "currencyMinting", "caravanContracts", "outpostLogistics", "diplomacyProtocol", "ironSmelting"].includes(id)) return "เศรษฐกิจ/ยุคใหม่";
+  return "อื่น ๆ";
+}
+
 function BuildView({ game, startConstruction, pauseConstruction, cancelConstruction, jumpToPeopleFor }: { game: GameState; startConstruction: (id: BuildingKey) => void; pauseConstruction: () => void; cancelConstruction: (id?: BuildingKey) => void; jumpToPeopleFor: (job?: LaborKey) => void }) {
+  const [category, setCategory] = useState<string>("ทั้งหมด");
   const monthsLeft = game.construction ? Math.max(1, Math.ceil(Math.max(0, buildingData[game.construction.id].work - game.construction.progress) / Math.max(1, game.labor.build * 10))) : 0;
-  return <section className="panel pad"><h2 className="title">ก่อสร้าง</h2><p className="muted">งานก่อสร้างสามารถพักไว้เพื่อโยกคนไปเรื่องเร่งด่วนได้ ความคืบหน้าจะถูกเก็บไว้ ส่วนการยกเลิกจะคืนทรัพยากรเพียงบางส่วนตามความสมจริง</p><ProjectCrewCard game={game} title="สถานะทีมก่อสร้างเดือนนี้" jobs={["build"]} hint="ถ้าต้องการเร่งงาน ให้ไปแท็บคนแล้วจัดคนเข้าหมวดก่อสร้าง โดยช่างไม้/ผู้มีมือหนักจะช่วยให้ความคืบหน้าสูงกว่า" /><button className="secondary" onClick={() => jumpToPeopleFor("build")} style={{ margin: "8px 0 12px" }}>ไปจัดทีมก่อสร้างที่แท็บคน</button><SettlementGrowthPanel game={game} />{game.construction && <div className="log good"><b>กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากทีมก่อสร้างยังมีกำลังเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseConstruction}>พักงานนี้ไว้ก่อน</button><button className="danger" onClick={() => cancelConstruction()}>ยกเลิกและคืนบางส่วน</button></div></div>}{(game.pausedConstruction ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานก่อสร้างที่พักไว้</h3><div className="work-grid">{(game.pausedConstruction ?? []).map((p) => p && <div className="work-card" key={`paused-build-${p.id}`}><b>{buildingData[p.id].icon} {buildingData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{buildingData[p.id].work}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / buildingData[p.id].work * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startConstruction(p.id)}>กลับมาทำต่อ</button><button className="danger" onClick={() => cancelConstruction(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(buildingData) as BuildingKey[]).map((id) => { const b = buildingData[id]; const unlocked = buildingUnlocked(game, id); const already = game.construction?.id === id; const paused = (game.pausedConstruction ?? []).some((p) => p?.id === id); const affordable = hasCost(game, b.cost) || paused || already; return <article key={id} className="building-card"><div className="split"><div><b>{b.icon} {b.title}</b><p className="muted small">{b.text}</p></div><span className="badge">มี {game.buildings[id]}</span></div><table className="report-table"><tbody><tr><td>ใช้ทรัพยากร</td><td>{Object.entries(b.cost).map(([k,v]) => `${k} ${v}`).join(" · ")}</td></tr><tr><td>แรงงานที่ต้องใช้</td><td>{b.work}</td></tr><tr><td>สถานะ</td><td>{already ? "กำลังทำอยู่" : paused ? "พักไว้ กลับมาทำต่อได้" : unlocked ? affordable ? "พร้อมสร้าง" : "ทรัพยากรไม่พอ" : "ยังไม่ปลดล็อก"}</td></tr></tbody></table><button className="primary" disabled={!unlocked || !affordable || already} onClick={() => startConstruction(id)} style={{ width: "100%", marginTop: 10, opacity: !unlocked || !affordable || already ? .55 : 1 }}>{already ? "กำลังทำอยู่" : paused ? "กลับมาทำต่อ" : game.construction ? "พักงานเดิมแล้วเริ่มงานนี้" : "เริ่มสร้าง"}</button></article>; })}</div></section>;
+  const keys = Object.keys(buildingData) as BuildingKey[];
+  const categories = ["ทั้งหมด", ...Array.from(new Set(keys.map(buildingCategory)))];
+  const shown = keys.filter((id) => category === "ทั้งหมด" || buildingCategory(id) === category);
+  return <section className="panel pad"><h2 className="title">ก่อสร้าง</h2><p className="muted">สิ่งปลูกสร้างถูกแยกเป็นหมวดเพื่อให้เมืองโตแล้วยังจัดการง่าย งานที่พักไว้จะกลับมาทำต่อได้โดยไม่เสียความคืบหน้า</p><ProjectCrewCard game={game} title="สถานะทีมก่อสร้างเดือนนี้" jobs={["build"]} hint="ทีมก่อสร้างนับจากรายชื่อคนจริง ช่างไม้/ช่างหิน/คนมือหนักจะเพิ่มความคืบหน้าและลดความเสี่ยง" /><button className="secondary" onClick={() => jumpToPeopleFor("build")} style={{ margin: "8px 0 12px" }}>ไปจัดทีมก่อสร้างที่แท็บคน</button><SettlementGrowthPanel game={game} />{game.construction && <div className="log good"><b>กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><small className="muted">หมวด {buildingCategory(game.construction.id)} · คาดว่าเหลือประมาณ {monthsLeft} เดือน หากทีมก่อสร้างยังมีกำลังเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseConstruction}>พักงานนี้ไว้ก่อน</button><button className="danger" onClick={() => cancelConstruction()}>ยกเลิกและคืนบางส่วน</button></div></div>}{(game.pausedConstruction ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานก่อสร้างที่พักไว้</h3><div className="work-grid">{(game.pausedConstruction ?? []).map((p) => p && <div className="work-card" key={`paused-build-${p.id}`}><b>{buildingData[p.id].icon} {buildingData[p.id].title}</b><small className="muted">หมวด {buildingCategory(p.id)} · คืบหน้า {p.progress}/{buildingData[p.id].work}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / buildingData[p.id].work * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startConstruction(p.id)}>กลับมาทำต่อ</button><button className="danger" onClick={() => cancelConstruction(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="filter-strip compact-filter" style={{ marginTop: 12 }}>{categories.map((cat) => <button key={`build-cat-${cat}`} className={category === cat ? "active" : ""} onClick={() => setCategory(cat)}>{cat} {cat === "ทั้งหมด" ? keys.length : keys.filter((id) => buildingCategory(id) === cat).length}</button>)}</div><div className="building-grid" style={{ marginTop: 12 }}>{shown.map((id) => { const b = buildingData[id]; const unlocked = buildingUnlocked(game, id); const already = game.construction?.id === id; const paused = (game.pausedConstruction ?? []).some((p) => p?.id === id); const affordable = hasCost(game, b.cost) || paused || already; return <article key={id} className="building-card"><div className="split"><div><b>{b.icon} {b.title}</b><p className="muted small">{b.text}</p></div><span className="badge">{buildingCategory(id)} · มี {game.buildings[id]}</span></div><table className="report-table"><tbody><tr><td>ใช้ทรัพยากร</td><td>{Object.entries(b.cost).map(([k,v]) => `${resourceShortLabel(k as ResourceKey)} ${v}`).join(" · ")}</td></tr><tr><td>แรงงานที่ต้องใช้</td><td>{b.work}</td></tr><tr><td>สถานะ</td><td>{already ? "กำลังทำอยู่" : paused ? "พักไว้ กลับมาทำต่อได้" : unlocked ? affordable ? "พร้อมสร้าง" : "ทรัพยากรไม่พอ" : "ยังไม่ปลดล็อก"}</td></tr></tbody></table><button className="primary" disabled={!unlocked || !affordable || already} onClick={() => startConstruction(id)} style={{ width: "100%", marginTop: 10, opacity: !unlocked || !affordable || already ? .55 : 1 }}>{already ? "กำลังทำอยู่" : paused ? "กลับมาทำต่อ" : game.construction ? "พักงานเดิมแล้วเริ่มงานนี้" : "เริ่มสร้าง"}</button></article>; })}</div></section>;
 }
 
 function ResearchView({ game, startResearch, pauseResearch, cancelResearch, jumpToPeopleFor }: { game: GameState; startResearch: (id: ResearchKey) => void; pauseResearch: () => void; cancelResearch: (id?: ResearchKey) => void; jumpToPeopleFor: (job?: LaborKey) => void }) {
+  const [category, setCategory] = useState<string>("ทั้งหมด");
   const monthsLeft = game.activeResearch ? Math.max(1, Math.ceil(Math.max(0, researchData[game.activeResearch.id].cost - game.activeResearch.progress) / Math.max(1, game.labor.research * 8 + game.labor.teach * 4 + 2))) : 0;
-  return <section className="panel pad"><h2 className="title">ภูมิปัญญาและการวิจัย</h2><p className="muted">งานวิจัยสามารถพักไว้เพื่อรับมือเหตุเร่งด่วนได้ การสลับหัวข้อจะเก็บความคืบหน้าเดิมไว้ เหมาะกับช่วงที่ต้องโยกคนไปหาอาหาร น้ำ หรือดูแลผู้ป่วยก่อน</p><ProjectCrewCard game={game} title="สถานะทีมความรู้เดือนนี้" jobs={["research", "teach"]} hint="แรงงานทดลอง/เรียนรู้เป็นกำลังหลัก ส่วนการสอนเด็กช่วยต่อยอดความรู้และเพิ่มความสามัคคี ผู้จดจำ/เรียนรู้ไวจะเร่งงานนี้ได้ดี" /><button className="secondary" onClick={() => jumpToPeopleFor("research")} style={{ margin: "8px 0 12px" }}>ไปจัดทีมวิจัยที่แท็บคน</button>{game.activeResearch && <div className="log good"><b>กำลังศึกษา: {researchData[game.activeResearch.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากทีมความรู้ยังมีกำลังเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.activeResearch.progress / researchData[game.activeResearch.id].cost * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseResearch}>พักงานวิจัยนี้</button><button className="danger" onClick={() => cancelResearch()}>ยกเลิกหัวข้อนี้</button></div></div>}{(game.pausedResearch ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานวิจัยที่พักไว้</h3><div className="work-grid">{(game.pausedResearch ?? []).map((p) => p && <div className="work-card" key={`paused-research-${p.id}`}><b>{researchData[p.id].icon} {researchData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{researchData[p.id].cost}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / researchData[p.id].cost * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startResearch(p.id)}>กลับมาศึกษาต่อ</button><button className="danger" onClick={() => cancelResearch(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(researchData) as ResearchKey[]).map((id) => { const r = researchData[id]; const done = game.researchDone[id]; const unlocked = researchUnlocked(game, id); const already = game.activeResearch?.id === id; const paused = (game.pausedResearch ?? []).some((p) => p?.id === id); return <article key={id} className="building-card"><div className="split"><div><b>{r.icon} {r.title}</b><p className="muted small">{r.text}</p></div><span className={done ? "badge green" : "badge"}>{done ? "สำเร็จ" : `${r.cost}`}</span></div><p className="small muted">เงื่อนไขก่อนศึกษา: {r.prereq?.map((p) => researchData[p].title).join(" · ") ?? "ไม่มี"}</p><button className="primary" disabled={done || !unlocked || already} onClick={() => startResearch(id)} style={{ width: "100%", opacity: done || !unlocked || already ? .55 : 1 }}>{done ? "เรียนรู้แล้ว" : already ? "กำลังศึกษา" : paused ? "กลับมาศึกษาต่อ" : game.activeResearch ? "พักหัวข้อเดิมแล้วเริ่มหัวข้อนี้" : unlocked ? "เริ่มศึกษา" : "ยังไม่ปลดล็อก"}</button></article>; })}</div></section>;
+  const keys = Object.keys(researchData) as ResearchKey[];
+  const categories = ["ทั้งหมด", ...Array.from(new Set(keys.map(researchCategory)))];
+  const shown = keys.filter((id) => category === "ทั้งหมด" || researchCategory(id) === category);
+  return <section className="panel pad"><h2 className="title">ภูมิปัญญาและการวิจัย</h2><p className="muted">งานวิจัยถูกแยกเป็นหมวดเพื่อให้เลือกทิศทางง่ายขึ้น หัวข้อที่พักไว้จะเก็บความคืบหน้า ส่วนการยกเลิกจะสูญเสียบทเรียนบางส่วนตามความสมจริง</p><ProjectCrewCard game={game} title="สถานะทีมความรู้เดือนนี้" jobs={["research", "teach"]} hint="แรงงานทดลอง/เรียนรู้เป็นกำลังหลัก ส่วนการสอนเด็กช่วยต่อยอดความรู้และเพิ่มความสามัคคี ผู้จดจำ/เรียนรู้ไวจะเร่งงานนี้ได้ดี" /><button className="secondary" onClick={() => jumpToPeopleFor("research")} style={{ margin: "8px 0 12px" }}>ไปจัดทีมวิจัยที่แท็บคน</button>{game.activeResearch && <div className="log good"><b>กำลังศึกษา: {researchData[game.activeResearch.id].title}</b><small className="muted">หมวด {researchCategory(game.activeResearch.id)} · คาดว่าเหลือประมาณ {monthsLeft} เดือน หากทีมความรู้ยังมีกำลังเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.activeResearch.progress / researchData[game.activeResearch.id].cost * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseResearch}>พักงานวิจัยนี้</button><button className="danger" onClick={() => cancelResearch()}>ยกเลิกหัวข้อนี้</button></div></div>}{(game.pausedResearch ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานวิจัยที่พักไว้</h3><div className="work-grid">{(game.pausedResearch ?? []).map((p) => p && <div className="work-card" key={`paused-research-${p.id}`}><b>{researchData[p.id].icon} {researchData[p.id].title}</b><small className="muted">หมวด {researchCategory(p.id)} · คืบหน้า {p.progress}/{researchData[p.id].cost}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / researchData[p.id].cost * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startResearch(p.id)}>กลับมาศึกษาต่อ</button><button className="danger" onClick={() => cancelResearch(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="filter-strip compact-filter" style={{ marginTop: 12 }}>{categories.map((cat) => <button key={`research-cat-${cat}`} className={category === cat ? "active" : ""} onClick={() => setCategory(cat)}>{cat} {cat === "ทั้งหมด" ? keys.length : keys.filter((id) => researchCategory(id) === cat).length}</button>)}</div><div className="building-grid" style={{ marginTop: 12 }}>{shown.map((id) => { const r = researchData[id]; const done = game.researchDone[id]; const unlocked = researchUnlocked(game, id); const already = game.activeResearch?.id === id; const paused = (game.pausedResearch ?? []).some((p) => p?.id === id); return <article key={id} className="building-card"><div className="split"><div><b>{r.icon} {r.title}</b><p className="muted small">{r.text}</p></div><span className={done ? "badge green" : "badge"}>{done ? "สำเร็จ" : `${researchCategory(id)} · ${r.cost}`}</span></div><p className="small muted">เงื่อนไขก่อนศึกษา: {r.prereq?.map((p) => researchData[p].title).join(" · ") ?? "ไม่มี"}</p><button className="primary" disabled={done || !unlocked || already} onClick={() => startResearch(id)} style={{ width: "100%", opacity: done || !unlocked || already ? .55 : 1 }}>{done ? "เรียนรู้แล้ว" : already ? "กำลังศึกษา" : paused ? "กลับมาศึกษาต่อ" : game.activeResearch ? "พักหัวข้อเดิมแล้วเริ่มหัวข้อนี้" : unlocked ? "เริ่มศึกษา" : "ยังไม่ปลดล็อก"}</button></article>; })}</div></section>;
 }
 
 
