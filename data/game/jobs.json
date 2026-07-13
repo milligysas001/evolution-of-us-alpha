@@ -145,5 +145,20 @@
         "signalNetwork"
       ]
     }
+  },
+  {
+    "id": "feed",
+    "emoji": "🌿",
+    "name": "ตัดหญ้า / ทำอาหารสัตว์",
+    "category": "livestock",
+    "unlocksAfter": "fodderPrep or animalPen",
+    "outputs": {
+      "feed": "3-5 per worker"
+    },
+    "risks": [
+      "เหนื่อย",
+      "สัตว์ป่าตามกลิ่นฝูง"
+    ],
+    "godotPort": "Maps to livestock worker assignment."
   }
 ]

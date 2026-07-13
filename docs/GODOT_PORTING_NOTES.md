@@ -18,3 +18,10 @@
 - farmLevel
 - wallLevel
 - marketLevel
+
+## v0.9.16 Porting Notes
+Livestock should be ported as a standalone simulation module:
+- `AnimalState` contains animal counts, hunger, health, last action and log.
+- `resolveAnimals(gameState)` consumes feed/food, applies breeding, theft, escape, starvation and animal products.
+- Godot can map each animal type in `data/game/animals.json` to UI cards and future map objects.
+- Construction/research projects now require paused project arrays so Godot UI should support active + paused queues.

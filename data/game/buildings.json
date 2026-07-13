@@ -96,5 +96,27 @@
       "cohesion": 8,
       "tradeUnlock": true
     }
+  },
+  {
+    "id": "animalPen",
+    "emoji": "🐐",
+    "name": "คอกสัตว์พื้นฐาน",
+    "category": "livestock",
+    "cost": {
+      "wood": 24,
+      "tools": 1
+    },
+    "workRequired": 36,
+    "unlock": {
+      "researchAll": [
+        "animalKeeping"
+      ]
+    },
+    "effects": {
+      "animalEscapeRisk": -12,
+      "animalTheftRisk": -8,
+      "breedingChance": 8
+    },
+    "godotPort": "Map to settlement visualState.animalPenLevel."
   }
 ]

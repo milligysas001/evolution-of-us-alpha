@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.9.16",
+  "purpose": "Portable livestock data for current web game and future Godot port.",
+  "animalTypes": [
+    {
+      "id": "goats",
+      "icon": "🐐",
+      "name": "แพะ",
+      "feedNeed": 2,
+      "outputs": { "foodOccasional": 1, "hideOnSlaughter": 1, "foodOnSlaughter": 18 },
+      "risks": ["หิวตาย", "หลุดเชือก", "ถูกขโมย", "สัตว์ป่ากัด"],
+      "notes": "ใช้เป็นฐานอาหารระยะยาว แต่กินอาหารสูงกว่าไก่"
+    },
+    {
+      "id": "chickens",
+      "icon": "🐔",
+      "name": "ไก่",
+      "feedNeed": 0.35,
+      "outputs": { "foodOccasional": 0.25, "foodOnSlaughter": 4 },
+      "risks": ["หนี", "ถูกขโมย", "โรคในคอก"],
+      "notes": "ออกลูกง่ายกว่าแพะและใช้พื้นที่น้อย"
+    },
+    {
+      "id": "dogs",
+      "icon": "🐕",
+      "name": "สุนัขเฝ้าค่าย",
+      "feedNeed": 1.2,
+      "outputs": { "securityBonus": 3 },
+      "risks": ["หิว", "บาดเจ็บจากการเฝ้ายาม"],
+      "notes": "ช่วยเตือนภัย แต่เป็นภาระอาหาร"
+    }
+  ],
+  "researchUnlocks": [
+    {
+      "id": "animalKeeping",
+      "name": "การเลี้ยงสัตว์พื้นฐาน",
+      "unlocks": ["animalPen", "livestock event pool"]
+    },
+    {
+      "id": "fodderPrep",
+      "name": "การทำอาหารสัตว์",
+      "unlocks": ["feed resource", "feed labor job"]
+    }
+  ],
+  "actions": [
+    "keep",
+    "breed",
+    "slaughter",
+    "release",
+    "protect"
+  ]
+}

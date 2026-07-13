@@ -1,20 +1,34 @@
-# Evolution of Us v0.9.15 — Portable Data Foundation
+# Evolution of Us v0.9.16 — Realism Flow + Animal Husbandry
 
-เวอร์ชันนี้วางฐานข้อมูลเกมให้พร้อมขยายสเกลและเตรียมย้ายไป Godot ในอนาคต
+เวอร์ชันนี้เพิ่มความสมจริงให้ flow หลักของเกม และยังคงเตรียมโครงสร้างให้พร้อมพอร์ตไป Godot ในอนาคต
 
-## จุดสำคัญ
-- เพิ่ม `data/game/*.json` สำหรับ resources, jobs, buildings, research, events, milestones, threats, merchant, water
-- เพิ่ม `docs/*` สำหรับ Game Design, Data Schema, Godot Porting Notes, Balance Notes
-- ปรับระบบน้ำ: งาน “ตักน้ำ / ดูแลน้ำสะอาด” ใช้ได้ตั้งแต่เริ่มเกม ไม่ต้องรอวิจัยหรือบ่อน้ำ
-- เพิ่มคำเตือนเมื่อจบเดือนแล้วน้ำไม่พอ
-- Settings มีปุ่มคัดลอก Godot Data Pack
+## สิ่งที่เพิ่ม/แก้หลัก
+- ก่อสร้าง/วิจัยสามารถ **พักงาน / กลับมาทำต่อ / ยกเลิก / สลับไปทำงานเร่งด่วน** ได้
+- การกระทำผู้นำถูกใช้เป็น buff จริง เช่น นำหาอาหารแล้วได้อาหารเพิ่ม, ดูแลสัตว์แล้วลดความเสี่ยงสัตว์
+- เพิ่มแท็บ **สัตว์เลี้ยง**
+- เพิ่มสัตว์: แพะ, ไก่, สุนัขเฝ้าค่าย
+- เพิ่มระบบสัตว์กินอาหาร, หิว, สุขภาพ, ออกลูก, ถูกขโมย, หนี, ตาย, เชือดเป็นอาหาร, ปล่อยสัตว์
+- เพิ่มวิจัย **การเลี้ยงสัตว์พื้นฐาน** และ **การทำอาหารสัตว์**
+- เพิ่มทรัพยากร **อาหารสัตว์** ซึ่งจะแสดงหลังวิจัยหรือเกี่ยวข้องกับระบบสัตว์
+- เพิ่มงานแรงงาน **ตัดหญ้า / ทำอาหารสัตว์**
+- เพิ่มอาคาร **คอกสัตว์พื้นฐาน**
+- เพิ่ม `data/game/animals.json` สำหรับ Godot port
 
 ## ติดตั้ง
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\apply-v0915-portable-data.ps1
+cd "C:\Users\phass\Desktop\game\New folder (2)"
+powershell -ExecutionPolicy Bypass -File .\apply-v0916-realism-animals-flow.ps1
 ```
 
 ## ตรวจ build
 ```powershell
-npm run build
+cd "C:\Users\phass\evolution-of-us"
+npm run check
+```
+
+## Deploy
+```powershell
+git add -A
+git commit -m "update v0.9.16 realism animals flow"
+git push
 ```

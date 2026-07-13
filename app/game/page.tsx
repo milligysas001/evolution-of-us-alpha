@@ -4,15 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
-type View = "เมือง" | "คน" | "ก่อสร้าง" | "วิจัย" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
+type View = "เมือง" | "คน" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
 type DeviceMode = "desktop" | "tablet" | "mobile";
 type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
-type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "patrol" | "trade" | "teach" | "intel";
-type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "knowledge" | "fuel" | "ore" | "gold";
-type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "palisade" | "graveyard" | "meetingHall";
-type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "sanitation" | "storyRecords" | "palisadeCraft" | "signalNetwork";
-type LeaderFocusKey = "workWithPeople" | "study" | "trainGuard" | "family" | "scout" | "mediate" | "rationPlan" | "inspectRations" | "leadForage" | "boilHerbs" | "isolateSick" | "nightPatrol" | "trackBeasts" | "campRules" | "holdCouncil" | "memorial" | "firewoodPlan" | "repairTools" | "rainShelter" | "winterWatch" | "quietRest";
+type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "feed" | "patrol" | "trade" | "teach" | "intel";
+type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "knowledge" | "fuel" | "ore" | "gold" | "feed";
+type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "animalPen" | "palisade" | "graveyard" | "meetingHall";
+type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "sanitation" | "animalKeeping" | "fodderPrep" | "storyRecords" | "palisadeCraft" | "signalNetwork";
+type LeaderFocusKey = "workWithPeople" | "study" | "trainGuard" | "family" | "scout" | "mediate" | "rationPlan" | "inspectRations" | "leadForage" | "boilHerbs" | "isolateSick" | "nightPatrol" | "trackBeasts" | "animalCare" | "campRules" | "holdCouncil" | "memorial" | "firewoodPlan" | "repairTools" | "rainShelter" | "winterWatch" | "quietRest";
 type LogKind = "normal" | "good" | "bad" | "death" | "rare" | "milestone";
 type MetricKey = "morale" | "security" | "trust" | "health" | "cohesion" | "fairness";
 type SkillKey = "hunter" | "builder" | "healer" | "keeper" | "guard" | "farmer" | "child" | "elder";
@@ -89,6 +89,10 @@ type Rumor = {
 };
 
 type Project<T extends string> = { id: T; progress: number } | null;
+type AnimalKey = "goats" | "chickens" | "dogs";
+type AnimalAction = "keep" | "slaughter" | "breed" | "release" | "protect";
+type Animals = Record<AnimalKey, number>;
+type AnimalState = { animals: Animals; hunger: number; health: number; lastAction: AnimalAction; log: string[]; };
 type DelayedEvent = { id: string; months: number };
 
 type SummaryModal = {
@@ -110,7 +114,9 @@ type GameState = {
   buildings: Buildings;
   researchDone: ResearchDone;
   construction: Project<BuildingKey>;
+  pausedConstruction: Project<BuildingKey>[];
   activeResearch: Project<ResearchKey>;
+  pausedResearch: Project<ResearchKey>[];
   labor: Labor;
   leaderFocus: LeaderFocusKey;
   leaderActionSelected: boolean;
@@ -133,6 +139,8 @@ type GameState = {
   collapse: CollapseTrack;
   gameOver: GameOverState;
   lastRisk: Risks;
+  animalState: AnimalState;
+  animalAction: AnimalAction;
   summaryModal: SummaryModal;
   savedText: string;
 };
@@ -175,17 +183,17 @@ type GameEvent = {
   choices: EventChoice[];
 };
 
-const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
+const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "สัตว์เลี้ยง", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.15";
-const BUILD_LABEL = "Portable Data Foundation";
+const GAME_VERSION = "0.9.16";
+const BUILD_LABEL = "Realism Flow + Animal Husbandry";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
 const tutorialKey = "eou-current-tutorial-seen";
 const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
-const portableDataVersion = "0.9.15";
+const portableDataVersion = "0.9.16";
 const portableDataSummary = {
   version: portableDataVersion,
   purpose: "Portable Data Foundation: data/game/*.json is the source-of-truth draft for future Godot porting.",
@@ -198,7 +206,8 @@ const portableDataSummary = {
     "data/game/milestones.json",
     "data/game/threats.json",
     "data/game/merchant.json",
-    "data/game/water.json"
+    "data/game/water.json",
+    "data/game/animals.json"
   ],
   godotNotes: "Godot can load these JSON files with FileAccess + JSON.parse_string and map ids to UI nodes/resources."
 };
@@ -227,6 +236,7 @@ const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string
   { id: "preserve", icon: "🥫", title: "ถนอมอาหาร", category: "อาหาร", text: "ลดอาหารเสีย เตรียมค่ายก่อนฤดูหนาว ใช้ฟืนเล็กน้อย", unlock: (game) => game.researchDone.foodPreservation || game.buildings.storage > 0, lockedText: "ต้องวิจัยการถนอมอาหาร หรือสร้างคลังอาหาร" },
   { id: "craft", icon: "🛠️", title: "ซ่อม / ผลิตเครื่องมือ", category: "งานช่าง", text: "ซ่อมเครื่องมือพังและผลิตเครื่องมือหยาบ ใช้ไม้กับหิน", unlock: (game) => game.researchDone.simpleCraft || game.buildings.workshop > 0, lockedText: "ต้องวิจัยงานช่างง่าย ๆ หรือสร้างเพิงช่าง" },
   { id: "herbs", icon: "🍃", title: "เก็บสมุนไพร / ต้มยา", category: "สุขภาพ", text: "เพิ่มสมุนไพร ช่วยรักษา และลดโรคในค่าย", unlock: (game) => game.researchDone.herbalCare || game.buildings.healerHut > 0, lockedText: "ต้องวิจัยสมุนไพรพื้นบ้าน หรือมีกระท่อมหมอยา" },
+  { id: "feed", icon: "🌿", title: "ตัดหญ้า / ทำอาหารสัตว์", category: "สัตว์เลี้ยง", text: "ผลิตอาหารสัตว์จากหญ้า เศษฟาง และพืชอาหาร เพื่อลดการแย่งอาหารคน", unlock: (game) => game.researchDone.fodderPrep || game.buildings.animalPen > 0, lockedText: "ต้องวิจัยการทำอาหารสัตว์ หรือสร้างคอกสัตว์" },
   { id: "patrol", icon: "🪤", title: "ลาดตระเวน / วางกับดัก", category: "ความปลอดภัย", text: "ลดสัตว์ป่า โจร และภัยภายนอก มีโอกาสได้อาหารเล็กน้อย", unlock: (game) => game.researchDone.watchRoutine || game.buildings.watchPost > 0 || game.buildings.palisade > 0, lockedText: "ต้องมีเวรยามเป็นระบบ ป้อมยาม หรือรั้วไม้" },
   { id: "trade", icon: "🪙", title: "แลกเปลี่ยน / ขายของส่วนเกิน", category: "เศรษฐกิจ", text: "เปลี่ยนอาหาร หนัง สมุนไพร หรือเครื่องมือส่วนเกินเป็นทอง", unlock: (game) => game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0, lockedText: "ต้องพัฒนาเป็นชุมชนแรกเริ่ม หรือมีศาลาประชุม" },
   { id: "teach", icon: "👧", title: "สอนเด็ก / บันทึกความรู้", category: "สังคม", text: "เพิ่มความรู้ ความสามัคคี และทำให้คนรุ่นใหม่เติบโตดีขึ้น", unlock: (game) => game.researchDone.storyRecords || game.buildings.meetingHall > 0, lockedText: "ต้องวิจัยการบันทึกเรื่องเล่า หรือมีศาลาประชุม" },
@@ -362,6 +372,7 @@ const buildingData: Record<BuildingKey, { icon: string; title: string; text: str
   farmPlot: { icon: "🌱", title: "แปลงเพาะปลูก", text: "เพิ่มอาหารฤดูอบอุ่นและทำให้ค่ายเริ่มคิดเรื่องอนาคต", cost: { wood: 12, tools: 1 }, work: 32, unlock: (g) => g.researchDone.basicFarming },
   workshop: { icon: "⚒️", title: "เพิงช่าง", text: "ซ่อมเครื่องมือ เพิ่มผลผลิตไม้/หิน และลดอุบัติเหตุเครื่องมือหัก", cost: { wood: 28, stone: 8, tools: 2 }, work: 50, unlock: (g) => g.researchDone.simpleCraft },
   healerHut: { icon: "🌿", title: "กระท่อมหมอยา", text: "รักษาบาดเจ็บ ลดโรคระบาด ลดการตายจากแผลติดเชื้อ", cost: { wood: 20, herbs: 4 }, work: 36, unlock: (g) => g.researchDone.herbalCare },
+  animalPen: { icon: "🐐", title: "คอกสัตว์พื้นฐาน", text: "กันสัตว์หนี ลดขโมยและสัตว์ป่าบุก ทำให้การเลี้ยงแพะ/ไก่มีโอกาสออกลูกมากขึ้น", cost: { wood: 24, tools: 1 }, work: 36, unlock: (g) => g.researchDone.animalKeeping },
   palisade: { icon: "🪵", title: "รั้วไม้รอบค่าย", text: "ลดหมาป่า โจร และช่วยให้เด็กไม่เดินหลงออกจากพื้นที่", cost: { wood: 42, tools: 2 }, work: 62, unlock: (g) => g.researchDone.palisadeCraft },
   graveyard: { icon: "🕯️", title: "ลานฝังศพใต้ต้นโอ๊ก", text: "ลดบาดแผลทางใจหลังความตาย และสร้างความทรงจำร่วม", cost: { stone: 8, wood: 6 }, work: 24 },
   meetingHall: { icon: "⚖️", title: "ศาลาประชุม", text: "ลดความขัดแย้ง เพิ่มกฎร่วม และปลดล็อกเส้นทางชุมชนแรกเริ่ม", cost: { wood: 34, stone: 6 }, work: 54, unlock: (g) => g.stage !== "ค่ายพักแรม" || g.people.filter((p) => p.alive).length >= 14 },
@@ -377,6 +388,8 @@ const researchData: Record<ResearchKey, { icon: string; title: string; text: str
   simpleCraft: { icon: "⚒️", title: "งานช่างพื้นฐาน", text: "ปลดล็อกเพิงช่าง ลดอุบัติเหตุจากเครื่องมือเก่า", cost: 46, prereq: ["stoneTools"] },
   waterFinding: { icon: "💧", title: "การหาแหล่งน้ำ", text: "เพิ่มประสิทธิภาพการตักน้ำ ปลดล็อกบ่อน้ำ และลดโรคน้ำเสีย", cost: 36 },
   sanitation: { icon: "🧼", title: "สุขาภิบาลค่าย", text: "ลดโรคจากคนอยู่แออัด ควัน น้ำสกปรก และอาหารเสีย", cost: 44, prereq: ["waterFinding", "herbalCare"] },
+  animalKeeping: { icon: "🐐", title: "การเลี้ยงสัตว์พื้นฐาน", text: "เรียนรู้การผูก เลี้ยง คัดแยกสัตว์ป่วย และสร้างคอกพื้นฐาน ลดสัตว์หนี/หิวตาย", cost: 40, prereq: ["basicFarming"] },
+  fodderPrep: { icon: "🌿", title: "การทำอาหารสัตว์", text: "ปลดล็อกทรัพยากรอาหารสัตว์และงานตัดหญ้า/ทำฟาง ลดการแย่งอาหารคน", cost: 46, prereq: ["animalKeeping"] },
   storyRecords: { icon: "📜", title: "บันทึกความทรงจำ", text: "ทำให้พงศาวดารและความทรงจำส่งผลต่อคนรุ่นต่อไปมากขึ้น", cost: 38 },
   palisadeCraft: { icon: "🪵", title: "รั้วไม้และประตูค่าย", text: "ปลดล็อกรั้วไม้รอบค่าย ลดโจรและสัตว์ป่า", cost: 52, prereq: ["watchRoutine", "simpleCraft"] },
   signalNetwork: { icon: "🕊️", title: "เครือข่ายสายข่าว", text: "จัดคนรับฟังข่าวจากพ่อค้า คนเดินทาง และครอบครัวรอบเมือง เพื่อเห็นภัยและโอกาสก่อนเกิดขึ้น", cost: 64, prereq: ["storyRecords", "watchRoutine"] },
@@ -393,6 +406,7 @@ function viewLabel(view: View) {
     "คน": "👥 คน",
     "ก่อสร้าง": "🛖 ก่อสร้าง",
     "วิจัย": "📜 วิจัย",
+    "สัตว์เลี้ยง": "🐐 สัตว์เลี้ยง",
     "ข่าวสาร": "🕊️ ข่าวสาร",
     "พงศาวดาร": "📖 พงศาวดาร",
     "ตั้งค่า": "⚙️ ตั้งค่า",
@@ -426,14 +440,14 @@ function choice(id: string, icon: string, title: string, tone: string, hint: str
 function emptyResearch(): ResearchDone {
   return {
     foodPreservation: false, stoneTools: false, woodShelter: false, basicFarming: false, herbalCare: false,
-    watchRoutine: false, simpleCraft: false, waterFinding: false, sanitation: false, storyRecords: false, palisadeCraft: false, signalNetwork: false,
+    watchRoutine: false, simpleCraft: false, waterFinding: false, sanitation: false, animalKeeping: false, fodderPrep: false, storyRecords: false, palisadeCraft: false, signalNetwork: false,
   };
 }
 function emptyBuildings(): Buildings {
-  return { shelter: 0, campfire: 0, storage: 0, well: 0, watchPost: 0, farmPlot: 0, workshop: 0, healerHut: 0, palisade: 0, graveyard: 0, meetingHall: 0 };
+  return { shelter: 0, campfire: 0, storage: 0, well: 0, watchPost: 0, farmPlot: 0, workshop: 0, healerHut: 0, animalPen: 0, palisade: 0, graveyard: 0, meetingHall: 0 };
 }
 function baseResources(origin: Origin): Resources {
-  const r: Resources = { food: 30, wood: 20, stone: 5, tools: 5, herbs: 2, hides: 1, water: 20, knowledge: 0, fuel: 8, ore: 0, gold: 0 };
+  const r: Resources = { food: 30, wood: 20, stone: 5, tools: 5, herbs: 2, hides: 1, water: 20, knowledge: 0, fuel: 8, ore: 0, gold: 0, feed: 0 };
   if (origin === "builder") { r.wood += 12; r.tools += 1; }
   if (origin === "hunter") { r.food += 12; r.hides += 2; }
   if (origin === "healer") { r.herbs += 6; }
@@ -486,8 +500,58 @@ function shelterCapacity(game: GameState) {
   return base + (game.buildings.meetingHall > 0 ? 4 : 0);
 }
 function emptyLabor(): Labor {
-  return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, patrol: 0, trade: 0, teach: 0, intel: 0 };
+  return { forage: 0, wood: 0, stone: 0, build: 0, guard: 0, care: 0, research: 0, farm: 0, water: 0, preserve: 0, craft: 0, herbs: 0, feed: 0, patrol: 0, trade: 0, teach: 0, intel: 0 };
 }
+
+function emptyAnimalState(): AnimalState {
+  return { animals: { goats: 0, chickens: 0, dogs: 0 }, hunger: 0, health: 70, lastAction: "keep", log: [] };
+}
+function normalizeAnimalState(state?: Partial<AnimalState>): AnimalState {
+  const base = emptyAnimalState();
+  return {
+    animals: { goats: Math.max(0, Math.round(state?.animals?.goats ?? 0)), chickens: Math.max(0, Math.round(state?.animals?.chickens ?? 0)), dogs: Math.max(0, Math.round(state?.animals?.dogs ?? 0)) },
+    hunger: clamp(state?.hunger ?? 0),
+    health: clamp(state?.health ?? 70),
+    lastAction: state?.lastAction ?? "keep",
+    log: (state?.log ?? []).slice(0, 20),
+  };
+}
+function animalCount(game: GameState) {
+  const a = normalizeAnimalState(game.animalState).animals;
+  return a.goats + a.chickens + a.dogs;
+}
+function animalNeed(game: GameState) {
+  const a = normalizeAnimalState(game.animalState).animals;
+  return Math.ceil(a.goats * 2 + a.chickens * 0.35 + a.dogs * 1.2);
+}
+function animalFoodSource(game: GameState) {
+  return game.researchDone.fodderPrep ? "อาหารสัตว์" : "อาหารคน/เศษพืช";
+}
+function animalSecurityBonus(game: GameState) {
+  const a = normalizeAnimalState(game.animalState).animals;
+  return Math.min(8, a.dogs * 3 + game.buildings.animalPen * 2);
+}
+function ensureGameState(game: GameState): GameState {
+  const resources = { ...baseResources(game.origin ?? "builder"), ...game.resources } as Resources;
+  const buildings = { ...emptyBuildings(), ...game.buildings } as Buildings;
+  const researchDone = { ...emptyResearch(), ...game.researchDone } as ResearchDone;
+  const labor = { ...emptyLabor(), ...game.labor } as Labor;
+  return {
+    ...game,
+    version: GAME_VERSION,
+    resources,
+    buildings,
+    researchDone,
+    labor,
+    pausedConstruction: game.pausedConstruction ?? [],
+    pausedResearch: game.pausedResearch ?? [],
+    animalState: normalizeAnimalState(game.animalState),
+    animalAction: game.animalAction ?? "keep",
+    summaryModal: null,
+    savedText: game.savedText ?? "เปิดบันทึกเดิมแล้ว",
+  };
+}
+
 function laborTotal(labor: Labor) { return Object.values(labor).reduce((a, b) => a + (b ?? 0), 0); }
 function unlockedLaborOptions(game: GameState) { return laborMeta.filter((item) => !item.unlock || item.unlock(game)); }
 function lockedLaborOptions(game: GameState) { return laborMeta.filter((item) => item.unlock && !item.unlock(game)); }
@@ -712,6 +776,7 @@ function endMonthWarnings(game: GameState): WarningItem[] {
   if (game.labor.guard + game.labor.patrol <= 0 && (risk.beast >= 48 || game.threat >= 45)) warnings.push({ icon: "🛡️", title: "ไม่มีคนดูแลความปลอดภัย", text: "ภัยสัตว์ป่า/คนภายนอกสูง แต่ยังไม่มีเวรยามหรือการลาดตระเวน", severity: "warn" });
   if (woundedCount(game) > 0 && game.labor.care + game.labor.herbs <= 0) warnings.push({ icon: "🌿", title: "มีคนป่วยหรือบาดเจ็บแต่ไม่มีคนดูแล", text: "แผลติดเชื้อและโรคอาจเปลี่ยนเป็นการสูญเสียจริง", severity: "warn" });
   if (risk.accident >= 60) warnings.push({ icon: "⚠️", title: "ความเสี่ยงอุบัติเหตุสูง", text: "งานหนัก เครื่องมือพัง หรือแรงงานล้าอาจทำให้มีคนบาดเจ็บ", severity: "warn" });
+  if (animalCount(game) > 0 && animalNeed(game) > (game.researchDone.fodderPrep ? game.resources.feed + game.labor.feed * 4 : game.resources.food)) warnings.push({ icon: "🐐", title: "สัตว์เลี้ยงอาจไม่มีอาหารพอ", text: `ต้องใช้ ${fmt(animalNeed(game))} หน่วยจาก${animalFoodSource(game)} หากไม่พอสัตว์อาจหิว หนี หรือตาย`, severity: "warn" });
   if (!game.leaderActionSelected) warnings.push({ icon: "👑", title: "ยังไม่ได้เลือกการกระทำผู้นำ", text: "ต้องเลือกก่อนจบเดือน เพราะผู้นำคือคำตอบหลักของสถานการณ์เดือนนี้", severity: "danger" });
   if (!game.selectedChoiceId) warnings.push({ icon: "✦", title: "ยังไม่ได้ตอบเหตุการณ์", text: "ต้องเลือกวิธีตอบสนองเหตุการณ์ก่อนคำนวณผลลัพธ์", severity: "danger" });
   return warnings.slice(0, 6);
@@ -734,6 +799,7 @@ function smartGuidance(game: GameState): WarningItem[] {
   }
   if (risk.disease >= 50) advice.push({ icon: "💧", title: "ลดโรคด้วยน้ำและการดูแล", text: "บ่อน้ำ งานดูแลน้ำสะอาด และคนดูแลผู้ป่วยช่วยลดการตายระยะยาว", severity: "warn" });
   if (game.threat >= 55) advice.push({ icon: "🕊️", title: "ภัยภายนอกเริ่มชัด", text: "จัดเวรยาม ลาดตระเวน หรือพัฒนาเครือข่ายสายข่าว เพื่อไม่ให้โจรกลายเป็นเหตุการณ์ฉับพลัน", severity: "warn" });
+  if (animalCount(game) > 0 && !game.researchDone.fodderPrep) advice.push({ icon: "🌿", title: "ควรวิจัยอาหารสัตว์", text: "ก่อนมีอาหารสัตว์ แพะและไก่จะแย่งอาหารคนบางส่วน การวิจัยจะทำให้เลี้ยงระยะยาวได้สมจริงขึ้น", severity: "info" });
   if (!advice.length) advice.push({ icon: "🌿", title: "เดือนนี้พอมีพื้นที่หายใจ", text: "ใช้จังหวะนี้สะสมของสำรอง วิจัยพื้นฐาน หรือสร้างสิ่งที่ช่วยลดความเสี่ยงในฤดูหน้า", severity: "info" });
   return advice.slice(0, 5);
 }
@@ -922,6 +988,7 @@ function recommendedLabor(game: GameState): Labor {
   };
   if (woundedCount(game) > 0) assign(game.researchDone.herbalCare ? "herbs" : "care", Math.min(2, woundedCount(game)));
   if (game.resources.water < alivePeople(game).length * 2) assign("water", 1);
+  if (animalCount(game) > 0 && game.researchDone.fodderPrep && game.resources.feed < animalNeed(game) * 2) assign("feed", 1);
   if (game.resources.food < foodNeedFor(game) * 2) assign("forage", 2); else assign("forage", 1);
   if (game.researchDone.basicFarming || game.buildings.farmPlot > 0) assign("farm", 1);
   if (game.resources.fuel < alivePeople(game).length && seasonOf(game.month) === "ฤดูหนาว") assign("wood", 2);
@@ -934,7 +1001,7 @@ function recommendedLabor(game: GameState): Labor {
   if (game.activeResearch) assign("research", 1); else if (game.resources.knowledge < 25) assign("research", 1);
   if ((game.stage !== "ค่ายพักแรม" || game.buildings.meetingHall > 0) && game.resources.food > foodNeedFor(game) * 3) assign("trade", 1);
   if ((game.stage === "เมืองเล็ก" || game.researchDone.signalNetwork) && game.rumors.length < 3) assign("intel", 1);
-  const fallback: LaborKey[] = ["forage", "wood", "farm", "build", "guard", "patrol", "research", "stone", "care", "water", "preserve", "craft", "herbs", "teach", "intel", "trade"];
+  const fallback: LaborKey[] = ["forage", "water", "feed", "wood", "farm", "build", "guard", "patrol", "research", "stone", "care", "preserve", "craft", "herbs", "teach", "intel", "trade"];
   let i = 0;
   while (workers > 0) {
     const key = fallback[i % fallback.length];
@@ -979,9 +1046,80 @@ function resourceLedger(game: GameState) {
     { icon: "🍃", name: "สมุนไพร", stock: game.resources.herbs, produced: herbsProd, used: tradeHerbs, net: herbsProd - tradeHerbs, note: "ใช้รักษา แผลติดเชื้อ และโรคระบาด" },
     { icon: "🦌", name: "หนังสัตว์", stock: game.resources.hides, produced: 0, used: tradeHides, net: -tradeHides, note: "ใช้แลกเปลี่ยน ทำเครื่องนุ่งห่ม หรือเก็บเป็นของมีค่า" },
     { icon: "📜", name: "ความรู้", stock: game.resources.knowledge, produced: knowledgeProd, used: 0, net: knowledgeProd, note: "ใช้ปลดล็อกภูมิปัญญา" },
+    ...(game.researchDone.fodderPrep || game.resources.feed > 0 || animalCount(game) > 0 ? [{ icon: "🌿", name: "อาหารสัตว์", stock: game.resources.feed, produced: Math.round(l.feed * (game.buildings.animalPen ? 5 : 3)), used: animalNeed(game), net: Math.round(l.feed * (game.buildings.animalPen ? 5 : 3)) - animalNeed(game), note: "ใช้เลี้ยงแพะ ไก่ และสุนัข ลดการแย่งอาหารคน" }] : []),
     { icon: "🪙", name: "ทอง", stock: game.resources.gold, produced: goldProd, used: 0, net: goldProd, note: "ได้จากการแลกเปลี่ยน/ขายของส่วนเกิน ใช้ซื้อเครื่องมือ เมล็ดพันธุ์ หรือจ้างคนในอนาคต" },
   ];
 }
+
+function resolveAnimals(game: GameState): { game: GameState; changes: string[] } {
+  let g = game;
+  let state = normalizeAnimalState(g.animalState);
+  const changes: string[] = [];
+  const total = animalCount(g);
+  if (total <= 0) return { game: { ...g, animalState: state }, changes };
+  const need = animalNeed(g);
+  let fed = 0;
+  if (g.researchDone.fodderPrep) {
+    fed = Math.min(g.resources.feed, need);
+    g = { ...g, resources: changeResources(g.resources, { feed: -fed }) };
+    changes.push(`ให้อาหารสัตว์ -${fed}`);
+    if (fed < need) {
+      const foodBackup = Math.min(g.resources.food, need - fed);
+      g = { ...g, resources: changeResources(g.resources, { food: -foodBackup }) };
+      fed += foodBackup;
+      if (foodBackup) changes.push(`อาหารสัตว์ไม่พอ ใช้อาหารคนเลี้ยงสัตว์ -${foodBackup}`);
+    }
+  } else {
+    fed = Math.min(g.resources.food, need);
+    g = { ...g, resources: changeResources(g.resources, { food: -fed }) };
+    changes.push(`ยังไม่มีอาหารสัตว์ ใช้อาหารคน/เศษพืชเลี้ยงสัตว์ -${fed}`);
+  }
+  const shortage = Math.max(0, need - fed);
+  if (shortage > 0) {
+    state = { ...state, hunger: clamp(state.hunger + shortage * 11), health: clamp(state.health - shortage * 5) };
+    changes.push(`สัตว์เลี้ยงหิว ขาดอาหาร ${shortage} หน่วย`);
+  } else {
+    state = { ...state, hunger: clamp(state.hunger - 14), health: clamp(state.health + 3) };
+  }
+  const a = { ...state.animals };
+  if (g.animalAction === "slaughter") {
+    if (a.goats > 0) { a.goats -= 1; g = { ...g, resources: changeResources(g.resources, { food: 18, hides: 1 }), metrics: changeMetrics(g.metrics, { morale: -1 }) }; changes.push("เชือดแพะ 1 ตัวเป็นอาหาร +18 และหนัง +1"); }
+    else if (a.chickens >= 2) { a.chickens -= 2; g = { ...g, resources: changeResources(g.resources, { food: 8 }), metrics: changeMetrics(g.metrics, { morale: -1 }) }; changes.push("เชือดไก่ 2 ตัวเป็นอาหาร +8"); }
+    else changes.push("ตั้งใจจะเชือดสัตว์ แต่ไม่มีสัตว์พอให้ทำอย่างคุ้มค่า");
+  }
+  if (g.animalAction === "release") {
+    if (a.goats > 0) { a.goats -= 1; state = { ...state, hunger: clamp(state.hunger - 8) }; changes.push("ปล่อยแพะที่เลี้ยงไม่ไหว 1 ตัว ลดภาระอาหารสัตว์"); }
+    else if (a.chickens > 0) { a.chickens -= 1; state = { ...state, hunger: clamp(state.hunger - 4) }; changes.push("ปล่อยไก่ 1 ตัว ลดภาระอาหารสัตว์"); }
+  }
+  const penBonus = g.buildings.animalPen > 0 ? 0.18 : 0;
+  const breedChance = (g.animalAction === "breed" ? 0.22 : 0.08) + penBonus + (state.health > 75 && state.hunger < 30 ? 0.08 : 0);
+  if (Math.random() < breedChance) {
+    if (a.chickens >= 2 && Math.random() < 0.65) { const born = 1 + Math.floor(Math.random() * 3); a.chickens += born; changes.push(`ไก่ออกลูก/ฟักเพิ่ม ${born} ตัว`); }
+    else if (a.goats >= 2) { a.goats += 1; changes.push("แพะออกลูกเพิ่ม 1 ตัว"); }
+  }
+  const theftRisk = Math.max(0.02, (g.threat / 500) - (g.buildings.animalPen > 0 ? 0.04 : 0) - (g.labor.guard + g.labor.patrol) * 0.015 - (g.animalAction === "protect" ? 0.05 : 0));
+  const escapeRisk = Math.max(0.02, state.hunger / 450 + (g.buildings.animalPen > 0 ? 0 : 0.05) - (g.animalAction === "protect" ? 0.04 : 0));
+  if (Math.random() < theftRisk && animalCount({ ...g, animalState: { ...state, animals: a } } as GameState) > 0) {
+    if (a.goats > 0) { a.goats -= 1; changes.push("มีคนขโมยแพะไป 1 ตัวในคืนมืด"); g = { ...g, threat: clamp(g.threat + 4), metrics: changeMetrics(g.metrics, { security: -4, morale: -2 }) }; }
+    else if (a.chickens > 0) { const lost = Math.min(a.chickens, 2); a.chickens -= lost; changes.push(`ไก่ถูกขโมย ${lost} ตัว`); g = { ...g, threat: clamp(g.threat + 3), metrics: changeMetrics(g.metrics, { security: -2 }) }; }
+  } else if (Math.random() < escapeRisk && animalCount({ ...g, animalState: { ...state, animals: a } } as GameState) > 0) {
+    if (a.chickens > 0 && Math.random() < 0.6) { a.chickens -= 1; changes.push("ไก่หนีออกจากคอกเพราะหิวและรั้วไม่แน่น"); }
+    else if (a.goats > 0) { a.goats -= 1; changes.push("แพะหลุดเชือกและหายเข้าป่า"); }
+  }
+  if (state.hunger >= 80 || state.health <= 25) {
+    if (a.chickens > 0) { a.chickens -= 1; changes.push("ไก่หนึ่งตัวหิว/ป่วยตาย"); }
+    else if (a.goats > 0) { a.goats -= 1; changes.push("แพะหนึ่งตัวล้มตายจากความหิวและโรค"); }
+    state = { ...state, hunger: clamp(state.hunger - 20), health: clamp(state.health - 6) };
+  }
+  const productsFood = Math.floor(a.chickens / 4) + Math.floor(a.goats / 3);
+  if (productsFood > 0 && g.animalAction !== "slaughter") {
+    g = { ...g, resources: changeResources(g.resources, { food: productsFood }) };
+    changes.push(`ผลิตจากสัตว์เลี้ยง +อาหาร ${productsFood}`);
+  }
+  state = { ...state, animals: a, lastAction: g.animalAction, log: [`เดือน ${g.month}/${g.year}: ${changes.filter((c) => c.includes("สัตว์") || c.includes("แพะ") || c.includes("ไก่") || c.includes("คอก")).join(" · ") || "สัตว์เลี้ยงยังคงอยู่ในค่าย"}`, ...state.log].slice(0, 20) };
+  return { game: { ...g, animalState: state, animalAction: "keep" }, changes };
+}
+
 function categorizeChanges(changes: string[]) {
   const sections: Record<string, string[]> = { "ผลผลิต": [], "บริโภค/สูญเสีย": [], "คนและสุขภาพ": [], "ความก้าวหน้า": [], "เหตุการณ์อื่น": [] };
   changes.forEach((item) => {
@@ -1002,12 +1140,12 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
   const base: GameState = {
     version: GAME_VERSION, leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
     year: 1, month: 1, stage: "ค่ายพักแรม", resources: baseResources(setup.origin), buildings: emptyBuildings(), researchDone: emptyResearch(),
-    construction: null, activeResearch: null, labor: emptyLabor(),
+    construction: null, pausedConstruction: [], activeResearch: null, pausedResearch: [], labor: emptyLabor(),
     leaderFocus: "workWithPeople", leaderActionSelected: false, selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [],
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
     collapse: { hungerMonths: 0, noWorkerMonths: 0, trustCrisisMonths: 0, assaultCrisisMonths: 0 }, gameOver: null,
-    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
+    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, animalState: emptyAnimalState(), animalAction: "keep", summaryModal: null, savedText: "ยังไม่เคยบันทึก",
   };
   return addLog(base, "ค่ายแรกถูกตั้งขึ้น", `${setup.leaderName} แห่ง House ${setup.houseName} พาคนสิบชีวิตตั้งกองไฟแรกบนผืนดินที่ยังไม่มีชื่อ`, "milestone", ["เริ่มเกม"]);
 }
@@ -1494,6 +1632,29 @@ const events: GameEvent[] = [
       choice("record_child_name", "🕯️", "บันทึกชื่อเด็กไว้ในพงศาวดาร", "ความทรงจำ", "เพิ่มความหวังและเปิดความทรงจำ", { metrics: { morale: 2, cohesion: 2 }, path: { family: 2 } }, ["ชื่อของเด็กถูกเขียนลงในบันทึกแรก ๆ ของค่าย", "การถูกจดจำก่อนโตเป็นผู้ใหญ่ ทำให้เด็กคนนั้นนั่งตัวตรงขึ้นเล็กน้อยในคืนถัดมา"], { addMemory: { title: "เด็กที่จำคลังได้", text: "ค่ายเริ่มมองเด็กไม่ใช่แค่ปากท้อง แต่เป็นความสามารถที่ยังรอเวลาเติบโต", effect: "+ขวัญกำลังใจเมื่อมีงานสอนเด็ก", kind: "pride" } }),
     ],
   }
+,
+  {
+    id: "stray_goats_found", title: "แพะหลงเข้ามาใกล้ค่าย", category: "สัตว์เลี้ยง",
+    text: "รอยเท้าเล็ก ๆ ปรากฏใกล้ลำธาร ก่อนที่คนตักน้ำจะพบแพะสองตัวผอม ๆ กำลังเล็มหญ้าริมพุ่มไม้ มันอาจเป็นโอกาสเริ่มเลี้ยงสัตว์ หรือเป็นภาระอาหารใหม่ของค่าย",
+    condition: (g) => animalCount(g) === 0 && (g.researchDone.animalKeeping || g.stage !== "ค่ายพักแรม" || g.month >= 3),
+    weight: (g) => animalCount(g) === 0 ? 10 + (g.researchDone.animalKeeping ? 12 : 0) : 0,
+    choices: [
+      choice("keep_goats", "🐐", "จับมาเลี้ยงอย่างระมัดระวัง", "โอกาส", "ได้แพะ 2 ตัว แต่ต้องเตรียมอาหารและคอกในอนาคต", { metrics: { morale: 2 }, path: { survival: 2 } }, ["เชือกหยาบถูกถักจากเศษเส้นใย แพะสองตัวถูกพามาใกล้กองไฟ เด็ก ๆ ดีใจ แต่ผู้ใหญ่รู้ดีว่าทุกปากที่เพิ่มขึ้นไม่ได้มีเพียงคนเท่านั้น" ]),
+      choice("hunt_goats", "🍖", "ฆ่าเพื่อทำเป็นอาหารทันที", "เอาตัวรอด", "ได้อาหารมากทันที แต่พลาดโอกาสเลี้ยงระยะยาว", { resources: { food: 24, hides: 1 }, metrics: { morale: -1 }, path: { survival: 2 } }, ["แพะไม่กลายเป็นฝูงแรกของค่าย แต่กลายเป็นหม้ออาหารที่ช่วยให้เด็ก ๆ อิ่มในคืนนั้น บางคนไม่พูดถึงมันอีก" ]),
+      choice("let_go", "🌿", "ปล่อยมันไป", "เมตตา", "ไม่เพิ่มภาระอาหาร แต่ไม่ได้ทรัพยากร", { metrics: { morale: 1, cohesion: 1 }, path: { family: 1 } }, ["แพะสองตัวหายกลับเข้าแนวหญ้า ไม่มีใครได้อาหารเพิ่ม แต่เด็กบางคนยิ้มเมื่อเห็นมันยังวิ่งได้" ]),
+    ],
+  },
+  {
+    id: "animal_thief", title: "รอยเท้าคนนอกใกล้คอกสัตว์", category: "สัตว์เลี้ยง / ภัยภายนอก",
+    text: "เช้านี้มีรอยเท้าคนไม่คุ้นใกล้บริเวณที่ผูกสัตว์ไว้ เชือกเส้นหนึ่งถูกคลายออกอย่างตั้งใจ ไม่ใช่ฝีมือสัตว์ป่า",
+    condition: (g) => animalCount(g) > 0,
+    weight: (g) => animalCount(g) > 0 ? 6 + Math.floor(g.threat / 10) - g.buildings.animalPen * 4 : 0,
+    choices: [
+      choice("guard_animals", "🛡️", "เพิ่มเวรยามรอบคอก", "ป้องกัน", "ลดโอกาสสัตว์ถูกขโมย แต่กินแรงงานและความเหนื่อย", { metrics: { security: 5, morale: -1 }, threat: -4, path: { fortress: 2 } }, ["คืนต่อมาเวรยามยืนใกล้คอกมากขึ้น เสียงไก่และแพะกลายเป็นเสียงที่ต้องปกป้องเหมือนคลังอาหาร" ]),
+      choice("move_animals", "🐐", "ย้ายสัตว์เข้ามาใกล้ที่พัก", "เสี่ยงน้อยลง", "ลดขโมยแต่เพิ่มกลิ่น โรค และความรำคาญ", { metrics: { security: 3, health: -2, morale: -1 }, threat: -2 }, ["สัตว์ถูกย้ายเข้ามาใกล้คนมากขึ้น กลิ่นและเสียงทำให้หลายคนบ่น แต่ไม่มีใครอยากตื่นมาแล้วพบเชือกว่างเปล่า" ]),
+      choice("ignore_tracks", "👁️", "เชื่อว่าเป็นแค่คนผ่านทาง", "ประหยัดแรง", "ไม่เสียแรงงาน แต่เพิ่มความเสี่ยงถูกขโมย", { metrics: { security: -4 }, threat: 5, risk: { conflict: 6 } }, ["รอยเท้าถูกปล่อยให้ฝุ่นกลบ บางคนพยักหน้า บางคนเก็บมีดไว้ใกล้ตัวมากขึ้น" ]),
+    ],
+  }
 
 
 ];
@@ -1582,6 +1743,10 @@ function applyChoice(game: GameState, event: GameEvent, selected: EventChoice): 
     for (let i = 0; i < selected.delta.population; i++) g = addPerson(g);
   }
   if (selected.id === "name_child" || selected.id === "quiet_birth") g = addChild(g);
+  if (selected.id === "keep_goats") {
+    const state = normalizeAnimalState(g.animalState);
+    g = { ...g, animalState: { ...state, animals: { ...state.animals, goats: state.animals.goats + 2 }, log: ["พบแพะหลง 2 ตัวและเริ่มเลี้ยงเป็นฝูงแรก", ...state.log].slice(0, 20) } };
+  }
   if (selected.delta.wounded) {
     for (let i = 0; i < selected.delta.wounded; i++) g = woundSomeone(g, event.title);
   }
@@ -1622,12 +1787,14 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   const tradeHides = l.trade ? Math.min(g.resources.hides, l.trade) : 0;
   const tradeHerbs = l.trade ? Math.min(g.resources.herbs, l.trade) : 0;
   const goldGain = Math.round(l.trade * 2 + tradeFood * 0.8 + tradeHides * 2 + tradeHerbs * 1.5);
-  g = { ...g, resources: changeResources(g.resources, { food: foodGain - tradeFood, wood: woodGain - toolWoodCost, stone: stoneGain, knowledge: knowledgeGain, water: waterGain, fuel: fuelGain, tools: toolsGain, herbs: herbsGain - tradeHerbs, hides: -tradeHides, gold: goldGain }) };
+  const feedGain = Math.round(l.feed * (g.buildings.animalPen ? 5 : 3) + (g.researchDone.fodderPrep && g.labor.farm > 0 ? 1 : 0));
+  g = { ...g, resources: changeResources(g.resources, { food: foodGain - tradeFood, wood: woodGain - toolWoodCost, stone: stoneGain, knowledge: knowledgeGain, water: waterGain, fuel: fuelGain, tools: toolsGain, herbs: herbsGain - tradeHerbs, hides: -tradeHides, gold: goldGain, feed: feedGain }) };
   if (l.patrol > 0) g = { ...g, metrics: changeMetrics(g.metrics, { security: Math.min(5, l.patrol * 2) }), threat: clamp(g.threat - l.patrol * 3, 0, 100) };
   if (l.water > 0) g = { ...g, metrics: changeMetrics(g.metrics, { health: Math.min(4, l.water) }) };
   if (l.herbs > 0) g = { ...g, metrics: changeMetrics(g.metrics, { health: Math.min(4, l.herbs) }) };
   if (l.teach > 0) g = { ...g, metrics: changeMetrics(g.metrics, { cohesion: Math.min(4, l.teach * 2), morale: Math.min(3, l.teach) }) };
   const changes = [`ผลิตอาหาร +${foodGain}`, `ไม้ +${woodGain}`, `หิน +${stoneGain}`, `ความรู้ +${knowledgeGain}`, `น้ำ +${waterGain}`, `ฟืน +${fuelGain}`];
+  if (feedGain) changes.push(`อาหารสัตว์ +${feedGain}`);
   if (l.intel > 0) {
     g = { ...g, metrics: changeMetrics(g.metrics, { security: Math.min(3, l.intel), trust: Math.min(2, l.intel) }), threat: clamp(g.threat - l.intel, 0, 100) };
     const newsPool: Array<Omit<Rumor, "id" | "discovered">> = [
@@ -1667,6 +1834,11 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
     const shortage = waterNeed - g.resources.water;
     g = { ...g, resources: { ...g.resources, water: 0 }, metrics: changeMetrics(g.metrics, { health: -7 - shortage, morale: -3 }) };
     changes.push(`น้ำไม่พอ ขาด ${shortage} หน่วย`);
+  }
+  if (animalCount(g) > 0) {
+    const animalResult = resolveAnimals(g);
+    g = animalResult.game;
+    changes.push(...animalResult.changes);
   }
   if (season === "ฤดูหนาว") {
     const fuelNeed = Math.ceil(alivePeople(g).length * 0.7) + Math.max(0, alivePeople(g).length - shelterCapacity(g));
@@ -1746,6 +1918,11 @@ function applyLeaderFocus(game: GameState, changes: string[]): GameState {
   if (f === "isolateSick") { g = { ...g, metrics: changeMetrics(g.metrics, { health: 5, trust: 1, morale: -1 }) }; changes.push("แยกผู้ป่วยออกจากที่พักรวม ลดโอกาสโรคแพร่"); }
   if (f === "nightPatrol") { g = { ...g, metrics: changeMetrics(g.metrics, { security: 7, morale: -1 }), threat: clamp(g.threat - 5, 0, 100) }; changes.push("ผู้นำเดินเวรยามกลางคืน +ความปลอดภัย"); }
   if (f === "trackBeasts") { g = { ...g, metrics: changeMetrics(g.metrics, { security: 4 }), resources: changeResources(g.resources, { food: 3 }), threat: clamp(g.threat - 3, 0, 100) }; changes.push("ตามรอยสัตว์ก่อนมันกลับมา ลดภัยสัตว์ป่า"); if (Math.random() < 0.12) { g = woundSomeone(g, "ตามรอยสัตว์ในป่าลึก"); changes.push("การตามรอยสัตว์แลกมาด้วยความเสี่ยง"); } }
+  if (f === "animalCare") {
+    const state = normalizeAnimalState(g.animalState);
+    g = { ...g, animalState: { ...state, hunger: clamp(state.hunger - 12), health: clamp(state.health + 8), log: [`ผู้นำตรวจคอกด้วยตนเอง ลดความตื่นกลัวและความหิวของสัตว์`, ...state.log].slice(0, 20) }, metrics: changeMetrics(g.metrics, { morale: 1, security: 1 }) };
+    changes.push("ผู้นำตรวจคอกและดูแลสัตว์เลี้ยง ลดโอกาสสัตว์หนี/ป่วย");
+  }
   if (f === "campRules") { g = { ...g, metrics: changeMetrics(g.metrics, { fairness: 6, cohesion: 2, trust: -1 }) }; changes.push("ตั้งกติกาแบ่งเสบียงอย่างเปิดเผย +ความยุติธรรม"); }
   if (f === "holdCouncil") { g = { ...g, metrics: changeMetrics(g.metrics, { trust: 3, cohesion: 4, fairness: 2 }) }; changes.push("เรียกประชุมรอบกองไฟ +ความสามัคคี"); }
   if (f === "memorial") { g = { ...g, metrics: changeMetrics(g.metrics, { morale: 3, cohesion: 4, trust: 1 }) }; changes.push("กล่าวชื่อผู้จากไปต่อหน้ากองไฟ ลดบาดแผลทางใจ"); if (!g.memories.some((m) => m.title.includes("ชื่อผู้จากไป"))) g = addMemory(g, { title: "ชื่อผู้จากไปไม่ถูกปล่อยให้หายไป", text: "ค่ายเรียนรู้ว่าความตายที่ถูกจดจำยังสามารถกลายเป็นรากให้คนเป็นยืนต่อได้", effect: "+ความสามัคคีหลังเกิดความสูญเสีย", kind: "loss" }); }
@@ -1928,9 +2105,8 @@ export default function GamePage() {
     if (saveText) {
       try {
         const loaded = JSON.parse(saveText) as GameState;
-        const migrated: GameState = {
+        const migrated: GameState = ensureGameState({
           ...loaded,
-          version: GAME_VERSION,
           leaderActionSelected: loaded.leaderActionSelected ?? false,
           selectedChoiceId: loaded.selectedChoiceId ?? null,
           currentEventId: loaded.currentEventId || "first_night",
@@ -1938,9 +2114,8 @@ export default function GamePage() {
           delayedEvents: loaded.delayedEvents || [],
           recentEventIds: loaded.recentEventIds || [],
           rumors: loaded.rumors || [],
-          summaryModal: null,
           savedText: "เปิดบันทึกเดิมแล้ว · migrated",
-        };
+        } as GameState);
         window.localStorage.setItem(saveKey, JSON.stringify(migrated));
         setGame(migrated);
         return;
@@ -1987,14 +2162,47 @@ export default function GamePage() {
   }
   function startConstruction(id: BuildingKey) {
     updateGame((g) => {
-      if (!buildingUnlocked(g, id) || !hasCost(g, buildingData[id].cost)) return g;
-      return { ...payCost(g, buildingData[id].cost), construction: { id, progress: 0 } };
+      if (!buildingUnlocked(g, id)) return g;
+      const paused = g.pausedConstruction ?? [];
+      const saved = paused.find((p) => p?.id === id) ?? null;
+      let next: GameState = g;
+      if (g.construction && g.construction.id !== id) next = { ...next, pausedConstruction: [g.construction, ...paused.filter((p) => p?.id !== g.construction?.id)] };
+      if (saved) return { ...next, construction: saved, pausedConstruction: (next.pausedConstruction ?? []).filter((p) => p?.id !== id), savedText: `กลับมาทำ ${buildingData[id].title} ต่อ` };
+      if (!hasCost(next, buildingData[id].cost)) return { ...next, savedText: "ทรัพยากรไม่พอสำหรับเริ่มก่อสร้าง" };
+      return { ...payCost(next, buildingData[id].cost), construction: { id, progress: 0 }, savedText: g.construction ? `พักงานเดิมแล้วเริ่ม ${buildingData[id].title}` : `เริ่มก่อสร้าง ${buildingData[id].title}` };
+    });
+  }
+  function pauseConstruction() {
+    updateGame((g) => g.construction ? { ...g, pausedConstruction: [g.construction, ...(g.pausedConstruction ?? []).filter((p) => p?.id !== g.construction?.id)], construction: null, savedText: "พักงานก่อสร้างไว้ก่อน เพื่อโยกแรงงานไปงานเร่งด่วน" } : g);
+  }
+  function cancelConstruction(id?: BuildingKey) {
+    updateGame((g) => {
+      const target = id ? ((g.construction?.id === id ? g.construction : null) ?? (g.pausedConstruction ?? []).find((p) => p?.id === id) ?? null) : g.construction;
+      if (!target) return g;
+      const cost = buildingData[target.id].cost;
+      const refund = Object.fromEntries(Object.entries(cost).map(([k, v]) => [k, Math.floor((v ?? 0) * 0.5)])) as Partial<Resources>;
+      return { ...g, resources: changeResources(g.resources, refund), construction: g.construction?.id === target.id ? null : g.construction, pausedConstruction: (g.pausedConstruction ?? []).filter((p) => p?.id !== target.id), savedText: `ยกเลิก ${buildingData[target.id].title} และคืนทรัพยากรบางส่วน` };
     });
   }
   function startResearch(id: ResearchKey) {
     updateGame((g) => {
       if (!researchUnlocked(g, id) || g.researchDone[id]) return g;
-      return { ...g, activeResearch: { id, progress: 0 } };
+      const paused = g.pausedResearch ?? [];
+      const saved = paused.find((p) => p?.id === id) ?? null;
+      let next: GameState = g;
+      if (g.activeResearch && g.activeResearch.id !== id) next = { ...next, pausedResearch: [g.activeResearch, ...paused.filter((p) => p?.id !== g.activeResearch?.id)] };
+      if (saved) return { ...next, activeResearch: saved, pausedResearch: (next.pausedResearch ?? []).filter((p) => p?.id !== id), savedText: `กลับมาศึกษา ${researchData[id].title} ต่อ` };
+      return { ...next, activeResearch: { id, progress: 0 }, savedText: g.activeResearch ? `พักงานวิจัยเดิมแล้วเริ่ม ${researchData[id].title}` : `เริ่มศึกษา ${researchData[id].title}` };
+    });
+  }
+  function pauseResearch() {
+    updateGame((g) => g.activeResearch ? { ...g, pausedResearch: [g.activeResearch, ...(g.pausedResearch ?? []).filter((p) => p?.id !== g.activeResearch?.id)], activeResearch: null, savedText: "พักงานวิจัยไว้ก่อน เพื่อโยกแรงงานไปเรื่องเร่งด่วน" } : g);
+  }
+  function cancelResearch(id?: ResearchKey) {
+    updateGame((g) => {
+      const target = id ? ((g.activeResearch?.id === id ? g.activeResearch : null) ?? (g.pausedResearch ?? []).find((p) => p?.id === id) ?? null) : g.activeResearch;
+      if (!target) return g;
+      return { ...g, activeResearch: g.activeResearch?.id === target.id ? null : g.activeResearch, pausedResearch: (g.pausedResearch ?? []).filter((p) => p?.id !== target.id), savedText: `ยกเลิกการศึกษา ${researchData[target.id].title} ความคืบหน้าส่วนนั้นจะหายไป` };
     });
   }
   function endTurn() { updateGame((g) => {
@@ -2071,8 +2279,9 @@ export default function GamePage() {
           </nav>
           {view === "เมือง" && <CityView game={game} adjustLabor={adjustLabor} applyRecommendedLabor={() => updateGame((g) => ({ ...g, labor: recommendedLabor(g) }))} />}
           {view === "คน" && <PeopleView game={game} />}
-          {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} />}
-          {view === "วิจัย" && <ResearchView game={game} startResearch={startResearch} />}
+          {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} pauseConstruction={pauseConstruction} cancelConstruction={cancelConstruction} />}
+          {view === "วิจัย" && <ResearchView game={game} startResearch={startResearch} pauseResearch={pauseResearch} cancelResearch={cancelResearch} />}
+          {view === "สัตว์เลี้ยง" && <AnimalsView game={game} setAnimalAction={(action) => updateGame((g) => ({ ...g, animalAction: action, savedText: `ตั้งแผนสัตว์เลี้ยง: ${animalActionLabel(action)}` }))} />}
           {view === "ข่าวสาร" && <NewsView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
           {view === "พงศาวดาร" && <ChronicleView game={game} />}
           {view === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} />}
@@ -2329,25 +2538,39 @@ function SettlementGrowthPanel({ game }: { game: GameState }) {
   const currentIndex = steps.findIndex((s) => s.stage === game.stage);
   return <div className="panel pad" style={{ boxShadow: "none", marginBottom: 14 }}><h3 className="section-title">เส้นทางการเติบโตของถิ่นฐาน</h3><div className="work-grid">{steps.map((step, index) => <div key={step.stage} className={index === currentIndex ? "work-card active-step" : "work-card"}><b>{index <= currentIndex ? "✓" : "○"} {step.title}</b><p className="muted small">{step.text}</p></div>)}</div></div>;
 }
-function ProjectView({ game, startConstruction, startResearch }: { game: GameState; startConstruction: (id: BuildingKey) => void; startResearch: (id: ResearchKey) => void }) {
-  return (
-    <div>
-      <ActiveProjectsPanel game={game} />
-      <section className="two-col project-tabs">
-        <BuildView game={game} startConstruction={startConstruction} />
-        <ResearchView game={game} startResearch={startResearch} />
-      </section>
-    </div>
-  );
+function ProjectView({ game }: { game: GameState }) {
+  return <ActiveProjectsPanel game={game} />;
 }
-function BuildView({ game, startConstruction }: { game: GameState; startConstruction: (id: BuildingKey) => void }) {
+function BuildView({ game, startConstruction, pauseConstruction, cancelConstruction }: { game: GameState; startConstruction: (id: BuildingKey) => void; pauseConstruction: () => void; cancelConstruction: (id?: BuildingKey) => void }) {
   const monthsLeft = game.construction ? Math.max(1, Math.ceil(Math.max(0, buildingData[game.construction.id].work - game.construction.progress) / Math.max(1, game.labor.build * 10))) : 0;
-  return <section className="panel pad"><h2 className="title">ก่อสร้าง</h2><p className="muted">วางรากฐานของถิ่นฐานทีละหลัง สิ่งปลูกสร้างทุกอย่างควรตอบปัญหาจริงของค่าย ไม่ว่าจะเป็นที่พัก อาหาร น้ำ ความปลอดภัย หรือการรักษา</p><SettlementGrowthPanel game={game} />{game.construction && <div className="log good"><b>กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากยังมีแรงงานก่อสร้างเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(buildingData) as BuildingKey[]).map((id) => { const b = buildingData[id]; const unlocked = buildingUnlocked(game, id); const affordable = hasCost(game, b.cost); return <article key={id} className="building-card"><div className="split"><div><b>{b.icon} {b.title}</b><p className="muted small">{b.text}</p></div><span className="badge">มี {game.buildings[id]}</span></div><table className="report-table"><tbody><tr><td>ใช้ทรัพยากร</td><td>{Object.entries(b.cost).map(([k,v]) => `${k} ${v}`).join(" · ")}</td></tr><tr><td>แรงงานที่ต้องใช้</td><td>{b.work}</td></tr><tr><td>สถานะ</td><td>{unlocked ? affordable ? "พร้อมสร้าง" : "ทรัพยากรไม่พอ" : "ยังไม่ปลดล็อก"}</td></tr></tbody></table><button className="primary" disabled={!unlocked || !affordable || Boolean(game.construction)} onClick={() => startConstruction(id)} style={{ width: "100%", marginTop: 10, opacity: !unlocked || !affordable || game.construction ? .55 : 1 }}>เริ่มสร้าง</button></article>; })}</div></section>;
+  return <section className="panel pad"><h2 className="title">ก่อสร้าง</h2><p className="muted">ก่อสร้างสามารถพักงานไว้ก่อนเพื่อโยกแรงงานไปเรื่องเร่งด่วนได้ ความคืบหน้าจะถูกเก็บไว้ แต่ถ้ายกเลิกจะคืนทรัพยากรเพียงบางส่วนตามความสมจริง</p><SettlementGrowthPanel game={game} />{game.construction && <div className="log good"><b>กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากยังมีแรงงานก่อสร้างเท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseConstruction}>พักงานนี้ไว้ก่อน</button><button className="danger" onClick={() => cancelConstruction()}>ยกเลิกและคืนบางส่วน</button></div></div>}{(game.pausedConstruction ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานก่อสร้างที่พักไว้</h3><div className="work-grid">{(game.pausedConstruction ?? []).map((p) => p && <div className="work-card" key={`paused-build-${p.id}`}><b>{buildingData[p.id].icon} {buildingData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{buildingData[p.id].work}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / buildingData[p.id].work * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startConstruction(p.id)}>กลับมาทำต่อ</button><button className="danger" onClick={() => cancelConstruction(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(buildingData) as BuildingKey[]).map((id) => { const b = buildingData[id]; const unlocked = buildingUnlocked(game, id); const already = game.construction?.id === id; const paused = (game.pausedConstruction ?? []).some((p) => p?.id === id); const affordable = hasCost(game, b.cost) || paused || already; return <article key={id} className="building-card"><div className="split"><div><b>{b.icon} {b.title}</b><p className="muted small">{b.text}</p></div><span className="badge">มี {game.buildings[id]}</span></div><table className="report-table"><tbody><tr><td>ใช้ทรัพยากร</td><td>{Object.entries(b.cost).map(([k,v]) => `${k} ${v}`).join(" · ")}</td></tr><tr><td>แรงงานที่ต้องใช้</td><td>{b.work}</td></tr><tr><td>สถานะ</td><td>{already ? "กำลังทำอยู่" : paused ? "พักไว้ กลับมาทำต่อได้" : unlocked ? affordable ? "พร้อมสร้าง" : "ทรัพยากรไม่พอ" : "ยังไม่ปลดล็อก"}</td></tr></tbody></table><button className="primary" disabled={!unlocked || !affordable || already} onClick={() => startConstruction(id)} style={{ width: "100%", marginTop: 10, opacity: !unlocked || !affordable || already ? .55 : 1 }}>{already ? "กำลังทำอยู่" : paused ? "กลับมาทำต่อ" : game.construction ? "พักงานเดิมแล้วเริ่มงานนี้" : "เริ่มสร้าง"}</button></article>; })}</div></section>;
 }
-function ResearchView({ game, startResearch }: { game: GameState; startResearch: (id: ResearchKey) => void }) {
+
+function ResearchView({ game, startResearch, pauseResearch, cancelResearch }: { game: GameState; startResearch: (id: ResearchKey) => void; pauseResearch: () => void; cancelResearch: (id?: ResearchKey) => void }) {
   const monthsLeft = game.activeResearch ? Math.max(1, Math.ceil(Math.max(0, researchData[game.activeResearch.id].cost - game.activeResearch.progress) / Math.max(1, game.labor.research * 8 + 2))) : 0;
-  return <section className="panel pad"><h2 className="title">ภูมิปัญญาและการวิจัย</h2><p className="muted">ความรู้คือวิธีที่ชุมชนเปลี่ยนประสบการณ์รอดตายให้กลายเป็นระบบ การวิจัยช่วยลดการสูญเสียซ้ำ ๆ และปลดล็อกงานที่ซับซ้อนขึ้น</p>{game.activeResearch && <div className="log good"><b>กำลังศึกษา: {researchData[game.activeResearch.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากยังมีแรงงานเรียนรู้เท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.activeResearch.progress / researchData[game.activeResearch.id].cost * 100)}%` }} /></div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(researchData) as ResearchKey[]).map((id) => { const r = researchData[id]; const done = game.researchDone[id]; const unlocked = researchUnlocked(game, id); return <article key={id} className="building-card"><div className="split"><div><b>{r.icon} {r.title}</b><p className="muted small">{r.text}</p></div><span className={done ? "badge green" : "badge"}>{done ? "สำเร็จ" : `${r.cost}`}</span></div><p className="small muted">เงื่อนไขก่อนศึกษา: {r.prereq?.map((p) => researchData[p].title).join(" · ") ?? "ไม่มี"}</p><button className="primary" disabled={done || !unlocked || Boolean(game.activeResearch)} onClick={() => startResearch(id)} style={{ width: "100%", opacity: done || !unlocked || game.activeResearch ? .55 : 1 }}>{done ? "เรียนรู้แล้ว" : unlocked ? "เริ่มศึกษา" : "ยังไม่ปลดล็อก"}</button></article>; })}</div></section>;
+  return <section className="panel pad"><h2 className="title">ภูมิปัญญาและการวิจัย</h2><p className="muted">งานวิจัยสามารถพักไว้เพื่อรับมือเหตุเร่งด่วนได้ เช่น ขาดน้ำ ขาดอาหาร หรือมีภัยนอกค่าย การสลับหัวข้อจะเก็บความคืบหน้าเดิมไว้</p>{game.activeResearch && <div className="log good"><b>กำลังศึกษา: {researchData[game.activeResearch.id].title}</b><small className="muted">คาดว่าเหลือประมาณ {monthsLeft} เดือน หากยังมีแรงงานเรียนรู้เท่าเดิม</small><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.activeResearch.progress / researchData[game.activeResearch.id].cost * 100)}%` }} /></div><div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={pauseResearch}>พักงานวิจัยนี้</button><button className="danger" onClick={() => cancelResearch()}>ยกเลิกหัวข้อนี้</button></div></div>}{(game.pausedResearch ?? []).length > 0 && <div className="panel pad" style={{ boxShadow: "none", marginTop: 10 }}><h3 className="section-title">งานวิจัยที่พักไว้</h3><div className="work-grid">{(game.pausedResearch ?? []).map((p) => p && <div className="work-card" key={`paused-research-${p.id}`}><b>{researchData[p.id].icon} {researchData[p.id].title}</b><small className="muted">คืบหน้า {p.progress}/{researchData[p.id].cost}</small><div className="bar"><div className="fill" style={{ width: `${clamp(p.progress / researchData[p.id].cost * 100)}%` }} /></div><div className="flex"><button className="secondary" onClick={() => startResearch(p.id)}>กลับมาศึกษาต่อ</button><button className="danger" onClick={() => cancelResearch(p.id)}>ยกเลิก</button></div></div>)}</div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(researchData) as ResearchKey[]).map((id) => { const r = researchData[id]; const done = game.researchDone[id]; const unlocked = researchUnlocked(game, id); const already = game.activeResearch?.id === id; const paused = (game.pausedResearch ?? []).some((p) => p?.id === id); return <article key={id} className="building-card"><div className="split"><div><b>{r.icon} {r.title}</b><p className="muted small">{r.text}</p></div><span className={done ? "badge green" : "badge"}>{done ? "สำเร็จ" : `${r.cost}`}</span></div><p className="small muted">เงื่อนไขก่อนศึกษา: {r.prereq?.map((p) => researchData[p].title).join(" · ") ?? "ไม่มี"}</p><button className="primary" disabled={done || !unlocked || already} onClick={() => startResearch(id)} style={{ width: "100%", opacity: done || !unlocked || already ? .55 : 1 }}>{done ? "เรียนรู้แล้ว" : already ? "กำลังศึกษา" : paused ? "กลับมาศึกษาต่อ" : game.activeResearch ? "พักหัวข้อเดิมแล้วเริ่มหัวข้อนี้" : unlocked ? "เริ่มศึกษา" : "ยังไม่ปลดล็อก"}</button></article>; })}</div></section>;
 }
+
+
+function animalActionLabel(action: AnimalAction) {
+  const labels: Record<AnimalAction, string> = { keep: "เลี้ยงตามปกติ", slaughter: "ฆ่าเพื่อเป็นอาหาร", breed: "เลี้ยงต่อเพื่อขยายฝูง", release: "ปล่อยสัตว์ที่เลี้ยงไม่ไหว", protect: "เฝ้าคอกเป็นพิเศษ" };
+  return labels[action];
+}
+function AnimalsView({ game, setAnimalAction }: { game: GameState; setAnimalAction: (action: AnimalAction) => void }) {
+  const state = normalizeAnimalState(game.animalState);
+  const total = animalCount(game);
+  const needs = animalNeed(game);
+  const feedUnlocked = game.researchDone.fodderPrep;
+  const actionCards: Array<{ id: AnimalAction; icon: string; title: string; text: string; disabled?: boolean }> = [
+    { id: "keep", icon: "🐐", title: "เลี้ยงตามปกติ", text: "รักษาฝูงไว้โดยไม่เร่งเชือดหรือขยาย เหมาะกับช่วงทรัพยากรนิ่ง" },
+    { id: "breed", icon: "🥚", title: "เลี้ยงต่อเพื่อออกลูก", text: "เพิ่มโอกาสได้ลูกแพะ/ไก่ แต่ต้องมีอาหารพอและสุขภาพสัตว์ดี", disabled: total <= 1 },
+    { id: "slaughter", icon: "🍖", title: "ฆ่าสัตว์เพื่อเป็นอาหาร", text: "แปลงสัตว์เป็นอาหารทันที เหมาะเมื่อคนเริ่มอด แต่ลดฐานฝูงระยะยาว", disabled: total <= 0 },
+    { id: "release", icon: "🌿", title: "ปล่อยสัตว์ที่เลี้ยงไม่ไหว", text: "ลดภาระอาหารสัตว์โดยไม่ฆ่า เหมาะเมื่ออาหารใกล้หมด", disabled: total <= 0 },
+    { id: "protect", icon: "🛡️", title: "เฝ้าคอกเป็นพิเศษ", text: "ลดโอกาสถูกขโมยหรือสัตว์หนี โดยเฉพาะเมื่อภัยภายนอกสูง", disabled: total <= 0 },
+  ];
+  return <section className="panel pad"><div className="split"><div><h2 className="title">สัตว์เลี้ยงและฝูงอาหาร</h2><p className="muted">สัตว์ไม่ใช่ตัวเลขนิ่ง ๆ พวกมันกินอาหาร หนีได้ ถูกขโมยได้ ป่วยหรือตายได้ แต่ถ้าเลี้ยงดีจะเป็นอาหาร นม ไข่ หนัง และความมั่นคงระยะยาวของถิ่นฐาน</p></div><span className="badge green">แผนเดือนนี้: {animalActionLabel(game.animalAction ?? "keep")}</span></div><div className="dashboard-grid"><div className="panel kpi"><span className="muted">🐐 แพะ</span><b>{state.animals.goats}</b><small>ให้เนื้อ หนัง และมีโอกาสออกลูก</small></div><div className="panel kpi"><span className="muted">🐔 ไก่</span><b>{state.animals.chickens}</b><small>เพิ่มอาหารเล็กน้อยและออกลูกง่ายกว่า</small></div><div className="panel kpi"><span className="muted">🐕 สุนัข</span><b>{state.animals.dogs}</b><small>ช่วยเตือนภัยและเฝ้าค่าย แต่กินอาหาร</small></div><div className="panel kpi"><span className="muted">ความหิว / สุขภาพ</span><b>{pct(state.hunger)} / {pct(state.health)}</b><small>ต้องใช้ {needs} หน่วยจาก{animalFoodSource(game)}</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ระบบอาหารสัตว์</h3><table className="report-table"><tbody><tr><td>สถานะอาหารสัตว์</td><td>{feedUnlocked ? "วิจัยแล้ว แสดงในทรัพยากรและผลิตได้จากงานตัดหญ้า" : "ยังไม่วิจัย สัตว์จะกินอาหารคน/เศษพืชก่อน"}</td></tr><tr><td>งานที่เกี่ยวข้อง</td><td>{feedUnlocked ? "ตัดหญ้า / ทำอาหารสัตว์" : "วิจัยการทำอาหารสัตว์ก่อน"}</td></tr><tr><td>คอกสัตว์</td><td>{game.buildings.animalPen > 0 ? `มี ${game.buildings.animalPen} หลัง ลดหนี/ขโมย` : "ยังไม่มี ควรวิจัยการเลี้ยงสัตว์พื้นฐาน"}</td></tr></tbody></table></div><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ความเสี่ยงสมจริง</h3><ul className="muted"><li>อาหารไม่พอ → ความหิวสัตว์เพิ่ม และมีโอกาสสัตว์หิวตาย</li><li>ไม่มีคอก/เวรยาม → สัตว์หนีหรือถูกขโมยง่ายขึ้น</li><li>เลือกขยายฝูง → ได้ผลดีระยะยาว แต่กินอาหารมากขึ้น</li><li>เลือกฆ่าเพื่ออาหาร → ช่วยวิกฤตทันที แต่ทำลายอนาคตของฝูง</li></ul></div></div><h3 className="section-title" style={{ marginTop: 16 }}>เลือกแผนสัตว์เลี้ยงเดือนนี้</h3><div className="work-grid">{actionCards.map((a) => <button key={a.id} className={game.animalAction === a.id ? "work-card active-step" : "work-card"} disabled={a.disabled} onClick={() => setAnimalAction(a.id)} style={{ textAlign: "left", opacity: a.disabled ? .55 : 1 }}><b>{a.icon} {a.title}</b><p className="muted small">{a.text}</p></button>)}</div><h3 className="section-title" style={{ marginTop: 16 }}>บันทึกสัตว์ล่าสุด</h3>{state.log.length ? <div className="timeline compact">{state.log.slice(0, 8).map((l, i) => <div className="log" key={`animal-log-${i}`}>{l}</div>)}</div> : <div className="empty">ยังไม่มีสัตว์เลี้ยงในค่าย ลองสำรวจหรือรอเหตุการณ์พบสัตว์หลง</div>}</section>;
+}
+
 function ChronicleView({ game }: { game: GameState }) {
   const previewDeaths = game.casualties.slice(0, 5);
   return (
