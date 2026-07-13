@@ -12,7 +12,7 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "Alpha v0.9.18";
+const VERSION = "Alpha v0.9.25";
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];

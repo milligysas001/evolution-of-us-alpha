@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "gameVersion": "0.9.16",
+  "schemaVersion": 2,
+  "gameVersion": "0.9.25",
   "purpose": "Portable livestock data for current web game and future Godot port.",
   "animalTypes": [
     {
@@ -8,46 +8,55 @@
       "icon": "🐐",
       "name": "แพะ",
       "feedNeed": 2,
+      "waterNeed": 1.2,
       "outputs": { "foodOccasional": 1, "hideOnSlaughter": 1, "foodOnSlaughter": 18 },
       "risks": ["หิวตาย", "หลุดเชือก", "ถูกขโมย", "สัตว์ป่ากัด"],
-      "notes": "ใช้เป็นฐานอาหารระยะยาว แต่กินอาหารสูงกว่าไก่"
+      "notes": "เป็นฐานอาหารระยะยาว ขยายฝูงได้ดี แต่ต้องมีอาหารและน้ำพอ"
     },
     {
       "id": "chickens",
       "icon": "🐔",
       "name": "ไก่",
       "feedNeed": 0.35,
+      "waterNeed": 0.12,
       "outputs": { "foodOccasional": 0.25, "foodOnSlaughter": 4 },
       "risks": ["หนี", "ถูกขโมย", "โรคในคอก"],
-      "notes": "ออกลูกง่ายกว่าแพะและใช้พื้นที่น้อย"
+      "notes": "ใช้พื้นที่น้อย ออกลูกง่าย เป็นเสบียงเสริมที่ดีช่วงต้นเกม"
     },
     {
       "id": "dogs",
       "icon": "🐕",
       "name": "สุนัขเฝ้าค่าย",
       "feedNeed": 1.2,
+      "waterNeed": 0.75,
       "outputs": { "securityBonus": 3 },
       "risks": ["หิว", "บาดเจ็บจากการเฝ้ายาม"],
-      "notes": "ช่วยเตือนภัย แต่เป็นภาระอาหาร"
+      "notes": "ช่วยเตือนภัยและลดการขโมย แต่ไม่ใช่สัตว์ผลิตอาหาร"
+    },
+    {
+      "id": "cows",
+      "icon": "🐄",
+      "name": "วัว",
+      "feedNeed": 3.4,
+      "waterNeed": 2.6,
+      "outputs": { "foodOccasional": 1, "hideOnSlaughter": 2, "foodOnSlaughter": 32, "milkFood": 1 },
+      "risks": ["กินทรัพยากรสูง", "ถูกขโมย", "ป่วยง่ายเมื่อไม่มีน้ำ", "หนีเมื่อคอกอ่อนแอ"],
+      "notes": "ให้ผลตอบแทนดีมาก แต่เป็นภาระอาหารและน้ำสูง ต้องมีคอกหรือแหล่งน้ำมั่นคง"
+    },
+    {
+      "id": "pigs",
+      "icon": "🐖",
+      "name": "หมู",
+      "feedNeed": 1.7,
+      "waterNeed": 0.9,
+      "outputs": { "foodOccasional": 0, "foodOnSlaughter": 22 },
+      "risks": ["กินอาหารมาก", "กลิ่น/โรค", "หนีเมื่อหิว"],
+      "notes": "เหมาะเป็นอาหารสำรองระยะกลาง แต่ถ้าอาหารขาดจะกลายเป็นภาระเร็ว"
     }
   ],
   "researchUnlocks": [
-    {
-      "id": "animalKeeping",
-      "name": "การเลี้ยงสัตว์พื้นฐาน",
-      "unlocks": ["animalPen", "livestock event pool"]
-    },
-    {
-      "id": "fodderPrep",
-      "name": "การทำอาหารสัตว์",
-      "unlocks": ["feed resource", "feed labor job"]
-    }
+    { "id": "animalKeeping", "name": "การเลี้ยงสัตว์พื้นฐาน", "unlocks": ["animalPen", "livestock event pool"] },
+    { "id": "fodderPrep", "name": "การทำอาหารสัตว์", "unlocks": ["feed resource", "feed labor job"] }
   ],
-  "actions": [
-    "keep",
-    "breed",
-    "slaughter",
-    "release",
-    "protect"
-  ]
+  "actions": ["keep", "breed", "slaughter", "release", "protect"]
 }

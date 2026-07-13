@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.9.25",
+  "purpose": "Location exploration consequences that should be portable to a future Godot node map.",
+  "rules": [
+    "Locations discovered through exploration can become permanent monthly resource sources.",
+    "High-risk locations add specific threat pressure until secured by labor, buildings, or patrols.",
+    "Trade-road locations increase merchant chances but also attract theft and bandit pressure.",
+    "Water locations improve survival but can increase disease risk unless water care is assigned."
+  ]
+}

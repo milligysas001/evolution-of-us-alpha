@@ -1,11 +1,11 @@
-# QUALITY CHECK — v0.9.24
+# Quality Check — v0.9.25
 
-- [x] เพิ่ม annual settlers แยกจาก migration event
-- [x] คนประจำปีมีข้อมูลรายบุคคลจริง ไม่ใช่ตัวเลขประชากรลอย ๆ
-- [x] ระบบมีผลต่ออาหาร น้ำ ที่พัก และความสัมพันธ์
-- [x] Dark mode อยู่ใน Settings และไม่กระทบ save game
-- [x] เพิ่ม data JSON สำหรับ Godot porting
-- [x] ตรวจ JSON ใน data/game ผ่านด้วย npm run check:data
-- [x] ตรวจ syntax TSX เบื้องต้นผ่าน TypeScript transpile diagnostics
-
-หมายเหตุ: ในเครื่องผู้ใช้ต้องรัน `npm run check` หลังติดตั้งเพื่อให้ Next.js ตรวจ build เต็มระบบอีกครั้ง
+- [x] ปรับ `GAME_VERSION` เป็น 0.9.25
+- [x] Dark Mode hardening ครอบคลุม card/panel/chart/map/migrant/labor ที่ยังขาวใน v0.9.24
+- [x] กราฟทรัพยากรเป็นกราฟเส้นรวมในหน้า Resource Ledger
+- [x] ข้อความแนว developer/Godot ถูกย้ายออกจากหน้าผู้เล่น เหลือเฉพาะข้อมูลระบบหลังปลดล็อกรหัส
+- [x] ระบบแผนที่สำรวจแล้วเปิดพื้นที่/เพิ่มทรัพยากรรายเดือน/เพิ่มข่าวหรือความเสี่ยง
+- [x] Risk bar สีต่ำ=เขียว กลาง=เหลือง สูง=แดง สูงมาก=แดงเข้ม
+- [x] เพิ่มสัตว์เลี้ยงวัวและหมูใน data และ logic หลัก
+- [x] JSON ใน `data/game` parse ผ่าน
+- [x] TSX syntax diagnostics ผ่านแบบ transpile check

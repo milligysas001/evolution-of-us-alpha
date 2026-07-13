@@ -97,7 +97,7 @@ type Rumor = {
 };
 
 type Project<T extends string> = { id: T; progress: number } | null;
-type AnimalKey = "goats" | "chickens" | "dogs";
+type AnimalKey = "goats" | "chickens" | "dogs" | "cows" | "pigs";
 type AnimalAction = "keep" | "slaughter" | "breed" | "release" | "protect";
 type Animals = Record<AnimalKey, number>;
 type AnimalState = { animals: Animals; hunger: number; health: number; lastAction: AnimalAction; log: string[]; };
@@ -261,8 +261,8 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.24";
-const BUILD_LABEL = "Annual Settlers & Dark Mode";
+const GAME_VERSION = "0.9.25";
+const BUILD_LABEL = "Dark Mode · Map Consequences · Livestock Expansion";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -622,12 +622,12 @@ function emptyLabor(): Labor {
 }
 
 function emptyAnimalState(): AnimalState {
-  return { animals: { goats: 0, chickens: 0, dogs: 0 }, hunger: 0, health: 70, lastAction: "keep", log: [] };
+  return { animals: { goats: 0, chickens: 0, dogs: 0, cows: 0, pigs: 0 }, hunger: 0, health: 70, lastAction: "keep", log: [] };
 }
 function normalizeAnimalState(state?: Partial<AnimalState>): AnimalState {
   const base = emptyAnimalState();
   return {
-    animals: { goats: Math.max(0, Math.round(state?.animals?.goats ?? 0)), chickens: Math.max(0, Math.round(state?.animals?.chickens ?? 0)), dogs: Math.max(0, Math.round(state?.animals?.dogs ?? 0)) },
+    animals: { goats: Math.max(0, Math.round(state?.animals?.goats ?? 0)), chickens: Math.max(0, Math.round(state?.animals?.chickens ?? 0)), dogs: Math.max(0, Math.round(state?.animals?.dogs ?? 0)), cows: Math.max(0, Math.round((state as any)?.animals?.cows ?? 0)), pigs: Math.max(0, Math.round((state as any)?.animals?.pigs ?? 0)) },
     hunger: clamp(state?.hunger ?? 0),
     health: clamp(state?.health ?? 70),
     lastAction: state?.lastAction ?? "keep",
@@ -636,11 +636,11 @@ function normalizeAnimalState(state?: Partial<AnimalState>): AnimalState {
 }
 function animalCount(game: GameState) {
   const a = normalizeAnimalState(game.animalState).animals;
-  return a.goats + a.chickens + a.dogs;
+  return a.goats + a.chickens + a.dogs + a.cows + a.pigs;
 }
 function animalNeed(game: GameState) {
   const a = normalizeAnimalState(game.animalState).animals;
-  return Math.ceil(a.goats * 2 + a.chickens * 0.35 + a.dogs * 1.2);
+  return Math.ceil(a.goats * 2 + a.chickens * 0.35 + a.dogs * 1.2 + a.cows * 3.4 + a.pigs * 1.7);
 }
 function animalFoodSource(game: GameState) {
   if (game.researchDone.fodderPrep) return "อาหารสัตว์คุณภาพ";
@@ -649,7 +649,7 @@ function animalFoodSource(game: GameState) {
 }
 function animalSecurityBonus(game: GameState) {
   const a = normalizeAnimalState(game.animalState).animals;
-  return Math.min(8, a.dogs * 3 + game.buildings.animalPen * 2);
+  return Math.min(10, a.dogs * 3 + a.cows * 0.8 + game.buildings.animalPen * 2);
 }
 
 function randomTerrain(): TerrainKey {
@@ -769,7 +769,7 @@ function crewNameList(people: Person[]) {
 }
 function animalWaterNeed(game: GameState) {
   const a = normalizeAnimalState(game.animalState).animals;
-  return Math.ceil(a.goats * 1.2 + a.chickens * 0.12 + a.dogs * 0.75);
+  return Math.ceil(a.goats * 1.2 + a.chickens * 0.12 + a.dogs * 0.75 + a.cows * 2.6 + a.pigs * 0.9);
 }
 function animalSystemNote(game: GameState) {
   if (animalCount(game) <= 0) return "ยังไม่มีสัตว์เลี้ยง ระบบสัตว์จะเริ่มมีผลเมื่อพบสัตว์หรือรับสัตว์จากเหตุการณ์";
@@ -781,6 +781,32 @@ function animalSystemNote(game: GameState) {
   const waterText = animalWaterNeed(game) > 0 ? `และใช้น้ำประมาณ ${animalWaterNeed(game)} หน่วย/เดือน` : "";
   return `${feedText} ${waterText} หากขาดอาหารหรือน้ำ สุขภาพสัตว์จะลด หนีง่ายขึ้น และอาจล้มตาย`;
 }
+
+function locationMonthlyBonus(game: GameState): Partial<Resources> {
+  const locations = normalizeLocations(game.locations);
+  const bonus: Partial<Resources> = {};
+  const add = (delta: Partial<Resources>) => {
+    for (const [key, value] of Object.entries(delta)) bonus[key as keyof Resources] = Math.round(((bonus[key as keyof Resources] ?? 0) + (value ?? 0)) * 10) / 10;
+  };
+  const has = (key: LocationKey) => locations[key]?.discovered && locations[key]?.progress >= 100;
+  if (has("shallowStream")) add({ water: 3, herbs: 1 });
+  if (has("deepWoods")) add({ food: 2, wood: 2, herbs: 1 });
+  if (has("oldTradeRoad")) add({ gold: 1, knowledge: 1 });
+  if (has("rockyRidge")) add({ stone: 2, ore: 1 });
+  if (has("abandonedCamp")) add({ tools: 1, knowledge: 1 });
+  if (has("marshPools")) add({ water: 2, herbs: 1, feed: 1 });
+  if (has("huntingGround")) add({ food: 3, hides: 1 });
+  if (has("oldCave")) add({ stone: 1, ore: 1, knowledge: 1 });
+  return bonus;
+}
+function locationMonthlyBonusText(game: GameState) {
+  const bonus = locationMonthlyBonus(game);
+  const entries = Object.entries(bonus).filter(([, v]) => (v ?? 0) > 0);
+  if (!entries.length) return "ยังไม่มีเส้นทางที่สำรวจจนใช้ประโยชน์ประจำเดือนได้";
+  const labels: Record<ResourceKey, { icon: string; name: string }> = { food: { icon: "🍲", name: "อาหาร" }, water: { icon: "💧", name: "น้ำ" }, fuel: { icon: "🔥", name: "ฟืน" }, wood: { icon: "🪵", name: "ไม้" }, stone: { icon: "🪨", name: "หิน" }, tools: { icon: "🛠️", name: "เครื่องมือ" }, herbs: { icon: "🌿", name: "สมุนไพร" }, hides: { icon: "🦬", name: "หนังสัตว์" }, gold: { icon: "🪙", name: "ทอง" }, knowledge: { icon: "📜", name: "ความรู้" }, feed: { icon: "🌾", name: "อาหารสัตว์" }, ore: { icon: "⛏️", name: "แร่" } };
+  return entries.map(([k, v]) => `${labels[k as ResourceKey]?.icon ?? "•"} ${labels[k as ResourceKey]?.name ?? k} +${fmt(v as number)}`).join(" · ");
+}
+
 function recommendedAssignments(game: GameState): LaborAssignments {
   const jobs = unlockedLaborOptions(game).map((j) => j.id);
   const desired = recommendedLabor(game);
@@ -1439,12 +1465,16 @@ function resolveAnimals(game: GameState): { game: GameState; changes: string[] }
   }
   const a = { ...state.animals };
   if (g.animalAction === "slaughter") {
-    if (a.goats > 0) { a.goats -= 1; g = { ...g, resources: changeResources(g.resources, { food: 18, hides: 1 }), metrics: changeMetrics(g.metrics, { morale: -1 }) }; changes.push("เชือดแพะ 1 ตัวเป็นอาหาร +18 และหนัง +1"); }
+    if (a.cows > 0) { a.cows -= 1; g = { ...g, resources: changeResources(g.resources, { food: 32, hides: 2 }), metrics: changeMetrics(g.metrics, { morale: -2 }) }; changes.push("เชือดวัว 1 ตัวเป็นอาหาร +32 และหนัง +2"); }
+    else if (a.pigs > 0) { a.pigs -= 1; g = { ...g, resources: changeResources(g.resources, { food: 16, hides: 1 }), metrics: changeMetrics(g.metrics, { morale: -1 }) }; changes.push("เชือดหมู 1 ตัวเป็นอาหาร +16 และหนัง +1"); }
+    else if (a.goats > 0) { a.goats -= 1; g = { ...g, resources: changeResources(g.resources, { food: 18, hides: 1 }), metrics: changeMetrics(g.metrics, { morale: -1 }) }; changes.push("เชือดแพะ 1 ตัวเป็นอาหาร +18 และหนัง +1"); }
     else if (a.chickens >= 2) { a.chickens -= 2; g = { ...g, resources: changeResources(g.resources, { food: 8 }), metrics: changeMetrics(g.metrics, { morale: -1 }) }; changes.push("เชือดไก่ 2 ตัวเป็นอาหาร +8"); }
     else changes.push("ตั้งใจจะเชือดสัตว์ แต่ไม่มีสัตว์พอให้ทำอย่างคุ้มค่า");
   }
   if (g.animalAction === "release") {
-    if (a.goats > 0) { a.goats -= 1; state = { ...state, hunger: clamp(state.hunger - 8) }; changes.push("ปล่อยแพะที่เลี้ยงไม่ไหว 1 ตัว ลดภาระอาหารสัตว์"); }
+    if (a.cows > 0) { a.cows -= 1; state = { ...state, hunger: clamp(state.hunger - 10) }; changes.push("ปล่อยวัว 1 ตัว ลดภาระอาหารระยะยาว"); }
+    else if (a.pigs > 0) { a.pigs -= 1; state = { ...state, hunger: clamp(state.hunger - 8) }; changes.push("ปล่อยหมู 1 ตัว ลดภาระคอก"); }
+    else if (a.goats > 0) { a.goats -= 1; state = { ...state, hunger: clamp(state.hunger - 8) }; changes.push("ปล่อยแพะที่เลี้ยงไม่ไหว 1 ตัว ลดภาระอาหารสัตว์"); }
     else if (a.chickens > 0) { a.chickens -= 1; state = { ...state, hunger: clamp(state.hunger - 4) }; changes.push("ปล่อยไก่ 1 ตัว ลดภาระอาหารสัตว์"); }
   }
   if (g.animalAction === "protect") {
@@ -1455,29 +1485,39 @@ function resolveAnimals(game: GameState): { game: GameState; changes: string[] }
   const penBonus = g.buildings.animalPen > 0 ? 0.18 : 0;
   const breedChance = (g.animalAction === "breed" ? 0.22 : 0.08) + penBonus + (state.health > 75 && state.hunger < 30 ? 0.08 : 0);
   if (Math.random() < breedChance) {
-    if (a.chickens >= 2 && Math.random() < 0.65) { const born = 1 + Math.floor(Math.random() * 3); a.chickens += born; changes.push(`ไก่ออกลูก/ฟักเพิ่ม ${born} ตัว`); }
-    else if (a.goats >= 2) { a.goats += 1; changes.push("แพะออกลูกเพิ่ม 1 ตัว"); }
+    if (a.chickens >= 2 && Math.random() < 0.45) { const born = 1 + Math.floor(Math.random() * 3); a.chickens += born; changes.push(`ไก่ออกลูก/ฟักเพิ่ม ${born} ตัว`); }
+    else if (a.pigs >= 2 && Math.random() < 0.3) { a.pigs += 1; changes.push("หมูออกลูกเพิ่ม 1 ตัว"); }
+    else if (a.goats >= 2 && Math.random() < 0.4) { a.goats += 1; changes.push("แพะออกลูกเพิ่ม 1 ตัว"); }
+    else if (a.cows >= 2) { a.cows += 1; changes.push("วัวออกลูกเพิ่ม 1 ตัว"); }
   }
   const theftRisk = Math.max(0.02, (g.threat / 500) - (g.buildings.animalPen > 0 ? 0.04 : 0) - (g.labor.guard + g.labor.patrol) * 0.015 - (g.animalAction === "protect" ? 0.05 : 0));
   const escapeRisk = Math.max(0.02, state.hunger / 450 + (g.buildings.animalPen > 0 ? 0 : 0.05) - (g.animalAction === "protect" ? 0.04 : 0));
-  if (Math.random() < theftRisk && animalCount({ ...g, animalState: { ...state, animals: a } } as GameState) > 0) {
-    if (a.goats > 0) { a.goats -= 1; changes.push("มีคนขโมยแพะไป 1 ตัวในคืนมืด"); g = { ...g, threat: clamp(g.threat + 4), metrics: changeMetrics(g.metrics, { security: -4, morale: -2 }) }; }
+  const animalGame = { ...g, animalState: { ...state, animals: a } } as GameState;
+  if (Math.random() < theftRisk && animalCount(animalGame) > 0) {
+    if (a.cows > 0) { a.cows -= 1; changes.push("มีคนขโมยวัวไป 1 ตัวในคืนมืด"); g = { ...g, threat: clamp(g.threat + 5), metrics: changeMetrics(g.metrics, { security: -5, morale: -3 }) }; }
+    else if (a.pigs > 0) { a.pigs -= 1; changes.push("หมูถูกขโมย 1 ตัว"); g = { ...g, threat: clamp(g.threat + 4), metrics: changeMetrics(g.metrics, { security: -3 }) }; }
+    else if (a.goats > 0) { a.goats -= 1; changes.push("มีคนขโมยแพะไป 1 ตัวในคืนมืด"); g = { ...g, threat: clamp(g.threat + 4), metrics: changeMetrics(g.metrics, { security: -4, morale: -2 }) }; }
     else if (a.chickens > 0) { const lost = Math.min(a.chickens, 2); a.chickens -= lost; changes.push(`ไก่ถูกขโมย ${lost} ตัว`); g = { ...g, threat: clamp(g.threat + 3), metrics: changeMetrics(g.metrics, { security: -2 }) }; }
-  } else if (Math.random() < escapeRisk && animalCount({ ...g, animalState: { ...state, animals: a } } as GameState) > 0) {
-    if (a.chickens > 0 && Math.random() < 0.6) { a.chickens -= 1; changes.push("ไก่หนีออกจากคอกเพราะหิวและรั้วไม่แน่น"); }
+  } else if (Math.random() < escapeRisk && animalCount(animalGame) > 0) {
+    if (a.chickens > 0 && Math.random() < 0.45) { a.chickens -= 1; changes.push("ไก่หนีออกจากคอกเพราะหิวและรั้วไม่แน่น"); }
+    else if (a.pigs > 0 && Math.random() < 0.55) { a.pigs -= 1; changes.push("หมูมุดรั้วหนีออกจากคอก"); }
     else if (a.goats > 0) { a.goats -= 1; changes.push("แพะหลุดเชือกและหายเข้าป่า"); }
+    else if (a.cows > 0) { a.cows -= 1; changes.push("วัวแตกตื่นและหลุดออกจากคอก"); }
   }
   if (state.hunger >= 80 || state.health <= 25) {
     if (a.chickens > 0) { a.chickens -= 1; changes.push("ไก่หนึ่งตัวหิว/ป่วยตาย"); }
+    else if (a.pigs > 0) { a.pigs -= 1; changes.push("หมูหนึ่งตัวล้มจากความหิวและโรค"); }
     else if (a.goats > 0) { a.goats -= 1; changes.push("แพะหนึ่งตัวล้มตายจากความหิวและโรค"); }
+    else if (a.cows > 0) { a.cows -= 1; changes.push("วัวหนึ่งตัวทรุดตายเพราะขาดน้ำและอาหาร"); }
     state = { ...state, hunger: clamp(state.hunger - 20), health: clamp(state.health - 6) };
   }
-  const productsFood = Math.floor(a.chickens / 4) + Math.floor(a.goats / 3);
-  if (productsFood > 0 && g.animalAction !== "slaughter") {
-    g = { ...g, resources: changeResources(g.resources, { food: productsFood }) };
-    changes.push(`ผลิตจากสัตว์เลี้ยง +อาหาร ${productsFood}`);
+  const productsFood = Math.floor(a.chickens / 4) + Math.floor(a.goats / 3) + Math.floor(a.pigs / 3);
+  const milkFood = Math.floor(a.cows / 2);
+  if ((productsFood + milkFood) > 0 && g.animalAction !== "slaughter") {
+    g = { ...g, resources: changeResources(g.resources, { food: productsFood + milkFood }) };
+    changes.push(`ผลิตจากสัตว์เลี้ยง +อาหาร ${productsFood + milkFood}`);
   }
-  state = { ...state, animals: a, lastAction: g.animalAction, log: [`เดือน ${g.month}/${g.year}: ${changes.filter((c) => c.includes("สัตว์") || c.includes("แพะ") || c.includes("ไก่") || c.includes("คอก")).join(" · ") || "สัตว์เลี้ยงยังคงอยู่ในค่าย"}`, ...state.log].slice(0, 20) };
+  state = { ...state, animals: a, lastAction: g.animalAction, log: [`เดือน ${g.month}/${g.year}: ${changes.filter((c) => c.includes("สัตว์") || c.includes("แพะ") || c.includes("ไก่") || c.includes("คอก") || c.includes("วัว") || c.includes("หมู")).join(" · ") || "สัตว์เลี้ยงยังคงอยู่ในค่าย"}`, ...state.log].slice(0, 20) };
   return { game: { ...g, animalState: state, animalAction: "keep" }, changes };
 }
 
@@ -2159,6 +2199,21 @@ function addAnnualSettlers(game: GameState, changes: string[]): GameState {
   changes.push(`ผู้มาตั้งถิ่นฐานประจำปี +${count} คน`);
   if (children || elders || sick) changes.push(`ผู้เปราะบางที่ต้องดูแลเพิ่ม: เด็ก ${children} · ผู้เฒ่า ${elders} · ป่วย/เจ็บ ${sick}`);
   if (shelterPressure > 0) changes.push(`ที่พักเริ่มตึงตัวเกินความจุ ${shelterPressure} คน`);
+  const animalState = normalizeAnimalState(g.animalState);
+  const broughtAnimals: string[] = [];
+  if (Math.random() < 0.22) {
+    const pigs = 1 + Math.floor(Math.random() * 2);
+    animalState.animals.pigs += pigs;
+    broughtAnimals.push(`หมู ${pigs} ตัว`);
+  }
+  if (Math.random() < 0.14) {
+    animalState.animals.cows += 1;
+    broughtAnimals.push("วัว 1 ตัว");
+  }
+  if (broughtAnimals.length) {
+    g = { ...g, animalState: { ...animalState, log: [`ครอบครัวผู้มาตั้งถิ่นฐานพาสัตว์มาด้วย: ${broughtAnimals.join(" · ")}`, ...animalState.log].slice(0, 20) } };
+    changes.push(`ผู้มาตั้งถิ่นฐานพาสัตว์มาด้วย: ${broughtAnimals.join(" · ")}`);
+  }
   return g;
 }
 function addChild(game: GameState): GameState {
@@ -2267,13 +2322,15 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   const tradeHerbs = l.trade ? Math.min(g.resources.herbs, l.trade) : 0;
   const goldGain = Math.round(l.trade * 2 + tradeFood * 0.8 + tradeHides * 2 + tradeHerbs * 1.5);
   const feedGain = Math.round(l.feed * (g.buildings.animalPen ? 5 : 3) + (g.researchDone.fodderPrep && g.labor.farm > 0 ? 1 : 0));
-  g = { ...g, resources: changeResources(g.resources, { food: foodGain - tradeFood, wood: woodGain - toolWoodCost, stone: stoneGain, knowledge: knowledgeGain, water: waterGain, fuel: fuelGain, tools: toolsGain, herbs: herbsGain - tradeHerbs, hides: -tradeHides, gold: goldGain, feed: feedGain }) };
+  const routeBonus = locationMonthlyBonus(g);
+  g = { ...g, resources: changeResources(g.resources, { food: foodGain - tradeFood + (routeBonus.food ?? 0), wood: woodGain - toolWoodCost + (routeBonus.wood ?? 0), stone: stoneGain + (routeBonus.stone ?? 0), knowledge: knowledgeGain + (routeBonus.knowledge ?? 0), water: waterGain + (routeBonus.water ?? 0), fuel: fuelGain + (routeBonus.fuel ?? 0), tools: toolsGain + (routeBonus.tools ?? 0), herbs: herbsGain - tradeHerbs + (routeBonus.herbs ?? 0), hides: -tradeHides + (routeBonus.hides ?? 0), gold: goldGain + (routeBonus.gold ?? 0), feed: feedGain + (routeBonus.feed ?? 0), ore: (routeBonus.ore ?? 0) }) };
   if (l.patrol > 0) g = { ...g, metrics: changeMetrics(g.metrics, { security: Math.min(5, l.patrol * 2) }), threat: clamp(g.threat - l.patrol * 3, 0, 100) };
   if (l.water > 0) g = { ...g, metrics: changeMetrics(g.metrics, { health: Math.min(4, l.water) }) };
   if (l.herbs > 0) g = { ...g, metrics: changeMetrics(g.metrics, { health: Math.min(4, l.herbs) }) };
   if (l.teach > 0) g = { ...g, metrics: changeMetrics(g.metrics, { cohesion: Math.min(4, l.teach * 2), morale: Math.min(3, l.teach) }) };
   const changes = [`ผลิตอาหาร +${foodGain}`, `ไม้ +${woodGain}`, `หิน +${stoneGain}`, `ความรู้ +${knowledgeGain}`, `น้ำ +${waterGain}`, `ฟืน +${fuelGain}`];
   if (feedGain) changes.push(`อาหารสัตว์ +${feedGain}`);
+  if (Object.keys(routeBonus).length) changes.push(`เส้นทางที่สำรวจแล้วส่งทรัพยากรกลับค่าย: ${locationMonthlyBonusText(g)}`);
   if (l.intel > 0) {
     g = { ...g, metrics: changeMetrics(g.metrics, { security: Math.min(3, l.intel), trust: Math.min(2, l.intel) }), threat: clamp(g.threat - l.intel, 0, 100) };
     const newsPool: Array<Omit<Rumor, "id" | "discovered">> = [
@@ -3030,7 +3087,9 @@ function เป้าหมายsPanel({ game }: { game: GameState }) {
 function RiskPanel({ game, risk }: { game: GameState; risk: Risks }) {
   const items: Array<[keyof Risks, string]> = [["food", "อาหาร"], ["shelter", "ที่พัก"], ["disease", "โรค"], ["beast", "สัตว์ป่า"], ["conflict", "ขัดแย้ง"], ["weather", "อากาศ"], ["accident", "อุบัติเหตุ"]];
   const reasons = riskReasons(game, risk);
-  return <section className="panel pad"><h3 className="section-title">ความเสี่ยงก่อนจบเดือน</h3><div className="stat-list">{items.map(([k, label]) => <div key={k} className="risk-row"><MiniStat label={`${label}: ${riskLabel(risk[k])}`} value={risk[k]} /><small className="muted">{reasons[k].slice(0, 2).join(" · ")}</small></div>)}</div></section>;
+  const fillClass = (value: number) => value >= 75 ? "fill danger-deep" : value >= 50 ? "fill danger" : value >= 30 ? "fill warn" : "fill";
+  const toneClass = (value: number) => value >= 75 ? "danger-text" : value >= 50 ? "warn-text" : "good-text";
+  return <section className="panel pad"><h3 className="section-title">ความเสี่ยงก่อนจบเดือน</h3><div className="stat-list">{items.map(([k, label]) => <div key={k} className="risk-row"><div className="mini-stat"><span>{label}: <b className={toneClass(risk[k])}>{riskLabel(risk[k])}</b></span><b className={toneClass(risk[k])}>{pct(risk[k])}</b><div className="bar"><div className={fillClass(risk[k])} style={{ width: `${clamp(risk[k])}%` }} /></div></div><small className="muted">{reasons[k].slice(0, 2).join(" · ")}</small></div>)}</div></section>;
 }
 function ForecastPanel({ game }: { game: GameState }) {
   const tier = threatTier(game);
@@ -3103,32 +3162,50 @@ function ResourceLedgerDetailed({ game, compact = false }: { game: GameState; co
 }
 
 function ResourceHistoryChart({ game, history }: { game: GameState; history: ResourceHistoryYear[] }) {
-  const rows: Array<{ key: ResourceKey; icon: string; label: string }> = [
-    { key: "food", icon: "🍲", label: "อาหาร" }, { key: "water", icon: "💧", label: "น้ำ" }, { key: "fuel", icon: "🔥", label: "ฟืน" }, { key: "wood", icon: "🪵", label: "ไม้" }, { key: "stone", icon: "🪨", label: "หิน" }, { key: "gold", icon: "🪙", label: "ทอง" },
+  const rows: Array<{ key: ResourceKey; icon: string; label: string; color: string }> = [
+    { key: "food", icon: "🍲", label: "อาหาร", color: "#c84d45" },
+    { key: "water", icon: "💧", label: "น้ำ", color: "#4d8fd4" },
+    { key: "fuel", icon: "🔥", label: "ฟืน", color: "#e58f2c" },
+    { key: "wood", icon: "🪵", label: "ไม้", color: "#7f6a52" },
+    { key: "stone", icon: "🪨", label: "หิน", color: "#8f98a6" },
+    { key: "gold", icon: "🪙", label: "ทอง", color: "#c9a33d" },
   ];
   const points = history.length ? history : [makeResourceYearSnapshot(game)];
+  const maxValue = Math.max(1, ...points.flatMap((p) => rows.map((row) => p.stocks[row.key] ?? 0)));
+  const width = 760;
+  const height = 280;
+  const padding = { top: 18, right: 16, bottom: 34, left: 36 };
+  const innerW = width - padding.left - padding.right;
+  const innerH = height - padding.top - padding.bottom;
+  const xAt = (i: number) => padding.left + (points.length <= 1 ? innerW / 2 : (i / (points.length - 1)) * innerW);
+  const yAt = (value: number) => padding.top + innerH - (Math.max(0, value) / maxValue) * innerH;
   return (
     <section className="panel pad resource-history-section" style={{ marginBottom: 14 }}>
       <div className="split"><div><h3 className="section-title">กราฟย้อนหลังรายปี</h3><p className="muted small">เก็บสูงสุด 10 ปีล่าสุด หากเกิน 10 ปี ระบบจะตัดปีเก่าที่สุดออกอัตโนมัติ</p></div><span className="badge blue">{points.length}/10 ปี</span></div>
-      <div className="history-chart-grid">
-        {rows.map((row) => {
-          const max = Math.max(1, ...points.map((p) => Math.abs(resourcePartialValue(p.net, row.key))), ...points.map((p) => Math.abs(p.stocks[row.key] ?? 0)));
-          return <div className="history-row" key={row.key}>
-            <div className="history-label"><b>{row.icon} {row.label}</b><small>สุทธิรายปี / คงเหลือ</small></div>
-            <div className="year-bars">
-              {points.map((p) => {
-                const net = resourcePartialValue(p.net, row.key);
-                const stock = p.stocks[row.key] ?? 0;
-                const h = Math.max(8, Math.round((Math.abs(net) / max) * 72));
-                return <div className="year-bar-wrap" key={`${row.key}-${p.year}`} title={`ปี ${p.year}: สุทธิ ${net >= 0 ? "+" : ""}${fmt(net)} · คงเหลือ ${fmt(stock)}`}>
-                  <div className={net >= 0 ? "year-bar good" : "year-bar bad"} style={{ height: h }} />
-                  <small>{p.year}</small>
-                </div>;
-              })}
-            </div>
-          </div>;
-        })}
+      <div className="history-line-wrap">
+        <svg viewBox={`0 0 ${width} ${height}`} className="history-line-chart" role="img" aria-label="กราฟย้อนหลังทรัพยากรรายปี">
+          {[0, .25, .5, .75, 1].map((tick) => {
+            const y = padding.top + innerH - innerH * tick;
+            const value = Math.round(maxValue * tick);
+            return <g key={`tick-${tick}`}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} className="chart-grid" />
+              <text x={padding.left - 8} y={y + 4} textAnchor="end" className="chart-label">{value}</text>
+            </g>;
+          })}
+          {rows.map((row) => {
+            const d = points.map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i)} ${yAt(p.stocks[row.key] ?? 0)}`).join(" ");
+            return <g key={row.key}>
+              <path d={d} fill="none" stroke={row.color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+              {points.map((p, i) => <circle key={`${row.key}-${p.year}`} cx={xAt(i)} cy={yAt(p.stocks[row.key] ?? 0)} r="3.5" fill={row.color}><title>{`ปี ${p.year} • ${row.label} ${fmt(p.stocks[row.key] ?? 0)}`}</title></circle>)}
+            </g>;
+          })}
+          {points.map((p, i) => <text key={`year-${p.year}`} x={xAt(i)} y={height - 8} textAnchor="middle" className="chart-label">{p.year}</text>)}
+        </svg>
       </div>
+      <div className="line-legend">
+        {rows.map((row) => <span key={row.key} className="line-legend-item"><i style={{ background: row.color }} />{row.icon} {row.label}</span>)}
+      </div>
+      <p className="muted small">เส้นแต่ละสีแสดง “คงเหลือปลายปี” ของทรัพยากรหลัก ช่วยดูแนวโน้มระยะยาวของชุมชนได้ในหน้าเดียว</p>
     </section>
   );
 }
@@ -3371,7 +3448,7 @@ function MapView({ game, setExploreTarget }: { game: GameState; setExploreTarget
       <div className="split">
         <div>
           <h2 className="title">แผนที่รอบถิ่นฐาน</h2>
-          <p className="muted">โลกไม่ได้จบที่แนวค่าย การสำรวจจะเปิดน้ำ ป่า ถนนเก่า ถ้ำ ซากค่าย และภัยที่กำลังเคลื่อนเข้าหาเรา ข้อมูลชุดนี้ถูกแยกเป็น data เพื่อย้ายไป Godot เป็น node map ได้ในอนาคต</p>
+          <p className="muted">โลกไม่ได้จบที่แนวค่าย การสำรวจจะค่อย ๆ เปิดแหล่งน้ำ ป่า เส้นทางค้า ถ้ำ และซากค่ายร้าง พื้นที่ที่สำรวจจนชำนาญจะกลายเป็นแหล่งทรัพยากรถาวรของชุมชน แต่ก็พาอันตรายใหม่ ๆ เข้ามาเช่นกัน</p>
         </div>
         <span className="badge green">เป้าหมายสำรวจ: {locationData[target].title}</span>
       </div>
@@ -3380,6 +3457,11 @@ function MapView({ game, setExploreTarget }: { game: GameState; setExploreTarget
         <div className="map-summary"><b>แรงงานสำรวจ</b><span>{(normalizeLabor(game).explore ?? 0).toFixed(1)}</span></div>
         <div className="map-summary"><b>ข่าวที่เปิดทาง</b><span>{game.rumors.length}</span></div>
         <div className="map-summary"><b>ภัยจากเส้นทาง</b><span>{pct(game.threat)}</span></div>
+      </div>
+      <div className="system-link-note">
+        <b>เมื่อสำรวจสำเร็จจะเกิดอะไรขึ้น?</b>
+        <p className="muted small">พื้นที่ที่สำรวจครบ 100% จะเริ่มส่งทรัพยากรกลับเข้าค่ายทุกเดือนอย่างถาวร และบางพื้นที่จะเพิ่มโอกาสพ่อค้า ข่าวสาร วัตถุดิบ หรือความเสี่ยงเฉพาะทาง</p>
+        <small className="muted">ผลประโยชน์ประจำเดือนตอนนี้: {locationMonthlyBonusText(game)}</small>
       </div>
       <div className="location-grid">
         {(Object.keys(locationData) as LocationKey[]).map((key) => {
@@ -3548,7 +3630,7 @@ function AnimalsView({ game, setAnimalAction }: { game: GameState; setAnimalActi
     { id: "release", icon: "🌿", title: "ปล่อยสัตว์ที่เลี้ยงไม่ไหว", text: "ลดภาระอาหารสัตว์โดยไม่ฆ่า เหมาะเมื่ออาหารใกล้หมด", disabled: total <= 0 },
     { id: "protect", icon: "🛡️", title: "เฝ้าคอกเป็นพิเศษ", text: "ลดโอกาสถูกขโมยหรือสัตว์หนี โดยเฉพาะเมื่อภัยภายนอกสูง", disabled: total <= 0 },
   ];
-  return <section className="panel pad"><div className="split"><div><h2 className="title">สัตว์เลี้ยงและฝูงอาหาร</h2><p className="muted">สัตว์ไม่ใช่ตัวเลขนิ่ง ๆ พวกมันกินอาหาร หนีได้ ถูกขโมยได้ ป่วยหรือตายได้ แต่ถ้าเลี้ยงดีจะเป็นอาหาร นม ไข่ หนัง และความมั่นคงระยะยาวของถิ่นฐาน</p></div><span className="badge green">แผนเดือนนี้: {animalActionLabel(game.animalAction ?? "keep")}</span></div><div className="dashboard-grid"><div className="panel kpi"><span className="muted">🐐 แพะ</span><b>{state.animals.goats}</b><small>ให้เนื้อ หนัง และมีโอกาสออกลูก</small></div><div className="panel kpi"><span className="muted">🐔 ไก่</span><b>{state.animals.chickens}</b><small>เพิ่มอาหารเล็กน้อยและออกลูกง่ายกว่า</small></div><div className="panel kpi"><span className="muted">🐕 สุนัข</span><b>{state.animals.dogs}</b><small>ช่วยเตือนภัยและเฝ้าค่าย แต่กินอาหาร</small></div><div className="panel kpi"><span className="muted">ความหิว / สุขภาพ</span><b>{pct(state.hunger)} / {pct(state.health)}</b><small>ต้องใช้ {needs} หน่วยจาก{animalFoodSource(game)} · น้ำ {animalWaterNeed(game)}</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ระบบอาหารสัตว์และน้ำ</h3><table className="report-table"><tbody><tr><td>สถานะอาหารสัตว์</td><td>{feedUnlocked ? "วิจัยแล้ว แสดงในทรัพยากรและผลิตได้จากงานตัดหญ้า" : game.buildings.animalPen > 0 ? "มีอาหารหยาบจากคอก/ตัดหญ้าได้ แต่ยังควรวิจัยอาหารสัตว์" : "ยังไม่วิจัย สัตว์จะกินอาหารคน/เศษพืชก่อน"}</td></tr><tr><td>งานที่เกี่ยวข้อง</td><td>{feedUnlocked || game.buildings.animalPen > 0 ? "ตัดหญ้า / ทำอาหารสัตว์" : "สร้างคอกหรือวิจัยอาหารสัตว์ก่อน"}</td></tr><tr><td>คอกสัตว์</td><td>{game.buildings.animalPen > 0 ? `มี ${game.buildings.animalPen} หลัง ลดหนี/ขโมย` : "ยังไม่มี ควรวิจัยการเลี้ยงสัตว์พื้นฐาน"}</td></tr><tr><td>น้ำสัตว์</td><td>{animalWaterNeed(game)} หน่วย/เดือน หากน้ำไม่พอสุขภาพฝูงจะลด</td></tr></tbody></table></div><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ความเสี่ยงสมจริง</h3><ul className="muted"><li>อาหารไม่พอ → ความหิวสัตว์เพิ่ม และมีโอกาสสัตว์หิวตาย</li><li>ไม่มีคอก/เวรยาม → สัตว์หนีหรือถูกขโมยง่ายขึ้น</li><li>เลือกขยายฝูง → ได้ผลดีระยะยาว แต่กินอาหารมากขึ้น</li><li>เลือกฆ่าเพื่ออาหาร → ช่วยวิกฤตทันที แต่ทำลายอนาคตของฝูง</li></ul></div></div><h3 className="section-title" style={{ marginTop: 16 }}>เลือกแผนสัตว์เลี้ยงเดือนนี้</h3><div className="work-grid">{actionCards.map((a) => <button key={a.id} className={game.animalAction === a.id ? "work-card active-step" : "work-card"} disabled={a.disabled} onClick={() => setAnimalAction(a.id)} style={{ textAlign: "left", opacity: a.disabled ? .55 : 1 }}><b>{a.icon} {a.title}</b><p className="muted small">{a.text}</p></button>)}</div><h3 className="section-title" style={{ marginTop: 16 }}>บันทึกสัตว์ล่าสุด</h3>{state.log.length ? <div className="timeline compact">{state.log.slice(0, 8).map((l, i) => <div className="log" key={`animal-log-${i}`}>{l}</div>)}</div> : <div className="empty">ยังไม่มีสัตว์เลี้ยงในค่าย ลองสำรวจหรือรอเหตุการณ์พบสัตว์หลง</div>}</section>;
+  return <section className="panel pad"><div className="split"><div><h2 className="title">สัตว์เลี้ยงและฝูงอาหาร</h2><p className="muted">สัตว์ไม่ใช่ตัวเลขนิ่ง ๆ พวกมันกินอาหาร หนีได้ ถูกขโมยได้ ป่วยหรือตายได้ แต่ถ้าเลี้ยงดีจะเป็นอาหาร นม ไข่ หนัง และความมั่นคงระยะยาวของถิ่นฐาน</p></div><span className="badge green">แผนเดือนนี้: {animalActionLabel(game.animalAction ?? "keep")}</span></div><div className="dashboard-grid"><div className="panel kpi"><span className="muted">🐐 แพะ</span><b>{state.animals.goats}</b><small>ให้เนื้อ หนัง และมีโอกาสออกลูก</small></div><div className="panel kpi"><span className="muted">🐔 ไก่</span><b>{state.animals.chickens}</b><small>เพิ่มอาหารเล็กน้อยและออกลูกง่ายกว่า</small></div><div className="panel kpi"><span className="muted">🐄 วัว</span><b>{state.animals.cows}</b><small>กินมาก แต่ให้เนื้อ นม และหนัง</small></div><div className="panel kpi"><span className="muted">🐖 หมู</span><b>{state.animals.pigs}</b><small>แปรเป็นอาหารได้ดีและขยายฝูงได้</small></div><div className="panel kpi"><span className="muted">🐕 สุนัข</span><b>{state.animals.dogs}</b><small>ช่วยเตือนภัยและเฝ้าค่าย แต่กินอาหาร</small></div><div className="panel kpi"><span className="muted">ความหิว / สุขภาพ</span><b>{pct(state.hunger)} / {pct(state.health)}</b><small>ต้องใช้ {needs} หน่วยจาก{animalFoodSource(game)} · น้ำ {animalWaterNeed(game)}</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ระบบอาหารสัตว์และน้ำ</h3><table className="report-table"><tbody><tr><td>สถานะอาหารสัตว์</td><td>{feedUnlocked ? "วิจัยแล้ว แสดงในทรัพยากรและผลิตได้จากงานตัดหญ้า" : game.buildings.animalPen > 0 ? "มีอาหารหยาบจากคอก/ตัดหญ้าได้ แต่ยังควรวิจัยอาหารสัตว์" : "ยังไม่วิจัย สัตว์จะกินอาหารคน/เศษพืชก่อน"}</td></tr><tr><td>งานที่เกี่ยวข้อง</td><td>{feedUnlocked || game.buildings.animalPen > 0 ? "ตัดหญ้า / ทำอาหารสัตว์" : "สร้างคอกหรือวิจัยอาหารสัตว์ก่อน"}</td></tr><tr><td>คอกสัตว์</td><td>{game.buildings.animalPen > 0 ? `มี ${game.buildings.animalPen} หลัง ลดหนี/ขโมย` : "ยังไม่มี ควรวิจัยการเลี้ยงสัตว์พื้นฐาน"}</td></tr><tr><td>น้ำสัตว์</td><td>{animalWaterNeed(game)} หน่วย/เดือน หากน้ำไม่พอสุขภาพฝูงจะลด</td></tr></tbody></table></div><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ความเสี่ยงสมจริง</h3><ul className="muted"><li>อาหารไม่พอ → ความหิวสัตว์เพิ่ม และมีโอกาสสัตว์หิวตาย</li><li>ไม่มีคอก/เวรยาม → สัตว์หนีหรือถูกขโมยง่ายขึ้น</li><li>เลือกขยายฝูง → ได้ผลดีระยะยาว แต่กินอาหารมากขึ้น</li><li>เลือกฆ่าเพื่ออาหาร → ช่วยวิกฤตทันที แต่ทำลายอนาคตของฝูง</li></ul></div></div><h3 className="section-title" style={{ marginTop: 16 }}>เลือกแผนสัตว์เลี้ยงเดือนนี้</h3><div className="work-grid">{actionCards.map((a) => <button key={a.id} className={game.animalAction === a.id ? "work-card active-step" : "work-card"} disabled={a.disabled} onClick={() => setAnimalAction(a.id)} style={{ textAlign: "left", opacity: a.disabled ? .55 : 1 }}><b>{a.icon} {a.title}</b><p className="muted small">{a.text}</p></button>)}</div><h3 className="section-title" style={{ marginTop: 16 }}>บันทึกสัตว์ล่าสุด</h3>{state.log.length ? <div className="timeline compact">{state.log.slice(0, 8).map((l, i) => <div className="log" key={`animal-log-${i}`}>{l}</div>)}</div> : <div className="empty">ยังไม่มีสัตว์เลี้ยงในค่าย ลองสำรวจหรือรอเหตุการณ์พบสัตว์หลง</div>}</section>;
 }
 
 function ChronicleView({ game }: { game: GameState }) {
@@ -3632,14 +3714,14 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme }: {
         </div>
         <div className="panel pad" style={{ boxShadow: "none" }}>
           <h3>Feedback ผู้เล่น</h3>
-          <p className="muted">ผู้เล่นทั่วไปจะเห็นเฉพาะปุ่มส่ง Feedback ไม่เห็นเครื่องมือ debug จนกว่าจะปลดล็อกด้วยรหัสผู้พัฒนา</p>
+          <p className="muted">หากต้องการส่งความเห็น สามารถกดอีเมลได้ทันที ส่วนเครื่องมือภายในจะถูกซ่อนไว้เพื่อไม่ให้รบกวนการเล่นปกติ</p>
           <a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a>
         </div>
       </div>
 
       <details className="details-box dev-tools-box" style={{ marginTop: 16 }}>
-        <summary>เครื่องมือผู้พัฒนา / Debug</summary>
-        {!devUnlocked ? <div className="dev-lock"><p className="muted small">พื้นที่นี้ซ่อนจากผู้เล่นทดสอบทั่วไป ใส่รหัสเพื่อเปิดข้อมูล debug</p><div className="flex"><input className="input" placeholder="รหัสผู้พัฒนา" value={devCode} onChange={(e) => setDevCode(e.target.value)} /><button className="primary" onClick={() => setDevUnlocked(devCode.trim() === "248655")}>ปลดล็อก</button></div>{devCode && devCode.trim() !== "248655" && <small className="danger-text">รหัสไม่ถูกต้อง</small>}</div> : <div><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอก Godot Data Pack</button><button className="secondary" onClick={() => setDevUnlocked(false)}>ล็อกอีกครั้ง</button></div><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></div>}
+        <summary>เครื่องมือพิเศษ</summary>
+        {!devUnlocked ? <div className="dev-lock"><p className="muted small">พื้นที่นี้เป็นส่วนเสริมสำหรับตรวจข้อมูลภายใน ใส่รหัสหากต้องการเปิดใช้งาน</p><div className="flex"><input className="input" placeholder="รหัสผู้พัฒนา" value={devCode} onChange={(e) => setDevCode(e.target.value)} /><button className="primary" onClick={() => setDevUnlocked(devCode.trim() === "248655")}>ปลดล็อก</button></div>{devCode && devCode.trim() !== "248655" && <small className="danger-text">รหัสไม่ถูกต้อง</small>}</div> : <div><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอกรายงานภายใน</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอกข้อมูลเซฟ</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอกชุดข้อมูลระบบ</button><button className="secondary" onClick={() => setDevUnlocked(false)}>ล็อกอีกครั้ง</button></div><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></div>}
       </details>
     </section>
   );
