@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
-type View = "เมือง" | "คน" | "ก่อสร้าง" | "วิจัย" | "Chronicle" | "ตั้งค่า";
+type View = "เมือง" | "คน" | "โครงการ" | "พงศาวดาร" | "ตั้งค่า";
 type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
 type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "patrol" | "trade" | "teach";
@@ -98,7 +98,7 @@ type SummaryModal = {
 } | null;
 
 type GameState = {
-  version: "0.9.8";
+  version: "0.9.9";
   leaderName: string;
   houseName: string;
   origin: Origin;
@@ -112,6 +112,7 @@ type GameState = {
   activeResearch: Project<ResearchKey>;
   labor: Labor;
   leaderFocus: LeaderFocusKey;
+  leaderActionSelected: boolean;
   selectedChoiceId: string | null;
   currentEventId: string;
   pendingEvents: string[];
@@ -173,12 +174,12 @@ type GameEvent = {
   choices: EventChoice[];
 };
 
-const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "Chronicle", "ตั้งค่า"];
+const views: View[] = ["เมือง", "คน", "โครงการ", "พงศาวดาร", "ตั้งค่า"];
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.8";
-const saveKey = "eou-v098-save";
-const setupKey = "eou-v098-setup";
-const tutorialKey = "eou-v098-tutorial-seen";
+const GAME_VERSION = "0.9.9";
+const saveKey = "eou-v099-save";
+const setupKey = "eou-v099-setup";
+const tutorialKey = "eou-v099-tutorial-seen";
 
 const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string; category: string; unlock?: (game: GameState) => boolean; lockedText?: string }> = [
   { id: "forage", icon: "🌾", title: "หาอาหาร / ล่าสัตว์", category: "พื้นฐาน", text: "อาหารมากขึ้น แต่เสี่ยงอุบัติเหตุในป่าและสัตว์ร้าย" },
@@ -351,7 +352,7 @@ function uid(prefix: string) { return `${prefix}-${Date.now()}-${Math.random().t
 function seasonOf(month: number): Season { return seasons[(month - 1) % 12]; }
 function fmt(n: number) { return Math.round(n).toLocaleString("th-TH"); }
 function pct(n: number) { return `${clamp(n)}%`; }
-function viewLabel(view: View) { return view === "Chronicle" ? "พงศาวดาร" : view; }
+function viewLabel(view: View) { return view; }
 function seasonMood(season: Season) {
   if (season === "ฤดูหนาว") return "ลมหนาวทำให้ทุกการตัดสินใจหนักขึ้นกว่าที่เห็น";
   if (season === "ฤดูฝน") return "ฝนทำให้ดินนุ่ม แต่ก็ทำให้แผลและไข้ไม่ยอมสงบ";
@@ -379,20 +380,39 @@ function baseResources(origin: Origin): Resources {
   if (origin === "keeper") { r.knowledge += 10; }
   return r;
 }
+function pickFrom<T>(items: T[]): T { return items[Math.floor(Math.random() * items.length)]; }
+function shuffle<T>(items: T[]): T[] { return [...items].sort(() => Math.random() - 0.5); }
 function initialPeople(leaderName: string, houseName: string, origin: Origin): Person[] {
   const leaderSkill: SkillKey = origin === "hunter" ? "hunter" : origin === "healer" ? "healer" : origin === "keeper" ? "keeper" : origin === "mediator" ? "guard" : "builder";
-  return [
-    { id: "leader", name: leaderName, age: 28, kin: `House ${houseName}`, role: "ผู้นำค่าย", skill: leaderSkill, health: 86, morale: 70, fatigue: 0, injured: false, alive: true, traits: ["ผู้ก่อตั้ง"] },
-    { id: "tovin", name: "Tovin", age: 34, kin: "ชาวบ้าน", role: "ช่างไม้", skill: "builder", health: 78, morale: 58, fatigue: 0, injured: false, alive: true, traits: ["มือหนัก", "เงียบ"] },
-    { id: "kael", name: "Kael", age: 23, kin: "ชาวบ้าน", role: "พราน", skill: "hunter", health: 82, morale: 62, fatigue: 0, injured: false, alive: true, traits: ["ใจร้อน", "อ่านรอยเก่ง"] },
-    { id: "elna", name: "Elna", age: 31, kin: "ชาวบ้าน", role: "คนครัว", skill: "farmer", health: 76, morale: 65, fatigue: 0, injured: false, alive: true, traits: ["ใจดี"] },
-    { id: "old-ren", name: "Old Ren", age: 67, kin: "ผู้เฒ่า", role: "ผู้รู้สมุนไพร", skill: "elder", health: 54, morale: 60, fatigue: 0, injured: false, alive: true, traits: ["จำเรื่องเก่า"] },
-    { id: "mara", name: "Mara", age: 19, kin: "ชาวบ้าน", role: "เวรยามฝึกหัด", skill: "guard", health: 80, morale: 55, fatigue: 0, injured: false, alive: true, traits: ["กล้าหาญ"] },
-    { id: "sela", name: "Sela", age: 26, kin: "ชาวบ้าน", role: "ผู้ดูแลเด็ก", skill: "healer", health: 74, morale: 67, fatigue: 0, injured: false, alive: true, traits: ["ละเอียดอ่อน"] },
-    { id: "orin", name: "Orin", age: 41, kin: "ชาวบ้าน", role: "คนเก็บหิน", skill: "builder", health: 72, morale: 52, fatigue: 0, injured: false, alive: true, traits: ["อดทน"] },
-    { id: "lina", name: "Lina", age: 9, kin: `House ${houseName}`, role: "เด็ก", skill: "child", health: 70, morale: 66, fatigue: 0, injured: false, alive: true, traits: ["ช่างสังเกต"] },
-    { id: "pim", name: "Pim", age: 6, kin: "ชาวบ้าน", role: "เด็ก", skill: "child", health: 68, morale: 68, fatigue: 0, injured: false, alive: true, traits: ["รักนิทาน"] },
+  const namePool = ["Tovin", "Kael", "Elna", "Mara", "Orin", "Sela", "Narin", "Boran", "Ysa", "Darin", "Mek", "Sorin", "Lora", "Pavel", "Nia", "Kiran", "Mali", "Arun", "Ruen", "Tala", "Nora", "Keta", "Pim", "Lina"];
+  const traitPool = ["ใจร้อน", "สุขุม", "มือหนัก", "ช่างสังเกต", "ใจดี", "ไม่ค่อยไว้ใจใคร", "อดทน", "เล่านิทานเก่ง", "กล้าหาญ", "ละเอียดอ่อน", "หัวไว", "ชอบช่วยงาน"];
+  const adultTemplates: Array<{ role: string; skill: SkillKey; ageMin: number; ageMax: number; traits: string[] }> = [
+    { role: "ช่างไม้", skill: "builder", ageMin: 24, ageMax: 46, traits: ["มือหนัก"] },
+    { role: "พราน", skill: "hunter", ageMin: 19, ageMax: 39, traits: ["อ่านรอยเก่ง"] },
+    { role: "คนครัว", skill: "farmer", ageMin: 23, ageMax: 44, traits: ["ใจดี"] },
+    { role: "เวรยามฝึกหัด", skill: "guard", ageMin: 18, ageMax: 34, traits: ["กล้าหาญ"] },
+    { role: "ผู้ดูแลเด็ก", skill: "healer", ageMin: 22, ageMax: 42, traits: ["ละเอียดอ่อน"] },
+    { role: "คนเก็บหิน", skill: "builder", ageMin: 28, ageMax: 54, traits: ["อดทน"] },
+    { role: "คนจดจำเรื่องเก่า", skill: "keeper", ageMin: 25, ageMax: 55, traits: ["ช่างสังเกต"] },
+    { role: "ชาวไร่", skill: "farmer", ageMin: 18, ageMax: 48, traits: ["ชอบช่วยงาน"] },
   ];
+  const people: Person[] = [
+    { id: "leader", name: leaderName, age: 26 + Math.floor(Math.random() * 12), kin: `House ${houseName}`, role: "ผู้นำค่าย", skill: leaderSkill, health: 78 + Math.floor(Math.random() * 12), morale: 65 + Math.floor(Math.random() * 8), fatigue: 0, injured: false, alive: true, traits: ["ผู้ก่อตั้ง", pickFrom(traitPool)] },
+  ];
+  const shuffledNames = shuffle(namePool.filter((n) => n !== leaderName));
+  shuffle(adultTemplates).slice(0, 6).forEach((t, i) => {
+    people.push({
+      id: uid("villager"), name: shuffledNames[i], age: t.ageMin + Math.floor(Math.random() * (t.ageMax - t.ageMin + 1)), kin: "ชาวบ้าน", role: t.role, skill: t.skill,
+      health: 62 + Math.floor(Math.random() * 24), morale: 48 + Math.floor(Math.random() * 22), fatigue: Math.floor(Math.random() * 10), injured: false, alive: true,
+      traits: Array.from(new Set([...t.traits, pickFrom(traitPool)])).slice(0, 2),
+    });
+  });
+  const elderName = shuffledNames[7] ?? "Old Ren";
+  people.push({ id: uid("elder"), name: elderName, age: 63 + Math.floor(Math.random() * 11), kin: "ผู้เฒ่า", role: "ผู้เฒ่า", skill: "elder", health: 46 + Math.floor(Math.random() * 18), morale: 55 + Math.floor(Math.random() * 12), fatigue: 0, injured: false, alive: true, traits: ["จำเรื่องเก่า", pickFrom(traitPool)] });
+  const childNames = shuffle(["Lina", "Pim", "Mira", "Ren", "Toma", "Sana", "Eli", "Noa", "Keta"]);
+  people.push({ id: uid("child"), name: childNames[0], age: 6 + Math.floor(Math.random() * 7), kin: `House ${houseName}`, role: "เด็ก", skill: "child", health: 60 + Math.floor(Math.random() * 18), morale: 62 + Math.floor(Math.random() * 12), fatigue: 0, injured: false, alive: true, traits: ["ช่างสังเกต"] });
+  people.push({ id: uid("child"), name: childNames[1], age: 4 + Math.floor(Math.random() * 8), kin: "ชาวบ้าน", role: "เด็ก", skill: "child", health: 58 + Math.floor(Math.random() * 18), morale: 62 + Math.floor(Math.random() * 12), fatigue: 0, injured: false, alive: true, traits: ["รักนิทาน"] });
+  return people.slice(0, 10);
 }
 function adultWorkers(game: GameState) {
   return game.people.filter((p) => p.alive && p.age >= 16 && p.age < 62 && !p.injured && p.health > 28).length;
@@ -753,10 +773,10 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
   if (setup.origin === "mediator") { metrics.trust += 7; metrics.fairness += 7; }
   if (setup.origin === "hunter") metrics.security += 4;
   const base: GameState = {
-    version: "0.9.8", leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
+    version: "0.9.9", leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
     year: 1, month: 1, stage: "ค่ายพักแรม", resources: baseResources(setup.origin), buildings: emptyBuildings(), researchDone: emptyResearch(),
     construction: null, activeResearch: null, labor: { ...emptyLabor(), forage: 3, wood: 2, stone: 1, build: 1, guard: 1, care: 0, research: 0 },
-    leaderFocus: "workWithPeople", selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [],
+    leaderFocus: "workWithPeople", leaderActionSelected: false, selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [],
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
     collapse: { hungerMonths: 0, noWorkerMonths: 0, trustCrisisMonths: 0, assaultCrisisMonths: 0 }, gameOver: null,
@@ -1005,6 +1025,7 @@ const events: GameEvent[] = [
     choices: [
       choice("buy_tools", "🧰", "แลกอาหารกับเครื่องมือ", "ลงทุน", "ลดอาหารแต่เพิ่มเครื่องมือ", { resources: { food: -8, tools: 3 }, metrics: { morale: 1 }, path: { trade: 2 } }, ["ถุงอาหารเปลี่ยนมือและเครื่องมือใหม่วางลงบนพื้นค่าย เสียงโลหะกระทบกันทำให้คนงานมองด้วยแววตาเหมือนเห็นฤดูใหม่", "การค้าครั้งแรกทำให้ค่ายรู้ว่าพวกเขาไม่ได้อยู่คนเดียวในโลก"]),
       choice("buy_salt", "🧂", "แลกไม้กับเกลือถนอมอาหาร", "เสบียง", "ช่วยลดอาหารเสียในอนาคต", { resources: { wood: -8, knowledge: 4 }, metrics: { morale: 2 }, path: { trade: 1, survival: 1 } }, ["เกลือถุงเล็กถูกส่งต่อเหมือนของวิเศษ มันไม่อิ่มท้อง แต่ทำให้อาหารของวันพรุ่งนี้มีโอกาสอยู่ถึงวันมะรืน", "บางสิ่งมีค่ากว่าอาหารทันที เพราะมันซื้อเวลา"]),
+      choice("sell_surplus", "🪙", "ขายหนังสัตว์และสมุนไพรส่วนเกิน", "เพิ่มคลังเมือง", "เปลี่ยนของมีค่าเป็นทองสำหรับซื้อของในอนาคต", { resources: { hides: -1, herbs: -1, gold: 8 }, metrics: { trust: 1 }, path: { trade: 3 } }, ["หนังสัตว์หนึ่งผืนกับสมุนไพรแห้งถูกวางบนผ้า พ่อค้าชั่งน้ำหนักด้วยสายตาและวางเหรียญลงช้า ๆ", "ทองไม่ได้ทำให้อิ่มท้องในคืนนี้ แต่มันทำให้ค่ายเริ่มมีอำนาจเลือกในวันหน้า"]),
       choice("refuse_trade", "🚫", "ไม่แลกอะไรเพราะทรัพยากรน้อย", "ระวัง", "ไม่เสียทรัพยากรแต่พลาดโอกาส", { metrics: { trust: -1 }, path: { survival: 1 } }, ["พ่อค้าพยักหน้าเหมือนเคยเห็นความยากจนหลายแบบ เขาขับเกวียนต่อไป ทิ้งรอยล้อไว้บนถนน", "ค่ายยังมีของเดิมครบ แต่ข่าวจากภายนอกก็เคลื่อนผ่านไปพร้อมเขา"]),
     ],
   },
@@ -1542,7 +1563,7 @@ function advanceMonth(game: GameState): GameState {
     changes.push(`ขึ้นปีที่ ${nextYear}`);
   }
   const recent = [event.id, ...g.recentEventIds].slice(0, 7);
-  let nextBase: GameState = { ...g, year: nextYear, month: nextMonth, recentEventIds: recent, pendingEvents: g.pendingEvents.filter((id) => id !== event.id), currentEventId: "", selectedChoiceId: null, leaderFocus: "workWithPeople", savedText: "กำลังจดบันทึก..." };
+  let nextBase: GameState = { ...g, year: nextYear, month: nextMonth, recentEventIds: recent, pendingEvents: g.pendingEvents.filter((id) => id !== event.id), currentEventId: "", selectedChoiceId: null, leaderFocus: "workWithPeople", leaderActionSelected: false, savedText: "กำลังจดบันทึก..." };
   nextBase = updateCollapseAndGameOver(nextBase);
   const nextEventId = nextBase.gameOver ? event.id : pickEvent(nextBase);
   const modal: SummaryModal = {
@@ -1573,7 +1594,7 @@ export default function GamePage() {
     if (saveText) {
       try {
         const loaded = JSON.parse(saveText) as GameState;
-        if (loaded.version === "0.9.8") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
+        if (loaded.version === "0.9.9") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
       } catch {}
     }
     setGame(createInitialGame(setup));
@@ -1630,6 +1651,8 @@ export default function GamePage() {
     const used = laborTotal(g.labor);
     const available = adultWorkers(g);
     if (used > available) return { ...g, savedText: `ใช้แรงงานเกิน ${used - available} คน กรุณาลดงานก่อนจบเดือน` };
+    if (!g.leaderActionSelected) return { ...g, savedText: "ต้องเลือกการกระทำของผู้นำก่อนจบเดือน" };
+    if (!g.selectedChoiceId) return { ...g, savedText: "ต้องเลือกวิธีตอบสนองเหตุการณ์ก่อนจบเดือน" };
     return g.gameOver ? g : advanceMonth(g);
   }); }
   function restartSameSetup() {
@@ -1672,6 +1695,7 @@ export default function GamePage() {
           <span className="pill">แรงงาน {availableWorkers}/{alivePeople(game).filter((p) => p.age >= 16 && p.age < 62).length}</span>
           <span className="pill">ตระกูล {game.houseName}</span>
           <span className="pill warn">ภัยภายนอก {pct(game.threat)}</span>
+          <span className="pill gold-pill">คลังเมือง 🪙 {fmt(game.resources.gold)}</span>
           <span className={crisisLevel(game) === "ใกล้ล่มสลาย" || crisisLevel(game) === "วิกฤต" ? "pill danger-pill" : "pill good"}>วิกฤต: {crisisLevel(game)}</span>
           <span className="pill">Alpha v{GAME_VERSION}</span>
           <span className="pill good">{game.savedText}</span>
@@ -1691,16 +1715,15 @@ export default function GamePage() {
           <nav className="view-tabs">
             {views.map((v) => <button key={v} className={view === v ? "active" : ""} onClick={() => setView(v)}>{viewLabel(v)}</button>)}
           </nav>
-          {view === "เมือง" && <CityView game={game} adjustLabor={adjustLabor} applyRecommendedLabor={() => updateGame((g) => ({ ...g, labor: recommendedLabor(g) }))} setFocus={(focus) => updateGame((g) => ({ ...g, leaderFocus: focus }))} />}
+          {view === "เมือง" && <CityView game={game} adjustLabor={adjustLabor} applyRecommendedLabor={() => updateGame((g) => ({ ...g, labor: recommendedLabor(g) }))} />}
           {view === "คน" && <PeopleView game={game} />}
-          {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} />}
-          {view === "วิจัย" && <ResearchView game={game} startResearch={startResearch} />}
-          {view === "Chronicle" && <ChronicleView game={game} />}
+          {view === "โครงการ" && <ProjectView game={game} startConstruction={startConstruction} startResearch={startResearch} />}
+          {view === "พงศาวดาร" && <ChronicleView game={game} />}
           {view === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} />}
         </section>
 
         <aside className="event-panel">
-          <EventPanel game={game} event={event} selectChoice={(id) => updateGame((g) => ({ ...g, selectedChoiceId: id }))} endTurn={endTurn} />
+          <EventPanel game={game} event={event} setFocus={(focus) => updateGame((g) => ({ ...g, leaderFocus: focus, leaderActionSelected: true }))} selectChoice={(id) => updateGame((g) => ({ ...g, selectedChoiceId: id }))} endTurn={endTurn} />
           <RumorPanel game={game} />
         </aside>
       </section>
@@ -1864,12 +1887,11 @@ function RiskPanel({ game, risk }: { game: GameState; risk: Risks }) {
 function ForecastPanel({ game }: { game: GameState }) {
   return <section className="panel pad"><h3 className="section-title">เดือนหน้าอาจเกิดอะไร</h3><div className="timeline compact">{nextMonthForecast(game).map((line, i) => <div key={`${line}-${i}`} className="forecast-line">• {line}</div>)}</div></section>;
 }
-function CityView({ game, adjustLabor, applyRecommendedLabor, setFocus }: { game: GameState; adjustLabor: (key: LaborKey, amount: number) => void; applyRecommendedLabor: () => void; setFocus: (key: LeaderFocusKey) => void }) {
+function CityView({ game, adjustLabor, applyRecommendedLabor }: { game: GameState; adjustLabor: (key: LaborKey, amount: number) => void; applyRecommendedLabor: () => void }) {
   const resources = game.resources;
   const normalizedLabor = normalizeLabor(game);
   const laborLeft = adultWorkers(game) - laborTotal(normalizedLabor);
   const visibleJobs = unlockedLaborOptions(game);
-  const lockedJobs = lockedLaborOptions(game).slice(0, 4);
   const quality = qualityStatus(game);
   const pop = populationBreakdown(game);
   return (
@@ -1880,42 +1902,16 @@ function CityView({ game, adjustLabor, applyRecommendedLabor, setFocus }: { game
         <div className="panel kpi"><span className="muted">แรงงานจริง</span><b>{pop.workers}/{pop.adults}</b><small>เด็ก {pop.children} · ผู้เฒ่า {pop.elders} · ป่วย/เจ็บ {pop.injured + pop.sick}</small></div>
         <div className="panel kpi"><span className="muted">คุณภาพชีวิต</span><b>{pct(Math.round((quality.foodQuality + quality.waterQuality + quality.shelterQuality) / 3))}</b><small>อาหาร {pct(quality.foodQuality)} · น้ำ {pct(quality.waterQuality)} · ที่พัก {pct(quality.shelterQuality)}</small></div>
       </section>
+      <ActiveProjectsPanel game={game} />
       <section className="panel pad" style={{ marginBottom: 14 }}>
         <div className="split"><div><h2 className="title">จัดแรงงานรายเดือน</h2><p className="muted">แรงงานว่าง {laborLeft} คน · งานหนักมากเกินไปจะเพิ่มความเหนื่อยและอุบัติเหตุ</p></div><div className="flex"><button className="secondary" onClick={applyRecommendedLabor}>แนะนำการจัดแรงงาน</button><span className="badge green">ใช้แล้ว {laborTotal(game.labor)}/{adultWorkers(game)}</span></div></div>
         <div className="work-grid">
           {visibleJobs.map((item) => <div className="work-card" key={item.id}><div className="work-head"><div><b>{item.icon} {item.title}</b><p className="muted small">{item.text}</p><small className="context-text">{item.category}</small></div><div className="counter"><button onClick={() => adjustLabor(item.id, -1)}>-</button><strong>{normalizedLabor[item.id]}</strong><button onClick={() => adjustLabor(item.id, 1)}>+</button></div></div></div>)}
         </div>
-        {lockedJobs.length > 0 && <div className="locked-jobs"><b>งานที่จะปลดล็อกต่อไป</b>{lockedJobs.map((item) => <span key={`locked-${item.id}`} className="badge">{item.icon} {item.title}: {item.lockedText}</span>)}</div>}
       </section>
       <section className="two-col" style={{ marginBottom: 14 }}>
         <div className="panel pad"><h3 className="section-title">บัญชีทรัพยากรเดือนนี้</h3><table className="report-table"><thead><tr><th>รายการ</th><th>คงเหลือ</th><th>ผลิต</th><th>ใช้</th><th>สุทธิ</th></tr></thead><tbody>{resourceLedger(game).map((row) => <tr key={row.name}><td><b>{row.icon} {row.name}</b><br /><small className="muted">{row.note}</small></td><td>{fmt(row.stock)}</td><td className="good-text">+{fmt(row.produced)}</td><td className="danger-text">-{fmt(row.used)}</td><td className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</td></tr>)}</tbody></table></div>
-        <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{alivePeople(game).filter((p) => ["leader", "kael", "tovin", "old-ren", "sela"].includes(p.id)).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div>
-      </section>
-      <section className="panel pad">
-        <div className="split">
-          <div>
-            <h3 className="section-title">การกระทำของผู้นำเดือนนี้</h3>
-            <p className="muted small">ตัวเลือกจะเปลี่ยนตามความเสี่ยง ทรัพยากร ฤดูกาล และเหตุการณ์ที่กำลังเกิดขึ้น</p>
-          </div>
-          <span className="badge green">เลือกได้ 1 อย่าง / เดือน</span>
-        </div>
-        <div className="choice-grid leader-action-grid">
-          {dynamicLeaderActions(game, getEvent(game.currentEventId)).map((focus) => (
-            <button
-              key={focus.id}
-              disabled={Boolean(focus.locked)}
-              onClick={() => !focus.locked && setFocus(focus.id)}
-              className={`${game.leaderFocus === focus.id ? "choice-card active" : "choice-card"} ${focus.locked ? "locked" : ""}`}
-            >
-              <span className="choice-icon">{focus.icon}</span>
-              <span>
-                <b>{focus.title}</b><br />
-                <small className="muted">{focus.text}</small><br />
-                <small className={focus.locked ? "danger-text" : "context-text"}>{focus.locked ? `ล็อก: ${focus.lockReason}` : focus.reason}</small>
-              </span>
-            </button>
-          ))}
-        </div>
+        <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{keyVillagers(game).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div>
       </section>
     </div>
   );
@@ -1936,6 +1932,17 @@ function SettlementGrowthPanel({ game }: { game: GameState }) {
   ];
   const currentIndex = steps.findIndex((s) => s.stage === game.stage);
   return <div className="panel pad" style={{ boxShadow: "none", marginBottom: 14 }}><h3 className="section-title">เส้นทางการเติบโตของถิ่นฐาน</h3><div className="work-grid">{steps.map((step, index) => <div key={step.stage} className={index === currentIndex ? "work-card active-step" : "work-card"}><b>{index <= currentIndex ? "✓" : "○"} {step.title}</b><p className="muted small">{step.text}</p></div>)}</div></div>;
+}
+function ProjectView({ game, startConstruction, startResearch }: { game: GameState; startConstruction: (id: BuildingKey) => void; startResearch: (id: ResearchKey) => void }) {
+  return (
+    <div>
+      <ActiveProjectsPanel game={game} />
+      <section className="two-col project-tabs">
+        <BuildView game={game} startConstruction={startConstruction} />
+        <ResearchView game={game} startResearch={startResearch} />
+      </section>
+    </div>
+  );
 }
 function BuildView({ game, startConstruction }: { game: GameState; startConstruction: (id: BuildingKey) => void }) {
   return <section className="panel pad"><h2 className="title">ก่อสร้าง</h2><p className="muted">เริ่มจากไม่มีอะไร ทุกอาคารลดความเสี่ยงบางประเภทและปลดล็อกชีวิตที่มั่นคงขึ้น</p><SettlementGrowthPanel game={game} />{game.construction && <div className="log good"><b>กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><div className="bar" style={{ marginTop: 8 }}><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div></div>}<div className="building-grid" style={{ marginTop: 12 }}>{(Object.keys(buildingData) as BuildingKey[]).map((id) => { const b = buildingData[id]; const unlocked = buildingUnlocked(game, id); const affordable = hasCost(game, b.cost); return <article key={id} className="building-card"><div className="split"><div><b>{b.icon} {b.title}</b><p className="muted small">{b.text}</p></div><span className="badge">มี {game.buildings[id]}</span></div><table className="report-table"><tbody><tr><td>ใช้ทรัพยากร</td><td>{Object.entries(b.cost).map(([k,v]) => `${k} ${v}`).join(" · ")}</td></tr><tr><td>แรงงานที่ต้องใช้</td><td>{b.work}</td></tr><tr><td>สถานะ</td><td>{unlocked ? affordable ? "พร้อมสร้าง" : "ทรัพยากรไม่พอ" : "ยังไม่ปลดล็อก"}</td></tr></tbody></table><button className="primary" disabled={!unlocked || !affordable || Boolean(game.construction)} onClick={() => startConstruction(id)} style={{ width: "100%", marginTop: 10, opacity: !unlocked || !affordable || game.construction ? .55 : 1 }}>เริ่มสร้าง</button></article>; })}</div></section>;
@@ -1969,12 +1976,98 @@ function ChronicleView({ game }: { game: GameState }) {
 }
 function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void }) {
   const exportText = JSON.stringify(game, null, 2);
-  return <section className="panel pad"><h2 className="title">ตั้งค่าและตรวจสอบระบบ</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>ใช้สำหรับแจ้งบัคและทดสอบกับเพื่อน</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ระบบกันใช้แรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">ทอง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ได้จากงานแลกเปลี่ยน/ขายของส่วนเกิน</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>ลำดับการเล่นที่ตรวจแล้ว</h3><ol><li>เปิดระบบสอนเล่นหลังเริ่มเกมครั้งแรก</li><li>จัดแรงงานและปลดล็อกงานตามวิจัย/อาคาร</li><li>เลือกสิ่งก่อสร้างหรือวิจัย</li><li>เลือกการกระทำผู้นำแบบ Dynamic ตามเหตุการณ์</li><li>ตอบเหตุการณ์เดือนนี้</li><li>จบเดือน ระบบคำนวณผลผลิต การบริโภค ความเสี่ยง บาดเจ็บ ตาย ความทรงจำ เหตุการณ์ต่อเนื่อง และเงื่อนไขแพ้</li></ol></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ปุ่มนี้จะลบเซฟในเครื่องและกลับไปหน้าเริ่มเกม เหมาะสำหรับให้เพื่อนเริ่มทดสอบรอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><h3 className="section-title" style={{ marginTop: 16 }}>Debug Report</h3><p className="muted small">คัดลอกส่วนนี้ส่งให้ผู้พัฒนาเมื่อเจอบัค</p><textarea className="input" readOnly rows={10} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></section>;
+  return <section className="panel pad"><h2 className="title">ตั้งค่าและตรวจสอบระบบ</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>ใช้สำหรับแจ้งบัคและทดสอบกับเพื่อน</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ระบบกันใช้แรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">ทอง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ได้จากงานแลกเปลี่ยน/ขายของส่วนเกิน</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>ลำดับการเล่นที่ตรวจแล้ว</h3><ol><li>เปิดระบบสอนเล่นหลังเริ่มเกมครั้งแรก</li><li>จัดแรงงานและปลดล็อกงานตามวิจัย/อาคาร</li><li>เลือกสิ่งก่อสร้างหรือวิจัย</li><li>เลือกการกระทำผู้นำแบบ Dynamic ตามเหตุการณ์</li><li>ตอบเหตุการณ์เดือนนี้</li><li>จบเดือน ระบบคำนวณผลผลิต การบริโภค ความเสี่ยง บาดเจ็บ ตาย ความทรงจำ เหตุการณ์ต่อเนื่อง และเงื่อนไขแพ้</li></ol></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ปุ่มนี้จะลบเซฟในเครื่องและกลับไปหน้าเริ่มเกม เหมาะสำหรับให้เพื่อนเริ่มทดสอบรอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><details className="details-box" style={{ marginTop: 16 }}><summary>Debug Report สำหรับผู้พัฒนา</summary><p className="muted small">เปิดเฉพาะตอนเจอบัค แล้วคัดลอกส่งผู้พัฒนา</p><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details></section>;
 }
-function EventPanel({ game, event, selectChoice, endTurn }: { game: GameState; event: GameEvent; selectChoice: (id: string) => void; endTurn: () => void }) {
-  const selected = game.selectedChoiceId ?? event.choices[0]?.id;
+
+function estimateBuildMonths(game: GameState): number | null {
+  if (!game.construction) return null;
+  const data = buildingData[game.construction.id];
+  const l = normalizeLabor(game);
+  const power = Math.max(1, l.build * (6 + (game.origin === "builder" ? 1 : 0) + (game.buildings.workshop ? 1 : 0) + (game.leaderFocus === "workWithPeople" ? 1 : 0)));
+  return Math.max(1, Math.ceil((data.work - game.construction.progress) / power));
+}
+function estimateResearchMonths(game: GameState): number | null {
+  if (!game.activeResearch) return null;
+  const data = researchData[game.activeResearch.id];
+  const l = normalizeLabor(game);
+  const power = Math.max(1, (l.research + Math.floor(l.teach * 0.6)) * (6 + (game.origin === "keeper" ? 1 : 0)) + (game.leaderFocus === "study" ? 5 : 0));
+  return Math.max(1, Math.ceil((data.cost - game.activeResearch.progress) / power));
+}
+function keyVillagers(game: GameState): Person[] {
+  const alive = alivePeople(game);
+  const leader = alive.find((p) => p.id === "leader");
+  const picked = alive
+    .filter((p) => p.id !== "leader" && p.age >= 16)
+    .sort((a, b) => (b.skill === "healer" ? 2 : 0) + (b.skill === "hunter" ? 2 : 0) + b.health - ((a.skill === "healer" ? 2 : 0) + (a.skill === "hunter" ? 2 : 0) + a.health))
+    .slice(0, 4);
+  return leader ? [leader, ...picked] : picked;
+}
+function specialEventLabel(event: GameEvent): { icon: string; title: string; text: string } | null {
+  if (event.category.includes("การค้า") || event.title.includes("พ่อค้า")) return { icon: "🪙", title: "เหตุการณ์พิเศษ: พ่อค้ามาถึง", text: "เลือกซื้อ ขาย หรือปฏิเสธการแลกเปลี่ยนได้ในเดือนนี้" };
+  if (event.category.includes("ภัยมนุษย์") || event.title.includes("โจร")) return { icon: "⚠️", title: "เหตุการณ์พิเศษ: ภัยจากคนภายนอก", text: "เตรียมคน ปกปิดทรัพย์สิน หรือเปิดเจรจาให้เหมาะกับกำลังของค่าย" };
+  if (event.rare) return { icon: "✦", title: "เหตุการณ์หายาก", text: "เหตุการณ์นี้ไม่เกิดบ่อย และอาจกลายเป็นความทรงจำสำคัญของถิ่นฐาน" };
+  return null;
+}
+function ActiveProjectsPanel({ game }: { game: GameState }) {
+  const buildMonths = estimateBuildMonths(game);
+  const researchMonths = estimateResearchMonths(game);
+  if (!game.construction && !game.activeResearch) {
+    return <section className="panel pad project-strip"><h3 className="section-title">งานที่กำลังดำเนินการ</h3><div className="empty compact-empty">ยังไม่มีโครงการก่อสร้างหรือการวิจัยที่กำลังทำอยู่</div></section>;
+  }
+  return (
+    <section className="panel pad project-strip">
+      <h3 className="section-title">งานที่กำลังดำเนินการ</h3>
+      <div className="project-grid">
+        {game.construction && <div className="project-card"><b>{buildingData[game.construction.id].icon} กำลังก่อสร้าง: {buildingData[game.construction.id].title}</b><div className="bar"><div className="fill" style={{ width: `${clamp(game.construction.progress / buildingData[game.construction.id].work * 100)}%` }} /></div><small>คืบหน้า {game.construction.progress}/{buildingData[game.construction.id].work} · คาดว่าเหลือ {buildMonths} เดือน</small></div>}
+        {game.activeResearch && <div className="project-card"><b>{researchData[game.activeResearch.id].icon} กำลังศึกษา: {researchData[game.activeResearch.id].title}</b><div className="bar"><div className="fill" style={{ width: `${clamp(game.activeResearch.progress / researchData[game.activeResearch.id].cost * 100)}%` }} /></div><small>คืบหน้า {game.activeResearch.progress}/{researchData[game.activeResearch.id].cost} · คาดว่าเหลือ {researchMonths} เดือน</small></div>}
+      </div>
+    </section>
+  );
+}
+function EventPanel({ game, event, setFocus, selectChoice, endTurn }: { game: GameState; event: GameEvent; setFocus: (key: LeaderFocusKey) => void; selectChoice: (id: string) => void; endTurn: () => void }) {
   const laborOver = laborTotal(game.labor) > adultWorkers(game);
-  return <section className="panel event-card"><div className="kicker">เหตุการณ์ประจำเดือน · {event.category}</div><h2>{event.rare ? "✦ " : ""}{event.title}</h2><p>{event.text}</p><div className="option-list">{event.choices.map((c) => <button key={c.id} className={selected === c.id ? "option active" : "option"} onClick={() => selectChoice(c.id)}><span className="emoji">{c.icon}</span><span><b>{c.title}</b><br /><small className="muted">{c.tone} · {c.hint}</small></span></button>)}</div>{laborOver && <p className="danger-text small">ใช้แรงงานเกิน {laborTotal(game.labor) - adultWorkers(game)} คน กรุณาลดงานก่อนจบเดือน</p>}<button className="primary" disabled={laborOver} onClick={endTurn} style={{ width: "100%", marginTop: 14, opacity: laborOver ? .55 : 1 }}>ยืนยันและจบเดือน →</button><p className="muted small">ทุกตัวเลือกจะส่งผลต่อทรัพยากร คน ความเสี่ยง พงศาวดารและเหตุการณ์ต่อเนื่อง</p></section>;
+  const actionMissing = !game.leaderActionSelected;
+  const eventMissing = !game.selectedChoiceId;
+  const blocked = laborOver || actionMissing || eventMissing;
+  const special = specialEventLabel(event);
+  return (
+    <section className={special ? "panel event-card special-event" : "panel event-card"}>
+      {special && <div className="special-banner"><span>{special.icon}</span><b>{special.title}</b><small>{special.text}</small></div>}
+      <div className="kicker">รอบการตัดสินใจ · เดือน {game.month}/12</div>
+      <h2>เลือกสิ่งที่จะทำก่อนจบเดือน</h2>
+      <p className="muted">เลือกได้ทั้งสองส่วน จะเลือกการกระทำของผู้นำก่อนหรือเลือกตอบเหตุการณ์ก่อนก็ได้ แต่ต้องเลือกให้ครบก่อนจบเดือน</p>
+
+      <div className="decision-block">
+        <div className="split"><h3 className="section-title">1) การกระทำของผู้นำ</h3><span className={game.leaderActionSelected ? "badge green" : "badge"}>{game.leaderActionSelected ? "เลือกแล้ว" : "ยังไม่เลือก"}</span></div>
+        <div className="option-list leader-actions-in-event">
+          {dynamicLeaderActions(game, event).map((focus) => (
+            <button
+              key={focus.id}
+              disabled={Boolean(focus.locked)}
+              onClick={() => !focus.locked && setFocus(focus.id)}
+              className={`${game.leaderActionSelected && game.leaderFocus === focus.id ? "option active" : "option"} ${focus.locked ? "locked" : ""}`}
+            >
+              <span className="emoji">{focus.icon}</span>
+              <span><b>{focus.title}</b><br /><small className="muted">{focus.text}</small><br /><small className={focus.locked ? "danger-text" : "context-text"}>{focus.locked ? `ล็อก: ${focus.lockReason}` : focus.reason}</small></span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="decision-block">
+        <div className="split"><h3 className="section-title">2) เหตุการณ์ประจำเดือน · {event.category}</h3><span className={game.selectedChoiceId ? "badge green" : "badge"}>{game.selectedChoiceId ? "เลือกแล้ว" : "ยังไม่เลือก"}</span></div>
+        <h2>{event.rare ? "✦ " : ""}{event.title}</h2>
+        <p>{event.text}</p>
+        <div className="option-list">{event.choices.map((c) => <button key={c.id} className={game.selectedChoiceId === c.id ? "option active" : "option"} onClick={() => selectChoice(c.id)}><span className="emoji">{c.icon}</span><span><b>{c.title}</b><br /><small className="muted">{c.tone} · {c.hint}</small></span></button>)}</div>
+      </div>
+
+      {laborOver && <p className="danger-text small">ใช้แรงงานเกิน {laborTotal(game.labor) - adultWorkers(game)} คน กรุณาลดงานก่อนจบเดือน</p>}
+      {actionMissing && <p className="danger-text small">ยังไม่ได้เลือกการกระทำของผู้นำ</p>}
+      {eventMissing && <p className="danger-text small">ยังไม่ได้เลือกวิธีตอบสนองเหตุการณ์</p>}
+      <button className="primary" disabled={blocked} onClick={endTurn} style={{ width: "100%", marginTop: 14, opacity: blocked ? .55 : 1 }}>ยืนยันและจบเดือน →</button>
+      <p className="muted small">ทุกตัวเลือกจะส่งผลต่อทรัพยากร คน ความเสี่ยง พงศาวดารและเหตุการณ์ต่อเนื่อง</p>
+    </section>
+  );
 }
 function RumorPanel({ game }: { game: GameState }) {
   return <section className="panel pad"><h3 className="section-title">ข่าวลือ / สิ่งที่ยังไม่รู้</h3>{game.rumors.length ? <div className="timeline">{game.rumors.slice(0, 4).map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><span className="badge blue">อันตราย: {r.danger}</span></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ หากอยากเปิดเส้นทางเรื่องราว ลองให้ผู้นำออกสำรวจพื้นที่</div>}</section>;
