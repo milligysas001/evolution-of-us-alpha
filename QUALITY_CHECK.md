@@ -1,9 +1,13 @@
-# QUALITY CHECK v0.9.17
+# Quality Check v0.9.18
 
-- Build target: `npm run check`
-- Save keys remain: `eou-current-save`, `eou-current-setup`
-- Backup folders must stay outside project or be ignored.
-- Named labor assigns workers by person id and derives labor power from age + skill + passive.
-- Event popup and bell must not block saving; user can close and reopen the event.
-- Terrain start is randomized only on new game.
-- Added portable data: `terrain.json`, `people_passives.json`.
+- [ ] `npm run check` ผ่านก่อน push
+- [ ] ไม่มี `app_backup*` หรือ `*backup*` อยู่ในโปรเจกต์หลัก
+- [ ] Vercel deployment ต้องขึ้น Ready
+- [ ] หน้าแรกกดเริ่มเกมแล้วเข้า `/game`
+- [ ] แถบทรัพยากรด้านข้างแสดง `คงเหลือ +/− สุทธิ`
+- [ ] เครื่องมือ Debug ใน Settings ต้องถูกล็อกด้วยรหัส 248655
+- [ ] Event ขโมยเสบียงมีตัวเลือกบทลงโทษและผลจริง
+- [ ] Event ผู้ลี้ภัยแสดง preview รายคนและมีตัวเลือกการรับคน
+- [ ] Event พ่อค้า/อพยพ/ขโมย/ภัยสำคัญต้องเด้ง modal กลางจอ
+- [ ] พื้นหลังเริ่มต้นแสดงบัฟและบัฟส่งผลจริงในสูตรผลิต/สถานะ
+- [ ] `data/game/justice.json` และ `data/game/migration.json` เป็น JSON ถูกต้อง

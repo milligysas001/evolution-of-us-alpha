@@ -12,7 +12,7 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "Alpha v0.9.14";
+const VERSION = "Alpha v0.9.18";
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
@@ -66,19 +66,19 @@ export default function HomePage() {
             <div className="brand-mark">⌛</div>
             <span>EVOLUTION<br />OF US</span>
           </div>
-          <div className="kicker">{VERSION} · STABILITY REFACTOR FOUNDATION</div>
-          <h1>สิบชีวิตกลางผืนดินว่างเปล่า</h1>
-          <h2>เกมสร้างถิ่นฐานแบบเทิร์นรายเดือน ที่ทุกเดือนคือการตัดสินใจของคนจริง</h2>
+          <div className="kicker">{VERSION} · REALISTIC SETTLEMENT ALPHA</div>
+          <h1>คืนแรกก่อนถิ่นฐานจะมีชื่อ</h1>
+          <h2>ก่อนที่ผู้คนจะเรียกที่นี่ว่า “บ้าน” มีเพียงกองไฟ เสียงลมหายใจ และการตัดสินใจของผู้นำคนหนึ่ง</h2>
           <p>
-            คุณเริ่มจากชาวบ้านสิบคน เสบียงเล็กน้อย และพื้นที่ที่ยังไม่มีชื่อ ทุกการจัดแรงงาน การก่อสร้าง การวิจัย ข่าวลือ พ่อค้า และภัยภายนอกจะค่อย ๆ สร้างเรื่องราวของถิ่นฐานนี้ขึ้นมาเอง
+            คนสิบชีวิตเดินทางมาถึงพื้นที่รกร้างในวันที่ฟ้าเริ่มมืด เด็กบางคนกอดห่อผ้าแน่น ผู้เฒ่ามองหาไม้แห้งสำหรับไฟแรก ส่วนผู้ใหญ่ยืนเงียบ เพราะทุกคนรู้ดีว่าเสบียงที่แบกมานั้นไม่พอสำหรับความผิดพลาดมากนัก
           </p>
           <p>
-            เวอร์ชันนี้ปรับฐานระบบให้เสถียรขึ้น: save key กลาง, migrate save เก่า, fallback เข้าเกมได้แม้ setup หาย, และจัดโครง deploy ให้ปลอดภัยขึ้นสำหรับ Vercel
+            คุณไม่ได้รับมอบเมืองที่สร้างเสร็จแล้ว คุณได้รับเพียงชื่อของผู้นำ ชื่อของตระกูล และพื้นหลังของกลุ่มคนที่ยังไม่รู้ว่าพรุ่งนี้จะอยู่รอดหรือไม่ พื้นหลังที่เลือกจะกลายเป็นบัฟจริงในเกม: ทักษะเริ่มต้น ทรัพยากร ความไว้ใจ และทางรอดของเดือนแรก
           </p>
           <div className="three-col" style={{ marginTop: 24 }}>
-            <div className="panel pad" style={{ boxShadow: "none" }}><b>เล่นเป็นเทิร์น</b><br /><span className="muted small">จัดแรงงาน → เลือกโครงการ → ตอบเหตุการณ์ → จบเดือน</span></div>
-            <div className="panel pad" style={{ boxShadow: "none" }}><b>เอาตัวรอดสมจริง</b><br /><span className="muted small">อาหาร น้ำ ฟืน โรค ความเหนื่อย และความไว้ใจมีผลจริง</span></div>
-            <div className="panel pad" style={{ boxShadow: "none" }}><b>ทดสอบง่ายขึ้น</b><br /><span className="muted small">Debug, Save, Feedback และ deploy-safe พร้อมสำหรับ Alpha Test</span></div>
+            <div className="panel pad" style={{ boxShadow: "none" }}><b>ชื่อที่ถูกจดจำ</b><br /><span className="muted small">ตั้งชื่อผู้นำและตระกูลที่จะกลายเป็นรากของพงศาวดาร</span></div>
+            <div className="panel pad" style={{ boxShadow: "none" }}><b>พื้นหลังที่มีผลจริง</b><br /><span className="muted small">ช่าง พราน ผู้รักษา ผู้จดจำ หรือผู้ไกล่เกลี่ย จะส่งผลต่อระบบในเกม</span></div>
+            <div className="panel pad" style={{ boxShadow: "none" }}><b>เมืองที่ยังไม่เกิด</b><br /><span className="muted small">จากค่ายเล็ก ๆ สู่ชุมชนที่มีเรื่องเล่า บาดแผล และความหวังของตนเอง</span></div>
           </div>
         </article>
 

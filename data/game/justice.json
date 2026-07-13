@@ -1,0 +1,10 @@
+{
+  "version": "0.9.18",
+  "purpose": "Justice and punishment options for theft/crime events. Portable notes for future Godot port.",
+  "punishments": [
+    { "id": "investigate", "name": "สอบสวนอย่างเป็นธรรม", "effects": { "fairness": 6, "trust": 3, "security": 2 }, "risk": "ใช้เวลา แต่ลดโอกาสลงโทษผิดคน" },
+    { "id": "confine", "name": "ขังและให้ทำงานชดใช้", "effects": { "security": 7, "trust": -3, "fairness": -2 }, "risk": "คนกลัวผู้นำมากขึ้น" },
+    { "id": "exile", "name": "เนรเทศ", "effects": { "security": 9, "morale": -6, "cohesion": -5 }, "risk": "หยุดปัญหาเร็วแต่สร้างบาดแผลทางศีลธรรม" },
+    { "id": "forgive_reform", "name": "ให้อภัยพร้อมแก้กฎแบ่งเสบียง", "effects": { "trust": 6, "fairness": 4, "security": -2 }, "risk": "ถ้าค่ายยังหิว อาจถูกมองว่าอ่อนแอ" }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "version": "0.9.18",
+  "purpose": "Migration event data draft for future selection UI and Godot port.",
+  "groupSize": { "min": 1, "max": 10 },
+  "candidateTypes": [
+    { "id": "skilled_worker", "name": "แรงงานมีทักษะ", "benefit": "ช่วยงานเร็ว", "risk": "คนที่ถูกปฏิเสธอาจทิ้งบาดแผลทางชื่อเสียง" },
+    { "id": "child", "name": "เด็กผู้ลี้ภัย", "benefit": "เพิ่มอนาคตระยะยาว", "risk": "กินอาหารและต้องปกป้องหลายปี" },
+    { "id": "elder", "name": "ผู้เฒ่า", "benefit": "ความรู้/เรื่องเล่า", "risk": "ทำงานน้อยและเสี่ยงป่วย" },
+    { "id": "healer", "name": "ผู้รักษา", "benefit": "ลดโรคและแผลติดเชื้อ", "risk": "อาจนำโรคจากการเดินทาง" }
+  ],
+  "policyOptions": ["รับทั้งหมด", "รับเฉพาะคนมีทักษะ", "รับเด็กและผู้รักษา", "ปฏิเสธพร้อมเสบียงเดินทาง"]
+}

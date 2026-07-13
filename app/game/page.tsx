@@ -199,9 +199,52 @@ const terrainData: Record<TerrainKey, { icon: string; title: string; text: strin
   coldHighland: { icon: "🏔️", title: "เนินสูงอากาศเย็น", text: "ปลอดน้ำขังและมองเห็นไกล แต่ฤดูหนาวรุนแรง ฟืนและที่พักสำคัญกว่าเดิม", effects: { stone: 6, fuel: -2 }, forage: -0.1, wood: 0.05, stone: 0.08, water: -0.08, disease: -4, beast: 0, weather: 14, tags: ["หนาว", "ปลอดน้ำขัง"] },
   marshland: { icon: "🪷", title: "หนองน้ำและดินชื้น", text: "น้ำและสมุนไพรมีมาก แต่ยุง ไข้ และทางเดินเละทำให้การอยู่รอดซับซ้อนขึ้น", effects: { water: 20, herbs: 4 }, forage: 0.05, wood: -0.05, stone: -0.08, water: 0.32, disease: 15, beast: 3, weather: 2, tags: ["น้ำมาก", "โรคสูง"] },
 };
+
+const originData: Record<Origin, { icon: string; title: string; story: string; bonuses: string[]; gameplay: string }> = {
+  builder: {
+    icon: "🛠️",
+    title: "ช่างสร้างถิ่น",
+    story: "กลุ่มของคุณมีคนชำนาญไม้ เชือก และงานตั้งค่าย พวกเขาไม่เริ่มด้วยทรัพย์สินมากนัก แต่รู้ว่าจะทำให้หลังคาแรกไม่ถล่มลงมาได้อย่างไร",
+    bonuses: ["เริ่มด้วยไม้และเครื่องมือมากขึ้น", "ตัดไม้และก่อสร้างมีประสิทธิภาพดีขึ้น", "งานก่อสร้างก้าวหน้าไวขึ้นเมื่อมีช่างอยู่ในทีม"],
+    gameplay: "เหมาะกับการเร่งที่พัก คลัง กองไฟ และสิ่งก่อสร้างช่วงต้น"
+  },
+  hunter: {
+    icon: "🏹",
+    title: "กลุ่มพรานริมป่า",
+    story: "คนของคุณอ่านรอยเท้า กลิ่นลม และเสียงกิ่งไม้ได้ดีกว่าคนทั่วไป ป่าไม่ใช่ที่ปลอดภัย แต่เป็นครัวแห่งแรกของพวกเขา",
+    bonuses: ["เริ่มด้วยอาหารและหนังสัตว์มากขึ้น", "หาอาหารและลาดตระเวนได้ผลดีขึ้น", "ความปลอดภัยเริ่มต้นสูงขึ้นเล็กน้อย"],
+    gameplay: "เหมาะกับรอบที่ต้องการอาหารเร็ว แต่ต้องจัดการความเสี่ยงจากป่า"
+  },
+  healer: {
+    icon: "🌿",
+    title: "ผู้รู้สมุนไพร",
+    story: "พวกเขาพกความรู้เรื่องรากไม้ ใบขม และผ้าพันแผลมาด้วย ไม่อาจหยุดความตายได้ทุกครั้ง แต่ช่วยให้หลายชีวิตไม่จากไปเร็วเกินควร",
+    bonuses: ["เริ่มด้วยสมุนไพรมากขึ้น", "สุขภาพชุมชนเริ่มต้นดีกว่า", "งานดูแลคนป่วยและเก็บสมุนไพรมีคุณค่ามากขึ้น"],
+    gameplay: "เหมาะกับการเล่นแบบลดความสูญเสียและรับมือโรค/แผลติดเชื้อ"
+  },
+  keeper: {
+    icon: "📜",
+    title: "ผู้จดจำเรื่องเล่า",
+    story: "คนกลุ่มนี้เชื่อว่าความรู้คือเสบียงอีกชนิดหนึ่ง พวกเขาเริ่มต้นด้วยเรื่องเล่า สูตรจำ และบทเรียนที่ช่วยให้ความผิดพลาดไม่เกิดซ้ำบ่อยนัก",
+    bonuses: ["เริ่มด้วยความรู้มากขึ้น", "การวิจัยและสอนเด็กเร็วขึ้น", "ข่าวสารและพงศาวดารมีน้ำหนักต่อระยะยาว"],
+    gameplay: "เหมาะกับผู้เล่นที่อยากปลดล็อกระบบใหม่เร็วและวางแผนยาว"
+  },
+  mediator: {
+    icon: "⚖️",
+    title: "ผู้นำผู้ไกล่เกลี่ย",
+    story: "กลุ่มนี้ไม่แข็งแรงที่สุด ไม่รวยที่สุด แต่รู้วิธีทำให้คนไม่แตกคอกันก่อนสร้างบ้านหลังแรก ความยุติธรรมคือทรัพยากรที่พวกเขาถือมา",
+    bonuses: ["ความไว้ใจและความยุติธรรมเริ่มต้นสูงขึ้น", "ลดความเสี่ยงทะเลาะเรื่องเสบียง", "เหมาะกับเหตุการณ์ตัดสินโทษและรับคนใหม่"],
+    gameplay: "เหมาะกับการเติบโตแบบรับคนเพิ่มและรักษาความสัมพันธ์ในค่าย"
+  }
+};
+
+function originInfo(origin: Origin) {
+  return originData[origin] ?? originData.builder;
+}
+
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.17";
-const BUILD_LABEL = "Named Labor, Age Realism & Terrain Start";
+const GAME_VERSION = "0.9.18";
+const BUILD_LABEL = "Resource Flow, Justice Events & Migration Selection";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -1170,11 +1213,11 @@ function resourceLedger(game: GameState) {
   const season = seasonOf(game.month);
   const warmFood = season === "ฤดูใบไม้ผลิ" || season === "ฤดูร้อน" || season === "ฤดูใบไม้ร่วง";
   const terrain = terrainData[game.terrain ?? "riverbank"];
-  const forageRate = ((season === "ฤดูหนาว" ? 3 : season === "ฤดูฝน" ? 4 : 5) + (game.origin === "hunter" ? 1 : 0) + skillCount(game, "hunter") * 0.35) * (1 + terrain.forage);
+  const forageRate = ((season === "ฤดูหนาว" ? 3 : season === "ฤดูฝน" ? 4 : 5) + (game.origin === "hunter" ? 1.8 : 0) + skillCount(game, "hunter") * 0.35) * (1 + terrain.forage);
   const farmRate = l.farm ? ((season === "ฤดูหนาว" ? 1 : season === "ฤดูฝน" ? 6 : warmFood ? 7 : 4) + game.buildings.farmPlot * 1.5 + (game.researchDone.basicFarming ? 1 : 0)) : 0;
-  const woodRate = (5 + (game.researchDone.stoneTools ? 1 : 0) + (game.buildings.workshop ? 1.2 : 0) + skillCount(game, "builder") * 0.25) * (1 + terrain.wood);
+  const woodRate = (5 + (game.origin === "builder" ? 1.2 : 0) + (game.researchDone.stoneTools ? 1 : 0) + (game.buildings.workshop ? 1.2 : 0) + skillCount(game, "builder") * 0.25) * (1 + terrain.wood);
   const stoneRate = (2.5 + (game.researchDone.stoneTools ? 0.8 : 0) + (game.buildings.workshop ? 0.7 : 0) + skillCount(game, "builder") * 0.15) * (1 + terrain.stone);
-  const researchRate = 4 + (game.origin === "keeper" ? 1 : 0) + (game.leaderFocus === "study" ? 2 : 0) + skillCount(game, "keeper") * 0.35;
+  const researchRate = 4 + (game.origin === "keeper" ? 1.8 : 0) + (game.leaderFocus === "study" ? 2 : 0) + skillCount(game, "keeper") * 0.35;
   const foodProd = Math.round(l.forage * forageRate + l.farm * farmRate + l.patrol * 1.5);
   const woodProd = Math.round(l.wood * woodRate);
   const stoneProd = Math.round(l.stone * stoneRate);
@@ -1183,7 +1226,7 @@ function resourceLedger(game: GameState) {
   const fuelProd = Math.floor(l.wood * 1.4);
   const toolsProd = Math.floor(l.craft * (game.buildings.workshop ? 1.5 : 0.8));
   const toolInputs = l.craft > 0 ? Math.min(game.resources.wood, l.craft * 2) : 0;
-  const herbsProd = Math.round(l.herbs * (game.researchDone.herbalCare ? 3 : 2) + (game.buildings.healerHut ? 1 : 0));
+  const herbsProd = Math.round(l.herbs * ((game.researchDone.herbalCare ? 3 : 2) + (game.origin === "healer" ? 0.8 : 0)) + (game.buildings.healerHut ? 1 : 0));
   const foodUse = foodNeedFor(game);
   const waterUse = waterNeedFor(game);
   const fuelUse = season === "ฤดูหนาว" ? Math.ceil(alivePeople(game).length * 0.7) + Math.max(0, alivePeople(game).length - shelterCapacity(game)) + l.preserve : l.preserve;
@@ -1790,6 +1833,30 @@ const events: GameEvent[] = [
   }
 ,
   {
+    id: "supply_theft", title: "เสบียงหายจากคลังกลางคืน", category: "อาชญากรรม / ความยุติธรรม",
+    text: "เช้าตรู่ คนดูแลคลังพบถุงอาหารฉีกออกและรอยเท้าเล็ก ๆ วนอยู่หลังที่พัก ไม่มีศัตรูบุก ไม่มีสัตว์ป่า มีเพียงคำถามหนัก ๆ ว่าใครในค่ายเป็นคนหยิบเสบียงไป",
+    condition: (g) => g.resources.food > foodNeedFor(g) * 0.8 && alivePeople(g).length >= 8,
+    weight: (g) => 4 + (g.metrics.fairness < 50 ? 10 : 0) + (g.metrics.trust < 45 ? 8 : 0) + (g.resources.food < foodNeedFor(g) * 1.5 ? 6 : 0),
+    choices: [
+      choice("investigate_theft", "🔎", "ตรวจคลังและสอบถามอย่างเป็นธรรม", "ยุติธรรม", "ใช้เวลาและความอดทน แต่ลดการลงโทษผิดคน", { resources: { food: -3 }, metrics: { fairness: 6, trust: 3, security: 2 }, path: { knowledge: 1 } }, ["ผู้นำให้ทุกคนพูดต่อหน้ากองไฟทีละคน ไม่มีการตะคอก ไม่มีการลากตัวใครออกมากลางลาน", "สุดท้ายพบว่าเสบียงบางส่วนถูกเด็กสองคนหยิบไปให้ผู้ป่วยที่กลัวถูกตัดส่วนแบ่ง ความผิดยังเป็นความผิด แต่สาเหตุของมันทำให้กฎต้องถูกเขียนใหม่"], { addMemory: { title: "คดีเสบียงคืนฝน", text: "ผู้นำเลือกค้นหาความจริงก่อนลงโทษ และค่ายได้เรียนรู้ว่าความหิวมักซ่อนอยู่หลังการขโมย", effect: "+ความยุติธรรมและความไว้ใจ", kind: "lesson" } }),
+      choice("confine_thief", "⛓️", "ขังผู้ต้องสงสัยและให้ทำงานชดใช้", "เข้มงวด", "ลดการขโมยซ้ำ แต่ทำให้คนบางส่วนกลัวผู้นำ", { metrics: { security: 7, fairness: -2, trust: -3 }, threat: -2, path: { fortress: 2 } }, ["ผู้ต้องสงสัยถูกให้อยู่ใกล้กองไฟและถูกห้ามแตะคลัง เสียงซุบซิบลดลง แต่สายตาหลายคู่เริ่มหลบผู้นำ", "ค่ายปลอดภัยขึ้นในทางหนึ่ง และแข็งกระด้างขึ้นอีกทางหนึ่ง"]),
+      choice("exile_thief", "🚪", "เนรเทศเพื่อให้เป็นตัวอย่าง", "เด็ดขาด", "ทรัพยากรปลอดภัยขึ้น แต่ความเมตตาของค่ายถูกตั้งคำถาม", { resources: { food: 2 }, metrics: { security: 9, morale: -6, cohesion: -5, fairness: -4 }, threat: -4, path: { fortress: 3 } }, ["คนผู้นั้นถูกส่งออกนอกค่ายพร้อมถุงอาหารเล็กน้อย ไม่มีใครส่งเสียงเชียร์ ไม่มีใครกล้าคัดค้าน", "คืนนี้เสบียงปลอดภัยขึ้น แต่บางคนตื่นขึ้นมากลางดึกเพราะนึกถึงเงาคนที่หายไปในป่า"], { addMemory: { title: "การเนรเทศครั้งแรก", text: "บทลงโทษหนักช่วยหยุดความกลัวเรื่องคลัง แต่ทิ้งคำถามว่าความอยู่รอดควรแลกด้วยอะไร", effect: "+ความปลอดภัย -ขวัญกำลังใจ", kind: "trauma" } }),
+      choice("forgive_and_reform", "🤝", "ให้อภัยแต่ตั้งกฎแบ่งเสบียงใหม่", "เมตตา", "ฟื้นความไว้ใจ แต่ถ้าค่ายยังหิวอาจถูกมองว่าอ่อนแอ", { resources: { food: -5, knowledge: 3 }, metrics: { trust: 6, morale: 3, fairness: 4, security: -2 }, path: { family: 2 } }, ["ผู้นำไม่ลบความผิด แต่ไม่ทำให้คนผิดหายไปจากค่าย กฎใหม่ถูกตั้งขึ้น: เด็ก ผู้ป่วย และคนทำงานหนักจะมีส่วนแบ่งที่ชัดเจน", "บางคนมองว่านี่คือความอ่อนแอ บางคนมองว่านี่คือเหตุผลที่ยังเรียกที่นี่ว่าบ้าน"]),
+    ],
+  },
+  {
+    id: "migrant_group", title: "กลุ่มผู้ลี้ภัยมาถึงริมค่าย", category: "อพยพ / คัดเลือกคนเข้าเมือง",
+    text: "ผู้คนเปียกฝนกลุ่มหนึ่งยืนรออยู่นอกแนวค่าย บางคนถือเครื่องมือ บางคนจูงเด็ก บางคนไอจนต้องพิงไหล่คนข้าง ๆ พวกเขาขอไม่มาก ขอเพียงโอกาสให้ชีวิตเดินต่อ",
+    condition: (g) => g.stage !== "ค่ายพักแรม" || g.metrics.trust >= 55,
+    weight: (g) => 5 + (g.stage !== "ค่ายพักแรม" ? 9 : 0) + (g.metrics.morale > 50 ? 4 : 0) + (shelterCapacity(g) > alivePeople(g).length ? 5 : 0),
+    choices: [
+      choice("accept_skilled_migrants", "🧰", "คัดรับเฉพาะคนมีทักษะและสุขภาพพร้อม", "คัดเลือก", "เพิ่มแรงงานคุณภาพ แต่สร้างบาดแผลให้คนที่ถูกปฏิเสธ", { population: 2, resources: { food: -5, water: -3 }, metrics: { security: 2, fairness: -2, morale: 1 }, path: { survival: 2 } }, ["ผู้มีเครื่องมือและแรงพอทำงานถูกเชิญเข้ามา คนที่เหลือได้รับเสบียงเล็กน้อยก่อนเดินต่อ", "ถิ่นฐานได้มือใหม่ที่จำเป็น แต่เสียงเด็กที่ต้องเดินจากไปยังค้างอยู่ในความทรงจำของบางคน"]),
+      choice("accept_all_migrants", "🏡", "รับทุกคนเข้ามาในค่าย", "เมตตาใหญ่", "ประชากรเพิ่มมาก แต่ภาระอาหาร น้ำ และที่พักจะหนักขึ้นทันที", { population: 6, resources: { food: -14, water: -8 }, metrics: { morale: 6, trust: 5, security: -3 }, risk: { disease: 5, conflict: 5 }, path: { family: 4 } }, ["ที่นอนใหม่ถูกปูจนแนวค่ายดูแคบลงในคืนเดียว หม้อซุปถูกเติมน้ำมากกว่าเดิม แต่ไม่มีใครถูกทิ้งไว้ใต้ฝน", "ค่ายเติบโตขึ้นอย่างรวดเร็ว และทุกการเติบโตย่อมพาทั้งมือใหม่ ปากใหม่ เรื่องใหม่ และปัญหาใหม่เข้ามาด้วย"]),
+      choice("accept_children_healer", "🌿", "รับเด็กและผู้รักษาไว้ก่อน", "คุ้มครอง", "เพิ่มภาระระยะสั้น แต่ได้ความหวังและการรักษา", { population: 3, resources: { food: -8, water: -5, herbs: 2 }, metrics: { health: 4, morale: 4, fairness: 3 }, path: { family: 3 } }, ["เด็กถูกพาไปใกล้กองไฟ ส่วนผู้รักษาช่วยตรวจแผลคนในค่ายทันที", "มือทำงานอาจเพิ่มไม่มาก แต่ความหมายของคำว่าเมืองเริ่มเปลี่ยน: ไม่ใช่ที่ที่รับเฉพาะคนแข็งแรงเท่านั้น"]),
+      choice("turn_migrants_away", "🚫", "ปฏิเสธและให้เสบียงเดินทางต่อ", "ป้องกันตนเอง", "รักษาทรัพยากร แต่ลดชื่อเสียงและความเชื่อใจ", { resources: { food: -3 }, metrics: { morale: -4, trust: -3, fairness: -2, security: 2 }, threat: 2, path: { fortress: 1 } }, ["ถุงอาหารเล็ก ๆ ถูกส่งออกไปแทนคำว่าเชิญเข้ามา ไม่มีใครในค่ายพูดมากนักหลังจากนั้น", "บางครั้งการปกป้องคนของเรา คือการทำให้คนอื่นต้องเดินต่อไปในความมืด"]),
+    ],
+  },
+  {
     id: "stray_goats_found", title: "แพะหลงเข้ามาใกล้ค่าย", category: "สัตว์เลี้ยง",
     text: "รอยเท้าเล็ก ๆ ปรากฏใกล้ลำธาร ก่อนที่คนตักน้ำจะพบแพะสองตัวผอม ๆ กำลังเล็มหญ้าริมพุ่มไม้ มันอาจเป็นโอกาสเริ่มเลี้ยงสัตว์ หรือเป็นภาระอาหารใหม่ของค่าย",
     condition: (g) => animalCount(g) === 0 && (g.researchDone.animalKeeping || g.stage !== "ค่ายพักแรม" || g.month >= 3),
@@ -2244,6 +2311,13 @@ export default function GamePage() {
   const [noticeOpen, setNoticeOpen] = useState(false);
 
   useEffect(() => {
+    if (!game || game.summaryModal || game.gameOver) return;
+    const ev = getEvent(game.currentEventId);
+    const important = ev.rare || ["merchant_arrival", "merchant_price_surge", "supply_theft", "migrant_group", "animal_thief"].includes(ev.id) || ev.category.includes("ภัย") || ev.category.includes("พ่อค้า") || ev.category.includes("อพยพ") || ev.category.includes("อาชญากรรม");
+    if (important) setEventPopupOpen(true);
+  }, [game?.currentEventId]);
+
+  useEffect(() => {
     const syncDeviceMode = () => setDeviceMode(detectDeviceMode());
     syncDeviceMode();
     window.addEventListener("resize", syncDeviceMode);
@@ -2457,6 +2531,7 @@ export default function GamePage() {
       <section className="shell">
         <aside className="sidebar">
           <ProfilePanel game={game} />
+          <ResourceMiniPanel game={game} />
           <เป้าหมายsPanel game={game} />
           <RiskPanel game={game} risk={risk} />
           <ForecastPanel game={game} />
@@ -2477,7 +2552,7 @@ export default function GamePage() {
         </section>
 
         <aside className="event-panel">
-          <button className="primary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setEventPopupOpen(true)}>เปิดเหตุการณ์ประจำเดือน</button><EventPanel game={game} event={event} setFocus={(focus) => updateGame((g) => ({ ...g, leaderFocus: focus, leaderActionSelected: true }))} selectChoice={(id) => updateGame((g) => ({ ...g, selectedChoiceId: id }))} endTurn={endTurn} />
+          <button className="primary" style={{ width: "100%", marginBottom: 12 }} onClick={() => setEventPopupOpen(true)}>อ่าน/ตัดสินใจเหตุการณ์เดือนนี้</button><EventPanel game={game} event={event} setFocus={(focus) => updateGame((g) => ({ ...g, leaderFocus: focus, leaderActionSelected: true }))} selectChoice={(id) => updateGame((g) => ({ ...g, selectedChoiceId: id }))} endTurn={endTurn} />
         </aside>
       </section>
 
@@ -2685,6 +2760,86 @@ function ForecastPanel({ game }: { game: GameState }) {
     </section>
   );
 }
+
+function ResourceMiniPanel({ game }: { game: GameState }) {
+  const rows = resourceLedger(game).filter((row) => row.stock > 0 || Math.abs(row.net) > 0 || ["อาหาร", "น้ำ", "ฟืน", "ไม้", "หิน", "เครื่องมือ", "ทอง"].includes(row.name));
+  return (
+    <section className="panel pad resource-mini-panel">
+      <div className="split">
+        <div>
+          <div className="kicker">บัญชีทรัพยากร</div>
+          <h3 className="section-title">คงเหลือ +/− เดือนนี้</h3>
+        </div>
+        <span className="badge">แบบย่อ</span>
+      </div>
+      <div className="resource-flow-list">
+        {rows.map((row) => (
+          <div className="resource-flow-row" key={row.name} title={row.note}>
+            <span><b>{row.icon} {row.name}</b><small>{fmt(row.stock)} {row.net >= 0 ? "+" : ""}{fmt(row.net)}</small></span>
+            <strong className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ResourceFlowCards({ game }: { game: GameState }) {
+  return (
+    <section className="panel pad resource-flow-cards" style={{ marginBottom: 14 }}>
+      <div className="split"><h3 className="section-title">บัญชีทรัพยากรแบบอ่านเร็ว</h3><span className="badge green">คงเหลือ / สุทธิเดือนนี้</span></div>
+      <div className="resource-card-grid">
+        {resourceLedger(game).map((row) => <article key={row.name} className="resource-card"><b>{row.icon} {row.name}</b><span>{fmt(row.stock)} <em className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</em></span><small className="muted">ผลิต +{fmt(row.produced)} · ใช้ -{fmt(row.used)}</small></article>)}
+      </div>
+    </section>
+  );
+}
+
+function OriginBuffPanel({ game }: { game: GameState }) {
+  const origin = originInfo(game.origin);
+  return (
+    <section className="panel pad origin-panel" style={{ marginBottom: 14 }}>
+      <div className="split">
+        <div><div className="kicker">พื้นหลังเริ่มต้น</div><h3 className="section-title">{origin.icon} {origin.title}</h3></div>
+        <span className="badge green">บัฟมีผลในระบบจริง</span>
+      </div>
+      <p className="muted small">{origin.gameplay}</p>
+      <div className="deltas">{origin.bonuses.map((b) => <span key={b} className="badge blue">{b}</span>)}</div>
+    </section>
+  );
+}
+
+function skillLabel(skill: SkillKey) {
+  const labels: Record<SkillKey, string> = { hunter: "พราน", builder: "ช่าง", healer: "ผู้รักษา", keeper: "ผู้จดจำ", guard: "เวรยาม", farmer: "แรงงาน/ชาวไร่", child: "เด็ก", elder: "ผู้เฒ่า" };
+  return labels[skill] ?? skill;
+}
+
+function MigrantPreview({ game, event }: { game: GameState; event: GameEvent }) {
+  if (event.id !== "migrant_group") return null;
+  const seed = game.year * 17 + game.month * 13 + alivePeople(game).length;
+  const count = Math.max(1, Math.min(10, (seed % 10) + 1));
+  const skills: SkillKey[] = ["farmer", "builder", "hunter", "healer", "keeper", "guard", "child", "elder"];
+  return (
+    <div className="migrant-preview">
+      <div className="split"><h3 className="section-title">ผู้ลี้ภัยที่รอการตัดสินใจ</h3><span className="badge">สุ่ม {count} คน</span></div>
+      <div className="migrant-grid">
+        {Array.from({ length: count }).map((_, i) => {
+          const age = i % 5 === 0 ? 8 + (seed + i) % 7 : i % 6 === 0 ? 62 + (seed + i) % 12 : 16 + ((seed + i * 7) % 38);
+          const skill = age < 12 ? "child" : age >= 60 ? "elder" : skills[(seed + i * 3) % 6];
+          const hp = 38 + ((seed + i * 11) % 55);
+          return <article className="migrant-card" key={`migrant-${i}`}><b>{i + 1}. {skillLabel(skill)}</b><small>อายุ {age} · สุขภาพ {hp}%</small><span className={hp < 45 ? "badge red" : "badge green"}>{hp < 45 ? "ต้องดูแล" : "พร้อมช่วยงาน"}</span></article>;
+        })}
+      </div>
+      <p className="muted small">การเลือกด้านล่างจะกำหนดว่าจะรับกลุ่มแบบใด ระบบจะสุ่มรายชื่อและ passive จริงเมื่อเข้าร่วมค่าย</p>
+    </div>
+  );
+}
+
+function TheftJusticeNote({ event }: { event: GameEvent }) {
+  if (event.id !== "supply_theft") return null;
+  return <div className="justice-note"><b>⚖️ ระบบบทลงโทษ</b><p>คดีขโมยเสบียงไม่ใช่แค่เสียอาหาร แต่ส่งผลต่อความยุติธรรม ความไว้ใจ ความปลอดภัย และภาพจำของผู้นำระยะยาว</p></div>;
+}
+
 function TerrainPanel({ game }: { game: GameState }) {
   const terrain = terrainData[game.terrain ?? "riverbank"];
   return (
@@ -2718,13 +2873,15 @@ function CityView({ game }: { game: GameState }) {
         <div className="panel kpi"><span className="muted">แรงงานจริง</span><b>{pop.workers}/{pop.adults}</b><small>เด็ก {pop.children} · ผู้เฒ่า {pop.elders} · ป่วย/เจ็บ {pop.injured + pop.sick}</small></div>
         <div className="panel kpi"><span className="muted">คุณภาพชีวิต</span><b>{pct(Math.round((quality.foodQuality + quality.waterQuality + quality.shelterQuality) / 3))}</b><small>อาหาร {pct(quality.foodQuality)} · น้ำ {pct(quality.waterQuality)} · ที่พัก {pct(quality.shelterQuality)}</small></div>
       </section>
+      <ResourceFlowCards game={game} />
+      <OriginBuffPanel game={game} />
       <ActiveProjectsPanel game={game} />
       <GuidancePanel game={game} />
       <EndWarningPanel game={game} />
       <TerrainPanel game={game} />
       <section className="two-col" style={{ marginBottom: 14 }}>
-        <div className="panel pad"><h3 className="section-title">บัญชีทรัพยากรเดือนนี้</h3><table className="report-table"><thead><tr><th>รายการ</th><th>คงเหลือ</th><th>ผลิต</th><th>ใช้</th><th>สุทธิ</th></tr></thead><tbody>{resourceLedger(game).map((row) => <tr key={row.name}><td><b>{row.icon} {row.name}</b><br /><small className="muted">{row.note}</small></td><td>{fmt(row.stock)}</td><td className="good-text">+{fmt(row.produced)}</td><td className="danger-text">-{fmt(row.used)}</td><td className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</td></tr>)}</tbody></table></div>
         <div className="panel pad"><h3 className="section-title">คนสำคัญของค่าย</h3>{keyVillagers(game).map((p) => <div key={p.id} className="key-villager"><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div>
+        <div className="panel pad"><h3 className="section-title">ผลจากพื้นหลังและพื้นที่</h3><p className="muted small">{originInfo(game.origin).story}</p><div className="terrain-tags">{terrainData[game.terrain].tags.map((tag) => <span className="badge" key={tag}>{tag}</span>)}</div></div>
       </section>
     </div>
   );
@@ -2873,6 +3030,8 @@ function ChronicleView({ game }: { game: GameState }) {
 function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void }) {
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState("");
+  const [devCode, setDevCode] = useState("");
+  const [devUnlocked, setDevUnlocked] = useState(false);
   const exportText = JSON.stringify(game, null, 2);
   const compactDebug = debugReport(game);
   const copyText = (text: string) => {
@@ -2889,12 +3048,8 @@ function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState;
       setImportMessage("นำเข้าไม่ได้: รูปแบบ JSON ไม่ถูกต้องหรือไม่ใช่เซฟของเกมนี้");
     }
   };
-  const mailBody = encodeURIComponent(`Feedback Evolution of Us Alpha v${GAME_VERSION}
-
-วาง Debug Report หรือความเห็นตรงนี้:
-
-${compactDebug}`);
-  return <section className="panel pad"><h2 className="title">ตั้งค่าและเครื่องมือทดสอบ Alpha</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>{BUILD_LABEL} · {BUILD_DATE}</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">แรงงาน</span><b>{laborTotal(normalizeLabor(game))}/{adultWorkers(game)}</b><small>ตรวจแรงงานเกินก่อนจบเดือน</small></div><div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ซื้อขายผ่านพ่อค้า/ตลาด</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>เครื่องมือทดสอบ</h3><ol><li>Copy Debug Report เมื่อเจอบัค</li><li>ส่ง Feedback ทางอีเมล</li><li>Export Save เพื่อส่งให้ผู้พัฒนา</li><li>Import Save เพื่อเปิดเซฟที่เพื่อนส่งมา debug</li></ol><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอก Godot Data Pack</button><a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a></div></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>เริ่มใหม่ / Reset Save</h3><p className="muted">ใช้เมื่อต้องการเริ่มรอบทดสอบใหม่ หรือเมื่อเซฟเก่าจากเวอร์ชันก่อนทำงานไม่ตรงระบบใหม่</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div></div><details className="details-box" style={{ marginTop: 16 }} open><summary>Debug Report แบบย่อ</summary><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></details><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></section>;
+  const mailBody = encodeURIComponent(`Feedback Evolution of Us Alpha v${GAME_VERSION}\n\nวาง Debug Report หรือความเห็นตรงนี้:\n\n${compactDebug}`);
+  return <section className="panel pad"><h2 className="title">ตั้งค่า</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>{BUILD_LABEL} · {BUILD_DATE}</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ทรัพย์สินเมือง</small></div><div className="panel kpi"><span className="muted">พื้นหลัง</span><b>{originInfo(game.origin).icon} {originInfo(game.origin).title}</b><small>บัฟมีผลกับระบบจริง</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>การเล่นและบันทึก</h3><p className="muted">ใช้เมื่อต้องการเริ่มรอบใหม่ หรือเปิดระบบสอนเล่นอีกครั้ง</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>Feedback ผู้เล่น</h3><p className="muted">ผู้เล่นทั่วไปจะเห็นเฉพาะปุ่มส่ง Feedback ไม่เห็นเครื่องมือ debug จนกว่าจะปลดล็อกด้วยรหัสผู้พัฒนา</p><a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a></div></div><details className="details-box dev-tools-box" style={{ marginTop: 16 }}><summary>เครื่องมือผู้พัฒนา / Debug</summary>{!devUnlocked ? <div className="dev-lock"><p className="muted small">พื้นที่นี้ซ่อนจากผู้เล่นทดสอบทั่วไป ใส่รหัสเพื่อเปิดข้อมูล debug</p><div className="flex"><input className="input" placeholder="รหัสผู้พัฒนา" value={devCode} onChange={(e) => setDevCode(e.target.value)} /><button className="primary" onClick={() => setDevUnlocked(devCode.trim() === "248655")}>ปลดล็อก</button></div>{devCode && devCode.trim() !== "248655" && <small className="danger-text">รหัสไม่ถูกต้อง</small>}</div> : <div><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอก Godot Data Pack</button><button className="secondary" onClick={() => setDevUnlocked(false)}>ล็อกอีกครั้ง</button></div><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></div>}</details></section>;
 }
 
 function estimateBuildMonths(game: GameState): number | null {
@@ -2976,6 +3131,8 @@ function EventPanel({ game, event, setFocus, selectChoice, endTurn }: { game: Ga
         <div className="split"><h3 className="section-title">2) เหตุการณ์ประจำเดือน · {event.category}</h3><span className={game.selectedChoiceId ? "badge green" : "badge"}>{game.selectedChoiceId ? "เลือกแล้ว" : "ยังไม่เลือก"}</span></div>
         <h2>{event.rare ? "✦ " : ""}{event.title}</h2>
         <p>{event.text}</p>
+        <MigrantPreview game={game} event={event} />
+        <TheftJusticeNote event={event} />
         <div className="option-list">{event.choices.map((c) => <button key={c.id} className={game.selectedChoiceId === c.id ? "option active" : "option"} onClick={() => selectChoice(c.id)}><span className="emoji">{c.icon}</span><span><b>{c.title}</b><br /><small className="muted">{c.tone} · {c.hint}</small></span></button>)}</div>
       </div>
 

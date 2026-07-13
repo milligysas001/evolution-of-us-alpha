@@ -22,3 +22,13 @@
 - Added event popup and notification bell for important decisions.
 - Moved monthly labor management into People tab.
 - Added portable data files for terrain and people/passive rules for Godot preparation.
+
+## v0.9.18 — Resource Flow, Justice Events & Migration Selection
+- Added compact resource flow display: stock + monthly net.
+- Hid debug/dev tools behind passcode 248655.
+- Added origin buff panel and strengthened origin-related production bonuses.
+- Added supply theft event with justice/punishment choices.
+- Added migrant group event with 1–10 candidate preview and acceptance policies.
+- Important events auto-open as central decision modal.
+- Updated start page into narrative prologue instead of system explanation.
+- Added `justice.json` and `migration.json` for Godot-portable data.

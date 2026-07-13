@@ -28,3 +28,9 @@ Livestock should be ported as a standalone simulation module:
 
 ## v0.9.17 Porting Notes
 Godot should treat `data/game/terrain.json` and `data/game/people_passives.json` as portable source data. In Godot, villagers should be Resources or Dictionaries with age, skill, traits, health, fatigue, and assignedJob. Monthly resolution should compute labor power from assigned villagers instead of plain worker counts.
+
+## v0.9.18 Porting Notes
+- `data/game/justice.json` can become a Godot Resource for punishment policy and crime events.
+- `data/game/migration.json` defines migration candidate types and policy options for future Godot selection UI.
+- Resource flow display should map to a compact HUD: `stock + net` rather than a full accounting table.
+- Important event categories should open modal/scene overlay automatically: trade, migration, crime, threat, rare.
