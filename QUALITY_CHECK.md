@@ -17,3 +17,9 @@
 3. สร้างคอกสัตว์ → งานตัดหญ้า/อาหารหยาบสัมพันธ์กับสัตว์
 4. หน้าก่อสร้าง/วิจัย → ปุ่มไปจัดทีมในแท็บคนทำงาน
 5. กระดิ่งไม่รกด้วย event ปกติ
+
+
+## v0.9.23 checks
+- Resource tab created and wired to navigation.
+- Detailed ledger removed from Town view and moved to Resources.
+- Annual history capped to 10 records via appendResourceYearHistory/normalizeResourceHistory.

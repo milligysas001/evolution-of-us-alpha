@@ -12,3 +12,10 @@
 - Added People filters: free workers, assigned workers, sick/injured.
 - Quieted event flow: monthly/leader events stay in panel; important notices stay in bell.
 - Updated Godot notes and quality check.
+
+
+## v0.9.23 — Resource Ledger Tab & 10-Year History
+- Added dedicated Resources tab.
+- Moved detailed resource ledger out of Town view.
+- Added annual resource history snapshots, capped to the latest 10 years.
+- Added Godot-ready resource history behavior notes.

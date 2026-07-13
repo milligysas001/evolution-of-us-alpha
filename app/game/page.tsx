@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
-type View = "เมือง" | "คน" | "แผนที่" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
+type View = "เมือง" | "ทรัพยากร" | "คน" | "แผนที่" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
 type DeviceMode = "desktop" | "tablet" | "mobile";
 type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
@@ -25,6 +25,7 @@ type NoticeKind = "event" | "warning" | "trade" | "threat" | "birth" | "system";
 type Notice = { id: string; year: number; month: number; kind: NoticeKind; title: string; text: string; read: boolean; eventId?: string };
 
 type Resources = Record<ResourceKey, number>;
+type ResourceHistoryYear = { year: number; stocks: Resources; produced: Partial<Resources>; used: Partial<Resources>; net: Partial<Resources>; population: number; quality: { food: number; water: number; shelter: number; }; };
 type Buildings = Record<BuildingKey, number>;
 type ResearchDone = Record<ResearchKey, boolean>;
 type Labor = Record<LaborKey, number>;
@@ -118,6 +119,7 @@ type GameState = {
   month: number;
   stage: Stage;
   resources: Resources;
+  resourceHistory: ResourceHistoryYear[];
   buildings: Buildings;
   researchDone: ResearchDone;
   construction: Project<BuildingKey>;
@@ -195,7 +197,7 @@ type GameEvent = {
   choices: EventChoice[];
 };
 
-const views: View[] = ["เมือง", "คน", "แผนที่", "ก่อสร้าง", "วิจัย", "สัตว์เลี้ยง", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
+const views: View[] = ["เมือง", "ทรัพยากร", "คน", "แผนที่", "ก่อสร้าง", "วิจัย", "สัตว์เลี้ยง", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
 const terrainData: Record<TerrainKey, { icon: string; title: string; text: string; effects: Partial<Record<ResourceKey, number>>; forage: number; wood: number; stone: number; water: number; disease: number; beast: number; weather: number; tags: string[] }> = {
   riverbank: { icon: "💧", title: "ริมลำธารเก่า", text: "มีน้ำเข้าถึงง่าย ดินชุ่ม และมีพืชริมน้ำ แต่ต้องระวังน้ำปนเปื้อนช่วงฝน", effects: { water: 14, food: 4 }, forage: 0.08, wood: 0, stone: 0, water: 0.25, disease: 8, beast: 1, weather: 0, tags: ["น้ำดี", "เกษตรดี"] },
   forestEdge: { icon: "🌲", title: "ชายป่าหนาทึบ", text: "ไม้และอาหารจากป่ามีมาก เหมาะกับพราน แต่เสียงสัตว์กลางคืนไม่เคยหายไป", effects: { wood: 12, food: 8, hides: 1 }, forage: 0.18, wood: 0.2, stone: -0.05, water: -0.05, disease: 2, beast: 12, weather: 0, tags: ["อาหารป่า", "สัตว์ป่า"] },
@@ -259,7 +261,7 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.22";
+const GAME_VERSION = "0.9.23";
 const BUILD_LABEL = "System Coherence, Project Crews & Herbal Flow";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
@@ -483,6 +485,7 @@ function pct(n: number) { return `${clamp(n)}%`; }
 function viewLabel(view: View) {
   const labels: Record<View, string> = {
     "เมือง": "🏕️ เมือง",
+    "ทรัพยากร": "📦 ทรัพยากร",
     "คน": "👥 คน",
     "แผนที่": "🧭 แผนที่",
     "ก่อสร้าง": "🛖 ก่อสร้าง",
@@ -816,6 +819,7 @@ function ensureGameState(game: GameState): GameState {
     ...game,
     version: GAME_VERSION,
     resources,
+    resourceHistory: normalizeResourceHistory((game as any).resourceHistory, temp),
     buildings,
     researchDone,
     labor,
@@ -1326,6 +1330,68 @@ function resourceLedger(game: GameState) {
   ];
 }
 
+const resourceLabelToKey: Record<string, ResourceKey> = {
+  "อาหาร": "food", "น้ำ": "water", "ฟืน": "fuel", "ไม้": "wood", "หิน": "stone", "เครื่องมือ": "tools", "สมุนไพร": "herbs", "หนังสัตว์": "hides", "ความรู้": "knowledge", "อาหารสัตว์": "feed", "ทอง": "gold"
+};
+
+function blankResourcePartial(): Partial<Resources> { return {}; }
+function resourcePartialValue(part: Partial<Resources> | undefined, key: ResourceKey) { return Math.round(part?.[key] ?? 0); }
+function makeResourceYearSnapshot(game: GameState, year = game.year): ResourceHistoryYear {
+  const produced: Partial<Resources> = blankResourcePartial();
+  const used: Partial<Resources> = blankResourcePartial();
+  const net: Partial<Resources> = blankResourcePartial();
+  resourceLedger(game).forEach((row) => {
+    const key = resourceLabelToKey[row.name];
+    if (!key) return;
+    produced[key] = Math.round(row.produced * 12);
+    used[key] = Math.round(row.used * 12);
+    net[key] = Math.round(row.net * 12);
+  });
+  const q = qualityStatus(game);
+  return {
+    year,
+    stocks: { ...game.resources },
+    produced,
+    used,
+    net,
+    population: alivePeople(game).length,
+    quality: { food: q.foodQuality, water: q.waterQuality, shelter: q.shelterQuality },
+  };
+}
+function normalizeResourceHistory(value: unknown, game: GameState): ResourceHistoryYear[] {
+  const current = makeResourceYearSnapshot(game, game.year);
+  const list = Array.isArray(value) ? value : [];
+  const safe = list
+    .filter((item: any) => item && typeof item.year === "number")
+    .map((item: any) => ({
+      year: item.year,
+      stocks: { ...baseResources(game.origin ?? "builder"), ...(item.stocks ?? {}) } as Resources,
+      produced: item.produced ?? {},
+      used: item.used ?? {},
+      net: item.net ?? {},
+      population: typeof item.population === "number" ? item.population : alivePeople(game).length,
+      quality: item.quality ?? current.quality,
+    })) as ResourceHistoryYear[];
+  const merged = [...safe.filter((item) => item.year !== current.year), current]
+    .sort((a, b) => a.year - b.year)
+    .slice(-10);
+  return merged;
+}
+function appendResourceYearHistory(game: GameState): GameState {
+  const history = normalizeResourceHistory((game as any).resourceHistory, game)
+    .filter((item) => item.year !== game.year);
+  return { ...game, resourceHistory: [...history, makeResourceYearSnapshot(game, game.year)].slice(-10) };
+}
+function resourceTrendPoints(game: GameState): ResourceHistoryYear[] {
+  return normalizeResourceHistory((game as any).resourceHistory, game);
+}
+function resourceDisplayRows(game: GameState) {
+  return resourceLedger(game).map((row) => {
+    const key = resourceLabelToKey[row.name] ?? "food";
+    return { ...row, key };
+  });
+}
+
 function resolveAnimals(game: GameState): { game: GameState; changes: string[] } {
   let g = game;
   let state = normalizeAnimalState(g.animalState);
@@ -1434,7 +1500,7 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
   if (setup.origin === "hunter") metrics.security += 4;
   const base: GameState = {
     version: GAME_VERSION, leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin,
-    year: 1, month: 1, stage: "ค่ายพักแรม", resources: applyTerrainResources(baseResources(setup.origin), terrain), buildings: emptyBuildings(), researchDone: emptyResearch(),
+    year: 1, month: 1, stage: "ค่ายพักแรม", resources: applyTerrainResources(baseResources(setup.origin), terrain), resourceHistory: [], buildings: emptyBuildings(), researchDone: emptyResearch(),
     construction: null, pausedConstruction: [], activeResearch: null, pausedResearch: [], labor: emptyLabor(), laborAssignments: {}, terrain, notifications: [],
     leaderFocus: "workWithPeople", leaderActionSelected: false, selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [],
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
@@ -2376,6 +2442,7 @@ function advanceMonth(game: GameState): GameState {
     nextYear += 1;
     g = ageYear(g, changes);
     g = addLog(g, `สรุปปีที่ ${g.year}`, `ปีที่ ${g.year} ผ่านไปพร้อมประชากร ${alivePeople(g).length} คน ผู้จากไปสะสม ${g.casualties.length} คน และความทรงจำ ${g.memories.length} เรื่อง`, "milestone", ["สรุปปี"]);
+    g = appendResourceYearHistory(g);
     changes.push(`ขึ้นปีที่ ${nextYear}`);
   }
   const recent = [event.id, ...g.recentEventIds].slice(0, 7);
@@ -2657,6 +2724,7 @@ export default function GamePage() {
             {views.map((v) => <button key={v} className={view === v ? "active" : ""} onClick={() => setView(v)}>{viewLabel(v)}</button>)}
           </nav>
           {view === "เมือง" && <CityView game={game} />}
+          {view === "ทรัพยากร" && <ResourcesView game={game} />}
           {view === "คน" && <PeopleView game={game} assignPersonLabor={assignPersonLabor} applyRecommendedAssignments={() => updateGame((g) => { const laborAssignments = recommendedAssignments(g); return { ...g, laborAssignments, labor: deriveLaborFromAssignments(g, laborAssignments), savedText: "จัดแรงงานตามความถนัดแล้ว" }; })} />}
           {view === "แผนที่" && <MapView game={game} setExploreTarget={(target) => updateGame((g) => ({ ...g, exploreTarget: target, savedText: `เลือกเส้นทางสำรวจ: ${locationData[target].title}` }))} />}
           {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} pauseConstruction={pauseConstruction} cancelConstruction={cancelConstruction} jumpToPeopleFor={jumpToPeopleFor} />}
@@ -2901,12 +2969,80 @@ function ResourceMiniPanel({ game }: { game: GameState }) {
 }
 
 function ResourceFlowCards({ game }: { game: GameState }) {
+  return <ResourceLedgerDetailed game={game} compact />;
+}
+
+function ResourcesView({ game }: { game: GameState }) {
+  const quality = qualityStatus(game);
+  const history = resourceTrendPoints(game);
+  const foodNeed = foodNeedFor(game);
+  const waterNeed = waterNeedFor(game);
   return (
-    <section className="panel pad resource-flow-cards" style={{ marginBottom: 14 }}>
-      <div className="split"><h3 className="section-title">บัญชีทรัพยากรแบบอ่านเร็ว</h3><span className="badge green">คงเหลือ / สุทธิเดือนนี้</span></div>
-      <div className="resource-card-grid">
-        {resourceLedger(game).map((row) => <article key={row.name} className="resource-card"><b>{row.icon} {row.name}</b><span>{fmt(row.stock)} <em className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</em></span><small className="muted">ผลิต +{fmt(row.produced)} · ใช้ -{fmt(row.used)}</small></article>)}
+    <div>
+      <section className="dashboard-grid resource-kpi-grid">
+        <div className="panel kpi"><span className="muted">อาหาร / เดือนนี้</span><b>{fmt(game.resources.food)} <small className={resourceLedger(game)[0].net >= 0 ? "good-text" : "danger-text"}>{resourceLedger(game)[0].net >= 0 ? "+" : ""}{fmt(resourceLedger(game)[0].net)}</small></b><small>ต้องใช้ประมาณ {fmt(foodNeed)} ต่อเดือน</small></div>
+        <div className="panel kpi"><span className="muted">น้ำ / เดือนนี้</span><b>{fmt(game.resources.water)} <small className={resourceLedger(game)[1].net >= 0 ? "good-text" : "danger-text"}>{resourceLedger(game)[1].net >= 0 ? "+" : ""}{fmt(resourceLedger(game)[1].net)}</small></b><small>คนและสัตว์ต้องใช้น้ำรวม {fmt(waterNeed)} ต่อเดือน</small></div>
+        <div className="panel kpi"><span className="muted">ทรัพย์สินเมือง</span><b>🪙 {fmt(game.resources.gold)}</b><small>ทองมาจากการค้า/ขายส่วนเกิน ใช้ซื้อของฉุกเฉิน</small></div>
+        <div className="panel kpi"><span className="muted">คุณภาพชีวิต</span><b>{pct(Math.round((quality.foodQuality + quality.waterQuality + quality.shelterQuality) / 3))}</b><small>อาหาร {pct(quality.foodQuality)} · น้ำ {pct(quality.waterQuality)} · ที่พัก {pct(quality.shelterQuality)}</small></div>
+      </section>
+      <ResourceLedgerDetailed game={game} />
+      <ResourceHistoryChart game={game} history={history} />
+      <ResourceNotesPanel game={game} />
+    </div>
+  );
+}
+
+function ResourceLedgerDetailed({ game, compact = false }: { game: GameState; compact?: boolean }) {
+  const rows = resourceDisplayRows(game).filter((row) => row.stock > 0 || Math.abs(row.net) > 0 || ["อาหาร", "น้ำ", "ฟืน", "ไม้", "หิน", "เครื่องมือ", "สมุนไพร", "ทอง"].includes(row.name));
+  return (
+    <section className="panel pad resource-flow-cards resource-ledger-section" style={{ marginBottom: 14 }}>
+      <div className="split"><div><h3 className="section-title">บัญชีทรัพยากรประจำเดือน</h3><p className="muted small">อ่านจาก “คงเหลือ / ผลิต / ใช้ / สุทธิ” เพื่อเห็นทันทีว่าค่ายกำลังสะสมหรือขาดทุนทรัพยากรใด</p></div><span className="badge green">คงเหลือ / สุทธิเดือนนี้</span></div>
+      <div className={compact ? "resource-card-grid" : "resource-detail-grid"}>
+        {rows.map((row) => <article key={row.name} className="resource-card resource-detail-card"><b>{row.icon} {row.name}</b><span>{fmt(row.stock)} <em className={row.net >= 0 ? "good-text" : "danger-text"}>{row.net >= 0 ? "+" : ""}{fmt(row.net)}</em></span><small className="muted">ผลิต +{fmt(row.produced)} · ใช้ -{fmt(row.used)}</small>{!compact && <p className="muted small">{row.note}</p>}</article>)}
       </div>
+    </section>
+  );
+}
+
+function ResourceHistoryChart({ game, history }: { game: GameState; history: ResourceHistoryYear[] }) {
+  const rows: Array<{ key: ResourceKey; icon: string; label: string }> = [
+    { key: "food", icon: "🍲", label: "อาหาร" }, { key: "water", icon: "💧", label: "น้ำ" }, { key: "fuel", icon: "🔥", label: "ฟืน" }, { key: "wood", icon: "🪵", label: "ไม้" }, { key: "stone", icon: "🪨", label: "หิน" }, { key: "gold", icon: "🪙", label: "ทอง" },
+  ];
+  const points = history.length ? history : [makeResourceYearSnapshot(game)];
+  return (
+    <section className="panel pad resource-history-section" style={{ marginBottom: 14 }}>
+      <div className="split"><div><h3 className="section-title">กราฟย้อนหลังรายปี</h3><p className="muted small">เก็บสูงสุด 10 ปีล่าสุด หากเกิน 10 ปี ระบบจะตัดปีเก่าที่สุดออกอัตโนมัติ</p></div><span className="badge blue">{points.length}/10 ปี</span></div>
+      <div className="history-chart-grid">
+        {rows.map((row) => {
+          const max = Math.max(1, ...points.map((p) => Math.abs(resourcePartialValue(p.net, row.key))), ...points.map((p) => Math.abs(p.stocks[row.key] ?? 0)));
+          return <div className="history-row" key={row.key}>
+            <div className="history-label"><b>{row.icon} {row.label}</b><small>สุทธิรายปี / คงเหลือ</small></div>
+            <div className="year-bars">
+              {points.map((p) => {
+                const net = resourcePartialValue(p.net, row.key);
+                const stock = p.stocks[row.key] ?? 0;
+                const h = Math.max(8, Math.round((Math.abs(net) / max) * 72));
+                return <div className="year-bar-wrap" key={`${row.key}-${p.year}`} title={`ปี ${p.year}: สุทธิ ${net >= 0 ? "+" : ""}${fmt(net)} · คงเหลือ ${fmt(stock)}`}>
+                  <div className={net >= 0 ? "year-bar good" : "year-bar bad"} style={{ height: h }} />
+                  <small>{p.year}</small>
+                </div>;
+              })}
+            </div>
+          </div>;
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ResourceNotesPanel({ game }: { game: GameState }) {
+  const rows = resourceLedger(game);
+  const negative = rows.filter((r) => r.net < 0).slice(0, 4);
+  const positive = rows.filter((r) => r.net > 0).slice(0, 4);
+  return (
+    <section className="two-col" style={{ marginBottom: 14 }}>
+      <div className="panel pad"><h3 className="section-title">สิ่งที่ควรจับตา</h3>{negative.length ? negative.map((r) => <p key={r.name} className="muted small">• {r.icon} <b>{r.name}</b> กำลังลดลงสุทธิ {fmt(Math.abs(r.net))} ต่อเดือน — {r.note}</p>) : <p className="muted small">เดือนนี้ยังไม่มีทรัพยากรหลักที่ติดลบชัดเจน ค่ายมีเวลาจัดลำดับงานต่อไป</p>}</div>
+      <div className="panel pad"><h3 className="section-title">จุดแข็งของเดือนนี้</h3>{positive.length ? positive.map((r) => <p key={r.name} className="muted small">• {r.icon} <b>{r.name}</b> เพิ่มสุทธิ +{fmt(r.net)} — ใช้ส่วนเกินนี้วางแผนก่อสร้าง วิจัย หรือแลกเปลี่ยน</p>) : <p className="muted small">ผลผลิตยังไม่พอสะสม ควรจัดคนให้ตรงกับงานสำคัญก่อนจบเดือน</p>}</div>
     </section>
   );
 }
@@ -3081,7 +3217,6 @@ function CityView({ game }: { game: GameState }) {
         <div className="panel kpi"><span className="muted">แรงงานจริง</span><b>{pop.workers}/{pop.adults}</b><small>เด็ก {pop.children} · ผู้เฒ่า {pop.elders} · ป่วย/เจ็บ {pop.injured + pop.sick}</small></div>
         <div className="panel kpi"><span className="muted">คุณภาพชีวิต</span><b>{pct(Math.round((quality.foodQuality + quality.waterQuality + quality.shelterQuality) / 3))}</b><small>อาหาร {pct(quality.foodQuality)} · น้ำ {pct(quality.waterQuality)} · ที่พัก {pct(quality.shelterQuality)}</small></div>
       </section>
-      <ResourceFlowCards game={game} />
       <OriginBuffPanel game={game} />
       <ActiveProjectsPanel game={game} />
       <GuidancePanel game={game} />
