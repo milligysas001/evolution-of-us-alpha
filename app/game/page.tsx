@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -750,6 +750,86 @@ function projectCrewStatus(game: GameState, jobs: LaborKey[]) {
   const labels = jobs.map((job) => laborMeta.find((item) => item.id === job)?.title ?? job).join(" / ");
   return { people, count: people.length, effective: Math.round(effective * 10) / 10, labels };
 }
+
+function skillIcon(skill?: string | null) {
+  const s = String(skill ?? "").toLowerCase();
+
+  if (
+    s.includes("wood") ||
+    s.includes("craft") ||
+    s.includes("build") ||
+    s.includes("carpenter") ||
+    s.includes("ช่าง") ||
+    s.includes("ไม้") ||
+    s.includes("ก่อสร้าง")
+  ) return "🛠️";
+
+  if (
+    s.includes("hunt") ||
+    s.includes("forest") ||
+    s.includes("food") ||
+    s.includes("พราน") ||
+    s.includes("ล่า") ||
+    s.includes("ป่า") ||
+    s.includes("อาหาร")
+  ) return "🏹";
+
+  if (
+    s.includes("heal") ||
+    s.includes("herb") ||
+    s.includes("medicine") ||
+    s.includes("รักษา") ||
+    s.includes("สมุนไพร") ||
+    s.includes("หมอ")
+  ) return "🌿";
+
+  if (
+    s.includes("guard") ||
+    s.includes("watch") ||
+    s.includes("security") ||
+    s.includes("ยาม") ||
+    s.includes("เฝ้า") ||
+    s.includes("ป้องกัน")
+  ) return "🛡️";
+
+  if (
+    s.includes("research") ||
+    s.includes("memory") ||
+    s.includes("scribe") ||
+    s.includes("learn") ||
+    s.includes("วิจัย") ||
+    s.includes("ความรู้") ||
+    s.includes("จดจำ") ||
+    s.includes("บันทึก")
+  ) return "📜";
+
+  if (
+    s.includes("trade") ||
+    s.includes("merchant") ||
+    s.includes("market") ||
+    s.includes("ค้า") ||
+    s.includes("พ่อค้า") ||
+    s.includes("ตลาด")
+  ) return "🪙";
+
+  if (
+    s.includes("animal") ||
+    s.includes("livestock") ||
+    s.includes("สัตว์") ||
+    s.includes("เลี้ยงสัตว์")
+  ) return "🐐";
+
+  if (
+    s.includes("water") ||
+    s.includes("farm") ||
+    s.includes("น้ำ") ||
+    s.includes("เกษตร") ||
+    s.includes("เพาะปลูก")
+  ) return "💧";
+
+  return "👤";
+}
+
 function crewNameList(people: Person[]) {
   if (!people.length) return "ยังไม่มีคนถูกจัดเข้าหมวดนี้";
   return people.map((p) => `${p.name} ${skillIcon(p.skill)}${p.injured ? " บาดเจ็บ" : p.age < 15 ? " เด็กช่วยงาน" : p.age >= 60 ? " ผู้เฒ่า" : ""}`).join(" · ");
@@ -3587,4 +3667,5 @@ function resolveExploration(game: GameState, changes: string[]): GameState {
   if (progress >= 45 && data.beast >= 7 && !g.pendingEvents.includes("tracks_near_camp")) g = { ...g, pendingEvents: ["tracks_near_camp", ...g.pendingEvents] };
   return g;
 }
+
 
