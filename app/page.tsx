@@ -30,8 +30,8 @@ export default function HomePage() {
   function startGame() {
     const cleanLeader = leaderName.trim() || "Elowen";
     const cleanHouse = houseName.trim() || "Vaelen";
-    window.localStorage.setItem("eou-v099-setup", JSON.stringify({ leaderName: cleanLeader, houseName: cleanHouse, origin }));
-    window.localStorage.removeItem("eou-v099-save");
+    window.localStorage.setItem("eou-v0910-setup", JSON.stringify({ leaderName: cleanLeader, houseName: cleanHouse, origin }));
+    window.localStorage.removeItem("eou-v0910-save");
     router.push("/game");
   }
 
@@ -47,7 +47,7 @@ export default function HomePage() {
             <div className="brand-mark">⌛</div>
             <span>EVOLUTION<br />OF US</span>
           </div>
-          <div className="kicker">ALPHA v0.9.9 · GUIDED SURVIVAL EDITION</div>
+          <div className="kicker">ALPHA v0.9.10 · ADAPTIVE SURVIVAL EDITION</div>
           <h1>สิบชีวิตกลางผืนดินว่างเปล่า</h1>
           <h2>ไม่มีเมือง ไม่มีตำนานสำเร็จรูป มีเพียงคนที่ต้องสร้างคำตอบด้วยมือของตนเอง</h2>
           <p>
