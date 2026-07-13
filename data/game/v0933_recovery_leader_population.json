@@ -1,0 +1,65 @@
+{
+  "version": "0.9.33",
+  "title": "Recovery, Leader Effects & 15 Settlers",
+  "systems": [
+    "assignment_status_relocation",
+    "village_rest_overview",
+    "campfire_recovery_bonus",
+    "random_15_starting_people",
+    "event_choice_delta_report",
+    "leader_action_status_report",
+    "leader_effect_runtime_integration",
+    "early_build_time_balance",
+    "herb_consumption_per_treated_patient",
+    "full_build_and_data_check"
+  ],
+  "startingPopulation": {
+    "total": 15,
+    "composition": {
+      "leader": 1,
+      "adults": 10,
+      "elders": 2,
+      "children": 2
+    },
+    "randomized": [
+      "names",
+      "ages",
+      "roles",
+      "traits",
+      "health",
+      "morale"
+    ]
+  },
+  "restRecovery": {
+    "outdoorBase": 3,
+    "campfireBonusFirst": 5,
+    "campfireBonusExtra": 2,
+    "campfireBonusCap": 7,
+    "currentVillageShownInUI": true
+  },
+  "constructionWork": {
+    "campfire": 6,
+    "smokeVent": 10,
+    "shelter": 12,
+    "dryingRack": 16,
+    "graveyard": 18,
+    "waterTrough": 20,
+    "storage": 24,
+    "farmPlot": 26,
+    "watchPost": 30,
+    "healerHut": 30,
+    "animalPen": 30
+  },
+  "leaderAndEventReport": {
+    "eventChoiceDeltas": true,
+    "leaderStatus": true,
+    "resourceAndMetricDeltas": true,
+    "populationHealthThreatFatigueDeltas": true
+  },
+  "herbalTreatment": {
+    "oneDosePerTreatedPatient": true,
+    "careCapacityControlsUsage": true,
+    "basicCareWithoutHerbs": true,
+    "shortageReported": true
+  }
+}

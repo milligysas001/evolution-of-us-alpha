@@ -1,32 +1,37 @@
-# Evolution of Us v0.9.32
+# Evolution of Us v0.9.33
 
-Labor Filter Audit & Rest Recovery Rates
+Recovery · Leader Effects · 15 Settlers
 
-## Install
+## ติดตั้ง
 
 ```powershell
 cd "C:\Users\phass\Desktop\game\New folder (2)"
-powershell -ExecutionPolicy Bypass -File .\apply-v0932-labor-rest-audit.ps1
+powershell -ExecutionPolicy Bypass -File .\apply-v0933-recovery-leader-population.ps1
 ```
 
-## Check
+สคริปต์จะสำรองโฟลเดอร์ `app` เดิม คัดลอกไฟล์เวอร์ชันใหม่ และติดตั้ง dependency ที่ล็อก TypeScript ให้เข้ากับ Next.js
+
+## ตรวจระบบ
 
 ```powershell
 cd "C:\Users\phass\evolution-of-us"
+npm run typecheck
 npm run check
 ```
 
-## Deploy
+## อัปขึ้น Vercel
 
 ```powershell
 git add -A
-git commit -m "update v0.9.32 health states categorized projects"
+git commit -m "update v0.9.33 recovery leader effects population"
 git push
 ```
 
+## สิ่งที่เปลี่ยนใน v0.9.33
 
-## v0.9.32
-- Health condition split: ป่วย / บาดเจ็บ / ทั้งคู่
-- Categorized construction and research tabs
-- Guard labor reduces food theft events
-- Isolation affects infection risk
+- ย้ายสถานะงาน/ตัวเลือกงานไปคอลัมน์ขวาของรายชื่อคน
+- แสดงภาพรวมการพักของหมู่บ้านและแยกผลพักกลางแจ้ง/กองไฟ/ที่พัก
+- เกมใหม่เริ่มด้วยคนสุ่ม 15 คน
+- ผลการเลือกเหตุการณ์และการกระทำผู้นำแสดงเป็นค่าที่เปลี่ยนจริงในรายงานจบเดือน
+- ปรับเวลาก่อสร้างช่วงต้นเกม โดยกองไฟและที่พักชั่วคราวสร้างเร็วขึ้น
+- การรักษาใช้สมุนไพรตามจำนวนผู้ป่วยที่ได้รับการดูแลจริง

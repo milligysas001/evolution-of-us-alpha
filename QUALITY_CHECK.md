@@ -1,8 +1,16 @@
-# QUALITY CHECK — v0.9.32
+# QUALITY CHECK — v0.9.33
 
-- JSON data parse: OK
-- TSX parse/transpile: OK
-- Labor sick filter no longer depends on eligible worker list
-- Rest recovery now reflects shelter/campfire/leader orders
+ผลตรวจวันที่ 2026-07-14
 
-- v0.9.32 patch: health states, project category tabs, leader relevance, infection isolation, theft guard weighting.
+- `npm run typecheck`: ผ่าน
+- `npm run check:data`: ผ่าน ทุกไฟล์ JSON อ่านได้
+- `npm run build`: ผ่าน Next.js production build
+- หน้า `/`, `/game`, `/error` และ `/_not-found` สร้างสำเร็จ
+- รายชื่อเริ่มต้น: ผู้นำ 1 + ผู้ใหญ่ 10 + ผู้เฒ่า 2 + เด็ก 2 = 15 คน
+- แผงพักฟื้นไม่มีรายการซ้ำ และแสดงค่าหมู่บ้านปัจจุบัน
+- กองไฟเพิ่มการฟื้นความล้าเหนือการพักกลางแจ้งอย่างชัดเจน
+- งาน/สถานะปัจจุบันถูกย้ายไปคอลัมน์ควบคุมด้านขวา
+- ผลเหตุการณ์และผลผู้นำถูกบันทึกใน `summaryModal.changes`
+- งานหาอาหารของผู้นำ, แผนก่อสร้าง, วงวิจัย, แผนที่ และการลดความเสี่ยงเชื่อมกับค่าคำนวณจริง
+- การรักษาใช้สมุนไพรสูงสุด 1 โดสต่อคนที่ดูแล และรายงานเมื่อสมุนไพรไม่พอ
+- เวลาโครงการช่วงต้นถูกปรับและไฟล์ `data/game/buildings.json` ตรงกับ engine

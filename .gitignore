@@ -9,3 +9,4 @@ node_modules/
 app_backup*/
 src_app_backup*/
 public_backup*/
+tsconfig.tsbuildinfo

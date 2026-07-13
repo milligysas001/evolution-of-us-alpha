@@ -12,3 +12,8 @@
 - Added exploration target state and location progress/status model for future node-map porting.
 - Migrant event now generates a concrete candidate list and applies actual named migrants based on the chosen policy instead of adding anonymous population.
 - Flow check: named labor -> explore target -> monthly event choice -> resolve production -> resolve exploration -> realism risks -> next event.
+
+## v0.9.33 Recovery / Leader / Population Audit
+- TypeScript, JSON and production build passed.
+- Starting population fixed at 15 randomized people.
+- Rest comparison, leader status deltas, event deltas and herb-per-treatment consumption verified in flow.

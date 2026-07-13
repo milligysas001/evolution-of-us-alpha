@@ -6,9 +6,9 @@
     "category": "housing",
     "cost": {
       "wood": 12,
-      "tools": 1
+      "hides": 1
     },
-    "workRequired": 20,
+    "workRequired": 12,
     "unlock": {
       "stageMin": "ค่ายพักแรม"
     },
@@ -24,9 +24,9 @@
     "category": "survival",
     "cost": {
       "wood": 8,
-      "stone": 3
+      "stone": 2
     },
-    "workRequired": 18,
+    "workRequired": 6,
     "effects": {
       "morale": 3,
       "coldRisk": -2
@@ -38,10 +38,10 @@
     "name": "คลังอาหารเล็ก",
     "category": "storage",
     "cost": {
-      "wood": 14,
-      "stone": 4
+      "wood": 18,
+      "stone": 3
     },
-    "workRequired": 28,
+    "workRequired": 24,
     "effects": {
       "foodSpoilage": -8
     }
@@ -76,7 +76,7 @@
       "wood": 18,
       "stone": 4
     },
-    "workRequired": 38,
+    "workRequired": 30,
     "effects": {
       "security": 8,
       "banditRisk": -6
@@ -106,7 +106,7 @@
       "wood": 24,
       "tools": 1
     },
-    "workRequired": 36,
+    "workRequired": 30,
     "unlock": {
       "researchAll": [
         "animalKeeping"
