@@ -1,0 +1,20 @@
+{
+  "version": "0.9.19",
+  "concept": "Separate assignment load from productive output",
+  "rules": [
+    {
+      "id": "assignment_load",
+      "description": "How much human capacity is consumed by assigning a person to work.",
+      "examples": ["adult=1.0", "child_12_14=0.5 or 0.8 with helper passive", "elder_60_plus=0.5 or 0.8 with helper passive"]
+    },
+    {
+      "id": "effective_output",
+      "description": "Actual work result after skill, passive, fatigue, health and job match modifiers.",
+      "examples": ["builder assigned to wood/build gains output bonus", "hunter assigned to forage/patrol gains output bonus"]
+    },
+    {
+      "id": "modal_policy",
+      "description": "Monthly choices stay in the normal panel. Only priority events open as modal alerts."
+    }
+  ]
+}

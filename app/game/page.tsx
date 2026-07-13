@@ -243,8 +243,8 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.18";
-const BUILD_LABEL = "Resource Flow, Justice Events & Migration Selection";
+const GAME_VERSION = "0.9.19";
+const BUILD_LABEL = "Compact Labor, Quiet Events & Flow Polish";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -547,7 +547,7 @@ function initialPeople(leaderName: string, houseName: string, origin: Origin): P
   return people.slice(0, 10);
 }
 function adultWorkers(game: GameState) {
-  return Math.floor(workerCapacity(game));
+  return Math.round(workerCapacity(game) * 10) / 10;
 }
 function workAgeLabel(person: Person) {
   if (person.age < 12) return "เด็กเล็ก";
@@ -555,15 +555,29 @@ function workAgeLabel(person: Person) {
   if (person.age < 60) return "แรงงานเต็มวัย";
   return "ผู้สูงอายุ";
 }
+function helperTraitBoost(person: Person) {
+  return person.traits.includes("ขยันเป็นพิเศษ") || person.traits.includes("ชอบช่วยงาน") || person.traits.includes("เรียนรู้ไว") || person.traits.includes("อดทน");
+}
 function baseWorkFactor(person: Person) {
   if (!person.alive || person.injured || person.health <= 28) return 0;
   if (person.age < 12) return 0;
-  if (person.age < 15) return 0.5;
+  if (person.age < 15) return helperTraitBoost(person) ? 0.8 : 0.5;
   if (person.age < 60) return 1;
-  return 0.5;
+  return helperTraitBoost(person) ? 0.8 : 0.5;
 }
 function workerCapacity(game: GameState) {
-  return alivePeople(game).reduce((sum, p) => sum + baseWorkFactor(p), 0);
+  return Math.round(alivePeople(game).reduce((sum, p) => sum + baseWorkFactor(p), 0) * 10) / 10;
+}
+function laborAssignmentLoad(game: GameState, assignments: LaborAssignments = game.laborAssignments ?? {}) {
+  const normalized = normalizeLaborAssignments(game, assignments);
+  const used = new Set<string>();
+  for (const key of Object.keys(emptyLabor()) as LaborKey[]) {
+    for (const id of normalized[key] ?? []) used.add(id);
+  }
+  return Math.round(Array.from(used).reduce((sum, id) => {
+    const person = game.people.find((p) => p.id === id);
+    return sum + (person ? baseWorkFactor(person) : 0);
+  }, 0) * 10) / 10;
 }
 function eligibleWorkers(game: GameState) {
   return alivePeople(game).filter((p) => baseWorkFactor(p) > 0);
@@ -2284,8 +2298,10 @@ function advanceMonth(game: GameState): GameState {
   const nextEventId = nextBase.gameOver ? event.id : pickEvent(nextBase);
   if (!nextBase.gameOver) {
     const nextEvent = getEvent(nextEventId);
-    const kind: NoticeKind = nextEvent.category.includes("พ่อค้า") || nextEvent.category.includes("การค้า") ? "trade" : nextEvent.category.includes("ภัย") || nextEvent.category.includes("โจร") || nextEvent.category.includes("สัตว์") ? "threat" : "event";
-    nextBase = addNotice(nextBase, { kind, title: nextEvent.title, text: nextEvent.text, eventId: nextEventId });
+    if (isPriorityEvent(nextEvent)) {
+      const kind: NoticeKind = nextEvent.category.includes("พ่อค้า") || nextEvent.category.includes("การค้า") ? "trade" : nextEvent.category.includes("ภัย") || nextEvent.category.includes("โจร") || nextEvent.category.includes("สัตว์") ? "threat" : "event";
+      nextBase = addNotice(nextBase, { kind, title: nextEvent.title, text: nextEvent.text, eventId: nextEventId });
+    }
   }
   const modal: SummaryModal = {
     title: `เดือนที่ ${game.month} ปีที่ ${game.year} — ${seasonOf(game.month)}`,
@@ -2313,8 +2329,7 @@ export default function GamePage() {
   useEffect(() => {
     if (!game || game.summaryModal || game.gameOver) return;
     const ev = getEvent(game.currentEventId);
-    const important = ev.rare || ["merchant_arrival", "merchant_price_surge", "supply_theft", "migrant_group", "animal_thief"].includes(ev.id) || ev.category.includes("ภัย") || ev.category.includes("พ่อค้า") || ev.category.includes("อพยพ") || ev.category.includes("อาชญากรรม");
-    if (important) setEventPopupOpen(true);
+    if (isPriorityEvent(ev)) setEventPopupOpen(true);
   }, [game?.currentEventId]);
 
   useEffect(() => {
@@ -2386,7 +2401,11 @@ export default function GamePage() {
   }, [game?.year, game?.month, game?.resources, game?.metrics, game?.people, game?.logs.length]);
 
   const event = useMemo(() => game ? getEvent(game.currentEventId) : events[0], [game]);
-  useEffect(() => { if (game?.currentEventId) setEventPopupOpen(true); }, [game?.currentEventId, game?.year, game?.month]);
+  useEffect(() => {
+    if (!game?.currentEventId) return;
+    const ev = getEvent(game.currentEventId);
+    if (isPriorityEvent(ev)) setEventPopupOpen(true);
+  }, [game?.currentEventId, game?.year, game?.month]);
   const availableWorkers = game ? adultWorkers(game) : 0;
   const risk = game ? riskPreview(game) : { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 };
 
@@ -2468,9 +2487,9 @@ export default function GamePage() {
   function endTurn() { updateGame((g) => {
     const normalizedAssignments = normalizeLaborAssignments(g, g.laborAssignments ?? {});
     const labor = Object.values(normalizedAssignments).some((ids) => (ids ?? []).length > 0) ? deriveLaborFromAssignments(g, normalizedAssignments) : normalizeLabor(g);
-    const used = laborTotal(labor);
+    const used = laborAssignmentLoad(g, normalizedAssignments);
     const available = workerCapacity(g);
-    if (used > available) return { ...g, savedText: `ใช้แรงงานเกิน ${used - available} คน กรุณาลดงานก่อนจบเดือน` };
+    if (used > available + 0.01) return { ...g, savedText: `จัดคนเกินกำลังจริง ${Math.round((used - available) * 10) / 10} หน่วย กรุณาพักบางคนก่อนจบเดือน` };
     if (!g.leaderActionSelected) return { ...g, savedText: "ต้องเลือกการกระทำของผู้นำก่อนจบเดือน" };
     if (!g.selectedChoiceId) return { ...g, savedText: "ต้องเลือกวิธีตอบสนองเหตุการณ์ก่อนจบเดือน" };
     return g.gameOver ? g : advanceMonth({ ...g, laborAssignments: normalizedAssignments, labor });
@@ -2515,7 +2534,7 @@ export default function GamePage() {
           <span className="pill">{seasonOf(game.month)}</span>
           <span className="pill good">ระยะ: {game.stage}</span>
           <span className="pill">ประชากร {alivePeople(game).length}</span>
-          <span className="pill">แรงงาน {availableWorkers}/{workerCapacity(game).toFixed(1)}</span>
+          <span className="pill">ใช้คน {laborAssignmentLoad(game).toFixed(1)}/{workerCapacity(game).toFixed(1)} · ผลผลิต {laborTotal(game.labor).toFixed(1)}</span>
           <span className="pill">ตระกูล {game.houseName}</span>
           <span className="pill warn">ภัยภายนอก {pct(game.threat)}</span>
           <span className="pill gold-pill">คลังเมือง 🪙 {fmt(game.resources.gold)}</span>
@@ -2524,7 +2543,7 @@ export default function GamePage() {
           <span className="pill">มุมมอง: {deviceLabel(deviceMode)}</span>
           <span className="pill good">{game.savedText}</span>
         </div>
-        <button className="icon-btn notice-btn" onClick={() => setNoticeOpen(true)}>🔔{(game.notifications ?? []).filter((n) => !n.read).length > 0 && <span>{(game.notifications ?? []).filter((n) => !n.read).length}</span>}</button>
+        <button className="icon-btn notice-btn" onClick={() => setNoticeOpen(true)}>🔔{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length > 0 && <span>{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length}</span>}</button>
         <button className="icon-btn" onClick={() => setView("ตั้งค่า")}>⚙️</button>
       </header>
 
@@ -2573,7 +2592,7 @@ export default function GamePage() {
         <div className="modal-backdrop">
           <section className="modal event-modal">
             <div className="split">
-              <div><div className="kicker">เหตุการณ์สำคัญประจำเดือน</div><h2 className="summary-title">{event.title}</h2></div>
+              <div><div className="kicker">แจ้งเตือนเหตุการณ์สำคัญ</div><h2 className="summary-title">{event.title}</h2></div>
               <button className="secondary" onClick={() => setEventPopupOpen(false)}>ย่อไว้ก่อน</button>
             </div>
             <p style={{ lineHeight: 1.8 }}>{event.text}</p>
@@ -2586,7 +2605,7 @@ export default function GamePage() {
         <div className="modal-backdrop">
           <section className="modal notice-modal">
             <div className="split"><h2 className="summary-title">ศูนย์แจ้งเตือน</h2><button className="secondary" onClick={() => setNoticeOpen(false)}>ปิด</button></div>
-            {(game.notifications ?? []).length === 0 ? <p className="muted">ยังไม่มีแจ้งเตือนสำคัญ</p> : <div className="timeline">{(game.notifications ?? []).map((n) => <div key={n.id} className="log"><b>{n.kind === "trade" ? "🪙" : n.kind === "threat" ? "⚠️" : n.kind === "birth" ? "👶" : n.kind === "event" ? "✦" : "🔔"} {n.title}</b><small>ปี {n.year} เดือน {n.month}</small><p>{n.text}</p></div>)}</div>}
+            {(game.notifications ?? []).filter(isImportantNotice).length === 0 ? <p className="muted">ยังไม่มีแจ้งเตือนสำคัญ</p> : <div className="timeline">{(game.notifications ?? []).filter(isImportantNotice).map((n) => <div key={n.id} className="log"><b>{n.kind === "trade" ? "🪙" : n.kind === "threat" ? "⚠️" : n.kind === "birth" ? "👶" : n.kind === "event" ? "✦" : "🔔"} {n.title}</b><small>ปี {n.year} เดือน {n.month}</small><p>{n.text}</p></div>)}</div>}
           </section>
         </div>
       )}
@@ -2895,53 +2914,100 @@ function EndWarningPanel({ game }: { game: GameState }) {
   if (!items.length) return null;
   return <section className="panel pad warning-panel" style={{ marginBottom: 14 }}><div className="split"><h3 className="section-title">คำเตือนก่อนจบเดือน</h3><span className="badge red">ควรตรวจสอบ</span></div><div className="guidance-grid">{items.map((w, i) => <article key={`${w.title}-${i}`} className={`warning-card ${w.severity}`}><b>{w.icon} {w.title}</b><small>{w.text}</small></article>)}</div></section>;
 }
+function personStatusEmoji(person: Person) {
+  if (!person.alive) return "💀";
+  if (person.injured) return "🩹";
+  if (person.health < 45) return "🤒";
+  if (person.age < 12) return "🧒";
+  if (person.age < 15) return "👦";
+  if (person.age >= 60) return "🧓";
+  if (person.fatigue > 70) return "😓";
+  return "✅";
+}
+function personSkillEmoji(person: Person) {
+  const map: Record<SkillKey, string> = { hunter: "🏹", builder: "🛠️", healer: "🌿", keeper: "📜", guard: "🛡️", farmer: "🌾", child: "🧒", elder: "🧓" };
+  return map[person.skill] ?? "👤";
+}
+function traitEmoji(trait: string) {
+  if (trait.includes("กินจุ")) return "🍽️";
+  if (trait.includes("กินน้อย")) return "🥣";
+  if (trait.includes("ขยัน") || trait.includes("อดทน")) return "💪";
+  if (trait.includes("เรียนรู้") || trait.includes("สังเกต")) return "👁️";
+  if (trait.includes("สัตว์")) return "🐾";
+  if (trait.includes("กล้า")) return "🛡️";
+  if (trait.includes("ใจดี") || trait.includes("ละเอียด")) return "🤲";
+  return "•";
+}
 function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignments }: { game: GameState; assignPersonLabor: (personId: string, job: LaborKey | "") => void; applyRecommendedAssignments: () => void }) {
+  const [skillFilter, setSkillFilter] = useState<SkillKey | "all">("all");
   const jobs = unlockedLaborOptions(game);
   const assignments = normalizeLaborAssignments(game, game.laborAssignments ?? {});
   const labor = deriveLaborFromAssignments(game, assignments);
   const capacity = workerCapacity(game);
-  const used = Object.values(labor).reduce((a, b) => a + (b ?? 0), 0);
+  const used = laborAssignmentLoad(game, assignments);
+  const output = laborTotal(labor);
   const workers = eligibleWorkers(game);
+  const filters: Array<{ id: SkillKey | "all"; label: string }> = [
+    { id: "all", label: "ทั้งหมด" },
+    { id: "hunter", label: "🏹 อาหาร/ป่า" },
+    { id: "builder", label: "🛠️ ไม้/ก่อสร้าง" },
+    { id: "healer", label: "🌿 สุขภาพ" },
+    { id: "keeper", label: "📜 วิจัย/ข่าว" },
+    { id: "guard", label: "🛡️ ป้องกัน" },
+    { id: "farmer", label: "🌾 น้ำ/เกษตร" },
+    { id: "child", label: "🧒 เด็กช่วยงาน" },
+    { id: "elder", label: "🧓 ผู้เฒ่า" },
+  ];
+  const visibleWorkers = skillFilter === "all" ? workers : workers.filter((person) => person.skill === skillFilter || (skillFilter === "child" && person.age < 15) || (skillFilter === "elder" && person.age >= 60));
   return (
     <section className="panel pad labor-named-panel" style={{ boxShadow: "none", margin: "12px 0" }}>
       <div className="split">
         <div>
           <h3 className="section-title">จัดแรงงานรายบุคคล</h3>
-          <p className="muted small">เลือกชื่อคนลงงานโดยตรง ความถนัด อายุ สุขภาพ ความเหนื่อย และ passive จะส่งผลต่อผลผลิตจริง เด็กอายุ 12–14 ช่วยได้ครึ่งหนึ่งและต้องมีผู้ใหญ่ทำงานเดียวกัน</p>
+          <p className="muted small">เลือกคนลงงานจากรายชื่อย่อ สถานะ อายุ passive และความถนัดจะถูกนำไปคำนวณผลผลิตจริง เด็กช่วยงานได้เมื่อมีผู้ใหญ่ทำงานเดียวกัน ส่วนผู้สูงอายุยังช่วยได้แต่กำลังลดลง</p>
         </div>
-        <div className="flex"><button className="secondary" onClick={applyRecommendedAssignments}>จัดตามความถนัด</button><span className="badge green">ใช้แรงงาน {used.toFixed(1)}/{capacity.toFixed(1)}</span></div>
+        <div className="flex"><button className="secondary" onClick={applyRecommendedAssignments}>จัดตามความถนัด</button><span className="badge green">ใช้คน {used.toFixed(1)}/{capacity.toFixed(1)}</span><span className="badge blue">ผลผลิต {output.toFixed(1)}</span></div>
       </div>
-      <div className="assignment-grid">
-        {workers.map((person) => {
+      <div className="filter-strip compact-filter">
+        {filters.map((f) => <button key={f.id} className={skillFilter === f.id ? "active" : ""} onClick={() => setSkillFilter(f.id)}>{f.label}</button>)}
+      </div>
+      <div className="assignment-list">
+        {visibleWorkers.map((person) => {
           const current = assignedJobOf(game, person.id) ?? "";
           const factor = baseWorkFactor(person);
+          const currentJob = current ? laborMeta.find((j) => j.id === current) : null;
           return (
-            <article className="assignment-card" key={`assign-${person.id}`}>
-              <div>
-                <b>{person.name}</b>
-                <small className="muted">{person.role} · {workAgeLabel(person)} · แรงงานพื้นฐาน {factor}</small>
-                <div className="deltas">
-                  <span className="badge">{person.skill}</span>
-                  {person.traits.slice(0, 3).map((tr) => <span className="badge" key={`${person.id}-${tr}`}>{tr}</span>)}
-                </div>
+            <article className="assignment-row" key={`assign-${person.id}`}>
+              <div className="person-line">
+                <b>{personStatusEmoji(person)} {personSkillEmoji(person)} {person.name}</b>
+                <small className="muted">{person.role} · อายุ {person.age} · {workAgeLabel(person)} · กำลัง {factor}</small>
               </div>
-              <select value={current} onChange={(e) => assignPersonLabor(person.id, e.target.value as LaborKey | "")} className="labor-select">
+              <div className="trait-line">
+                {person.traits.slice(0, 4).map((tr) => <span className="badge" key={`${person.id}-${tr}`}>{traitEmoji(tr)} {tr}</span>)}
+                {person.fatigue > 65 && <span className="badge red">😓 ล้า</span>}
+                {person.health < 45 && <span className="badge red">🤒 สุขภาพต่ำ</span>}
+                {currentJob && <span className="badge green">ทำอยู่: {currentJob.icon} {currentJob.title}</span>}
+              </div>
+              <select value={current} onChange={(e) => assignPersonLabor(person.id, e.target.value as LaborKey | "")} className="labor-select compact-select">
                 <option value="">พัก / ไม่ลงงาน</option>
-                {jobs.map((job) => <option key={job.id} value={job.id}>{job.icon} {job.title} · ประสิทธิภาพ {Math.round(baseWorkFactor(person) * personJobBonus(person, job.id) * 100)}%</option>)}
+                {jobs.map((job) => <option key={job.id} value={job.id}>{job.icon} {job.title} · {Math.round(baseWorkFactor(person) * personJobBonus(person, job.id) * 100)}%</option>)}
               </select>
             </article>
           );
         })}
       </div>
-      <div className="work-grid" style={{ marginTop: 12 }}>
-        {jobs.map((job) => (
-          <div className="work-card" key={`job-summary-${job.id}`}>
-            <b>{job.icon} {job.title}</b>
-            <p className="muted small">{(assignments[job.id] ?? []).map((id) => game.people.find((p) => p.id === id)?.name).filter(Boolean).join(" · ") || "ยังไม่มีคนทำงานนี้"}</p>
-            <span className="badge green">แรงงานจริง {fmt(labor[job.id] ?? 0)}</span>
-          </div>
-        ))}
-      </div>
+      <details className="details-box" style={{ marginTop: 12 }}>
+        <summary>สรุปงานที่มีคนทำอยู่</summary>
+        <div className="work-grid" style={{ marginTop: 12 }}>
+          {jobs.filter((job) => (assignments[job.id] ?? []).length > 0).map((job) => (
+            <div className="work-card" key={`job-summary-${job.id}`}>
+              <b>{job.icon} {job.title}</b>
+              <p className="muted small">{(assignments[job.id] ?? []).map((id) => game.people.find((p) => p.id === id)?.name).filter(Boolean).join(" · ")}</p>
+              <span className="badge green">ผลผลิตจริง {fmt(labor[job.id] ?? 0)}</span>
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   );
 }
@@ -2952,7 +3018,7 @@ function PeopleView({ game, assignPersonLabor, applyRecommendedAssignments }: { 
       <div className="split"><div><h2 className="title">คนในค่าย</h2><p className="muted">ทุกคนมีชื่อ อายุ สุขภาพ ความเหนื่อย และสถานะจริง คนสำคัญจะมีผลต่อการล่า ก่อสร้าง รักษา เวรยาม ข่าวสาร และพงศาวดาร</p></div><span className="badge">มีชีวิต {alivePeople(game).length}</span></div>
       <LaborAssignmentPanel game={game} assignPersonLabor={assignPersonLabor} applyRecommendedAssignments={applyRecommendedAssignments} />
       <section className="panel pad" style={{ boxShadow: "none", margin: "12px 0" }}><h3 className="section-title">คนสำคัญของรอบนี้</h3><div className="work-grid">{keys.map((p) => <div className="key-villager" key={`key-${p.id}`}><b>{p.name}</b><small>{p.role} · {p.traits.join(" · ")}</small><p className="muted small">{villagerImpact(p)}</p><span>{p.injured ? "บาดเจ็บ" : p.health < 45 ? "ป่วย" : "พร้อม"}</span></div>)}</div></section>
-      <div className="people-grid">{game.people.map((p) => <PersonCard key={p.id} person={p} />)}</div>
+      <details className="details-box" style={{ marginTop: 12 }}><summary>ดูรายละเอียดรายคนทั้งหมด</summary><div className="people-grid">{game.people.map((p) => <PersonCard key={p.id} person={p} />)}</div></details>
     </section>
   );
 }
@@ -3076,10 +3142,21 @@ function keyVillagers(game: GameState): Person[] {
   return leader ? [leader, ...picked] : picked;
 }
 function specialEventLabel(event: GameEvent): { icon: string; title: string; text: string } | null {
-  if (event.category.includes("การค้า") || event.title.includes("พ่อค้า")) return { icon: "🪙", title: "เหตุการณ์พิเศษ: พ่อค้ามาถึง", text: "เลือกซื้อ ขาย หรือปฏิเสธการแลกเปลี่ยนได้ในเดือนนี้" };
-  if (event.category.includes("ภัยมนุษย์") || event.title.includes("โจร")) return { icon: "⚠️", title: "เหตุการณ์พิเศษ: ภัยจากคนภายนอก", text: "เตรียมคน ปกปิดทรัพย์สิน หรือเปิดเจรจาให้เหมาะกับกำลังของค่าย" };
+  if (event.category.includes("การค้า") || event.title.includes("พ่อค้า")) return { icon: "🪙", title: "เหตุการณ์พิเศษ: พ่อค้ามาถึง", text: "คาราวานไม่ได้มาทุกเดือน การค้าครั้งนี้อาจเปลี่ยนทางรอดของค่ายได้" };
+  if (event.category.includes("อพยพ") || event.title.includes("อพยพ") || event.title.includes("ผู้ลี้ภัย")) return { icon: "🧳", title: "เหตุการณ์สำคัญ: ผู้คนมาถึงแนวค่าย", text: "การรับหรือปฏิเสธใครสักคนจะกลายเป็นความทรงจำของชุมชน" };
+  if (event.category.includes("อาชญากรรม") || event.title.includes("ขโมย") || event.title.includes("เสบียง")) return { icon: "⚖️", title: "เหตุการณ์สำคัญ: ความยุติธรรมถูกทดสอบ", text: "การลงโทษที่เลือกจะสร้างกฎเงียบให้คนทั้งค่ายจดจำ" };
+  if (event.category.includes("ภัยมนุษย์") || event.title.includes("โจร") || event.title.includes("บุก")) return { icon: "⚠️", title: "เหตุการณ์สำคัญ: ภัยจากคนภายนอก", text: "เตรียมคน ปกปิดทรัพย์สิน หรือเปิดเจรจาให้เหมาะกับกำลังของค่าย" };
+  if (event.category.includes("สัตว์") && (event.title.includes("ขโมย") || event.title.includes("หนี") || event.title.includes("ตาย"))) return { icon: "🐐", title: "เหตุการณ์สำคัญ: ฝูงสัตว์กำลังเสี่ยง", text: "สัตว์เลี้ยงคืออาหารในอนาคต แต่ก็เป็นภาระที่ต้องปกป้อง" };
   if (event.rare) return { icon: "✦", title: "เหตุการณ์หายาก", text: "เหตุการณ์นี้ไม่เกิดบ่อย และอาจกลายเป็นความทรงจำสำคัญของถิ่นฐาน" };
   return null;
+}
+function isPriorityEvent(event: GameEvent): boolean {
+  return Boolean(specialEventLabel(event));
+}
+function isImportantNotice(notice: Notice): boolean {
+  if (notice.kind === "trade" || notice.kind === "threat" || notice.kind === "birth" || notice.kind === "warning") return true;
+  if (notice.eventId) return isPriorityEvent(getEvent(notice.eventId));
+  return notice.title.includes("พ่อค้า") || notice.title.includes("โจร") || notice.title.includes("ขโมย") || notice.title.includes("อพยพ") || notice.title.includes("เกิด") || notice.title.includes("เสียชีวิต");
 }
 function ActiveProjectsPanel({ game }: { game: GameState }) {
   const buildMonths = estimateBuildMonths(game);
@@ -3098,7 +3175,7 @@ function ActiveProjectsPanel({ game }: { game: GameState }) {
   );
 }
 function EventPanel({ game, event, setFocus, selectChoice, endTurn }: { game: GameState; event: GameEvent; setFocus: (key: LeaderFocusKey) => void; selectChoice: (id: string) => void; endTurn: () => void }) {
-  const laborOver = laborTotal(game.labor) > adultWorkers(game);
+  const laborOver = laborAssignmentLoad(game) > workerCapacity(game) + 0.01;
   const actionMissing = !game.leaderActionSelected;
   const eventMissing = !game.selectedChoiceId;
   const blocked = laborOver || actionMissing || eventMissing;
@@ -3108,7 +3185,7 @@ function EventPanel({ game, event, setFocus, selectChoice, endTurn }: { game: Ga
       {special && <div className="special-banner"><span>{special.icon}</span><b>{special.title}</b><small>{special.text}</small></div>}
       <div className="kicker">รอบการตัดสินใจ · เดือน {game.month}/12</div>
       <h2>เลือกสิ่งที่จะทำก่อนจบเดือน</h2>
-      <p className="muted">เลือกได้ทั้งสองส่วน จะเลือกการกระทำของผู้นำก่อนหรือเลือกตอบเหตุการณ์ก่อนก็ได้ แต่ต้องเลือกให้ครบก่อนจบเดือน</p>
+      <p className="muted">เลือกการนำของผู้นำและคำตอบของเหตุการณ์เดือนนี้ให้ครบ การตัดสินใจจะสะสมเป็นผลผลิต ความเสี่ยง ความไว้ใจ และพงศาวดารของถิ่นฐาน</p>
 
       <div className="decision-block">
         <div className="split"><h3 className="section-title">1) การกระทำของผู้นำ</h3><span className={game.leaderActionSelected ? "badge green" : "badge"}>{game.leaderActionSelected ? "เลือกแล้ว" : "ยังไม่เลือก"}</span></div>
@@ -3136,12 +3213,12 @@ function EventPanel({ game, event, setFocus, selectChoice, endTurn }: { game: Ga
         <div className="option-list">{event.choices.map((c) => <button key={c.id} className={game.selectedChoiceId === c.id ? "option active" : "option"} onClick={() => selectChoice(c.id)}><span className="emoji">{c.icon}</span><span><b>{c.title}</b><br /><small className="muted">{c.tone} · {c.hint}</small></span></button>)}</div>
       </div>
 
-      {laborOver && <p className="danger-text small">ใช้แรงงานเกิน {laborTotal(game.labor) - adultWorkers(game)} คน กรุณาลดงานก่อนจบเดือน</p>}
+      {laborOver && <p className="danger-text small">จัดคนเกินกำลังจริง {Math.round((laborAssignmentLoad(game) - workerCapacity(game)) * 10) / 10} หน่วย กรุณาพักบางคนก่อนจบเดือน</p>}
       <div className="mini-warning-list">{endMonthWarnings(game).slice(0, 4).map((w, i) => <span key={`${w.title}-${i}`} className={w.severity === "danger" ? "badge red" : "badge"}>{w.icon} {w.title}</span>)}</div>
       {actionMissing && <p className="danger-text small">ยังไม่ได้เลือกการกระทำของผู้นำ</p>}
       {eventMissing && <p className="danger-text small">ยังไม่ได้เลือกวิธีตอบสนองเหตุการณ์</p>}
       <button className="primary" disabled={blocked} onClick={endTurn} style={{ width: "100%", marginTop: 14, opacity: blocked ? .55 : 1 }}>ยืนยันและจบเดือน →</button>
-      <p className="muted small">ทุกตัวเลือกจะส่งผลต่อทรัพยากร คน ความเสี่ยง พงศาวดารและเหตุการณ์ต่อเนื่อง</p>
+      <p className="muted small">การตัดสินใจไม่ได้หายไปพร้อมเดือนนี้ บางอย่างจะกลับมาในรูปของความไว้ใจ ข่าวลือ ความกลัว หรือความทรงจำของคนรุ่นต่อไป</p>
     </section>
   );
 }

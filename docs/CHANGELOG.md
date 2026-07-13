@@ -1,34 +1,12 @@
-# Changelog
+# Changelog v0.9.19
 
-## v0.9.15 — Portable Data Foundation
-- เพิ่ม data/game/*.json
-- เพิ่ม docs สำหรับ Godot porting
-- ปรับงานน้ำให้ใช้ได้ตั้งแต่เริ่มเกม
-- เพิ่มคำเตือนน้ำไม่พอก่อนจบเดือน
-- เพิ่มปุ่มคัดลอก Godot Data Pack ใน Settings
+## Compact Labor & Quiet Event Flow
+- ปรับ Event Flow: เหตุการณ์ปกติอยู่ใน panel เดิม ไม่เด้ง modal อัตโนมัติ
+- Modal กลางจอใช้เฉพาะเหตุการณ์สำคัญจริง เช่น พ่อค้า, โจร, ขโมยเสบียง, ผู้อพยพ, เหตุการณ์หายาก
+- Bell notification กรองเฉพาะแจ้งเตือนสำคัญ ลด noise
+- หน้าแรงงานรายบุคคลเปลี่ยนจากการ์ดใหญ่เป็น compact rows พร้อม filter ตามความถนัด
+- แก้ overwork logic: เช็คจาก assignment load ไม่ใช่ productive output หลัง skill/passive bonus
+- เด็กช่วยงานและผู้สูงอายุมี base work factor ที่สมจริงขึ้น พร้อม boost จาก passive ที่เหมาะสม
 
-## v0.9.16 — Realism Flow + Animal Husbandry
-- Added pause/resume/cancel/switch for construction and research projects.
-- Added livestock tab and animal simulation: goats, chickens, dogs, hunger, health, breeding, theft, escape, starvation and slaughter.
-- Added fodder/feed research and feed labor job.
-- Added animal event seeds and Godot-portable `data/game/animals.json`.
-- Leader actions now act as practical buffs; food leadership increases food, animal care reduces livestock risk.
-
-## v0.9.17 — Named Labor, Event Alerts & Terrain Start
-- Added named-person labor assignment.
-- Added age-based work rules: age 12–14 can help at half output only when an adult is assigned to the same job; age 15+ can work; age 60+ works at half efficiency.
-- Added passive/skill labor output bonuses and personal food consumption modifiers.
-- Added randomized settlement terrain with realistic resource and risk modifiers.
-- Added event popup and notification bell for important decisions.
-- Moved monthly labor management into People tab.
-- Added portable data files for terrain and people/passive rules for Godot preparation.
-
-## v0.9.18 — Resource Flow, Justice Events & Migration Selection
-- Added compact resource flow display: stock + monthly net.
-- Hid debug/dev tools behind passcode 248655.
-- Added origin buff panel and strengthened origin-related production bonuses.
-- Added supply theft event with justice/punishment choices.
-- Added migrant group event with 1–10 candidate preview and acceptance policies.
-- Important events auto-open as central decision modal.
-- Updated start page into narrative prologue instead of system explanation.
-- Added `justice.json` and `migration.json` for Godot-portable data.
+## Godot Porting Note
+ระบบแรงงานตอนนี้แยกแนวคิดเป็น `assignment load` และ `effective output` ชัดเจนขึ้น ซึ่งสำคัญต่อการพอร์ตไป Godot ในอนาคต
