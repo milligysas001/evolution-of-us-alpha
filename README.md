@@ -1,17 +1,25 @@
-# Evolution of Us v0.9.12 — Full Systems Pack
+# Evolution of Us v0.9.14 — Stability Refactor Foundation
 
-เพิ่มระบบใหญ่ตาม Roadmap: Objectives/Milestones, Merchant Trading, Threat System, Named Villager Impact, Alpha Test Tools และปรับ News/Settings ให้เหมาะกับการทดสอบกับเพื่อน
+อัปเดตนี้เน้นทำให้ฐานเกมเสถียรขึ้นก่อนเพิ่มระบบใหญ่ต่อไป โดยแก้ปัญหา build/deploy/save ที่เจอซ้ำในช่วง Alpha Test
 
-ติดตั้ง:
+## ติดตั้ง
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\apply-v0912-full-systems.ps1
+cd "C:\Users\phass\Desktop\game\New folder (2)"
+powershell -ExecutionPolicy Bypass -File .\apply-v0914-stability-refactor.ps1
 ```
 
-จากนั้น build และ push:
+## ตรวจ build
+
 ```powershell
-cd C:\Users\phass\evolution-of-us
+cd "C:\Users\phass\evolution-of-us"
 npm run build
+```
+
+## อัปขึ้น Vercel ผ่าน GitHub
+
+```powershell
 git add -A
-git commit -m "update v0.9.12 full systems"
+git commit -m "update v0.9.14 stability refactor"
 git push
 ```

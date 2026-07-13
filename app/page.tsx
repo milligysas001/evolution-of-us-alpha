@@ -1,370 +1,118 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 
-const VERSION = "Alpha v0.9.13";
+type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
 
-const SETUP_KEYS = [
-  "eou-v0913-setup",
-  "eou-v0912-setup",
-  "eou-v0911-setup",
-  "eou-v0910-setup",
-  "eou-v099-setup",
-  "eou-v098-setup",
-  "eou-v097-setup"
+type OriginCard = {
+  id: Origin;
+  icon: string;
+  title: string;
+  text: string;
+  detail: string;
+};
+
+const VERSION = "Alpha v0.9.14";
+const setupKey = "eou-current-setup";
+const saveKey = "eou-current-save";
+const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
+const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
+
+const origins: OriginCard[] = [
+  { id: "builder", icon: "🪓", title: "ครอบครัวช่างไม้", text: "ตั้งหลักเร็วขึ้นด้านที่พัก คลัง และโครงสร้างแรก", detail: "เหมาะกับผู้เล่นที่อยากลดแรงกดดันช่วงเดือนแรก" },
+  { id: "hunter", icon: "🏹", title: "กลุ่มพรานริมป่า", text: "หาอาหารช่วงต้นดีขึ้น และอ่านสัญญาณของป่าได้ไว", detail: "เหมาะกับการเล่นสายเสี่ยง ได้ผลตอบแทนเร็วแต่ต้องระวังบาดเจ็บ" },
+  { id: "healer", icon: "🌿", title: "ผู้รู้สมุนไพร", text: "ประคองโรค แผล และความสูญเสียในช่วงแรกได้ดี", detail: "เหมาะกับผู้เล่นที่อยากให้ค่ายอยู่รอดแบบมั่นคง" },
+  { id: "keeper", icon: "📜", title: "ผู้จดจำเรื่องเล่า", text: "ความรู้ พงศาวดาร และข่าวสารเดินหน้าไวกว่า", detail: "เหมาะกับการเล่นระยะยาวและการปลดล็อกระบบใหม่" },
+  { id: "mediator", icon: "⚖️", title: "ผู้นำผู้ไกล่เกลี่ย", text: "ลดรอยร้าวเรื่องเสบียง ความยุติธรรม และความเชื่อใจ", detail: "เหมาะกับถิ่นฐานที่โตขึ้นและเริ่มมีความเห็นต่าง" },
 ];
 
-const SAVE_KEYS = [
-  "eou-v0913-save",
-  "eou-v0912-save",
-  "eou-v0911-save",
-  "eou-v0910-save",
-  "eou-v099-save",
-  "eou-v098-save",
-  "eou-v097-save"
-];
-
-const origins = [
-  {
-    id: "builder",
-    icon: "🛠️",
-    title: "ช่างสร้างถิ่น",
-    desc: "เหมาะกับการสร้างที่พัก คลัง และโครงสร้างแรกของค่าย",
-    bonus: "เริ่มต้นมั่นคงขึ้นด้านไม้และงานก่อสร้าง"
-  },
-  {
-    id: "hunter",
-    icon: "🏹",
-    title: "กลุ่มพรานริมป่า",
-    desc: "ถนัดหาอาหาร อ่านรอยเท้า และอยู่กับความเสี่ยงของป่า",
-    bonus: "หาอาหารช่วงต้นดีขึ้น แต่ต้องระวังบาดเจ็บ"
-  },
-  {
-    id: "healer",
-    icon: "🌿",
-    title: "ผู้รู้สมุนไพร",
-    desc: "ดูแลแผล ไข้ และโรคเล็ก ๆ ในค่ายได้ดีกว่า",
-    bonus: "เหมาะกับรอบที่อยากลดความสูญเสียจากโรค"
-  },
-  {
-    id: "keeper",
-    icon: "📜",
-    title: "ผู้จดจำเรื่องเล่า",
-    desc: "เก็บความรู้ ถ่ายทอดภูมิปัญญา และบันทึกพงศาวดาร",
-    bonus: "วิจัยและข่าวสารระยะยาวดีขึ้น"
-  },
-  {
-    id: "mediator",
-    icon: "⚖️",
-    title: "ผู้นำผู้ไกล่เกลี่ย",
-    desc: "จัดการความขัดแย้ง การแบ่งเสบียง และความเชื่อใจ",
-    bonus: "เหมาะกับค่ายที่ต้องการความสามัคคี"
-  }
-];
-
-function writeSetup(setup: { leaderName: string; houseName: string; origin: string }) {
-  for (const key of SETUP_KEYS) {
-    window.localStorage.setItem(key, JSON.stringify(setup));
-  }
+function clearKeys(keys: string[]) {
+  keys.forEach((key) => window.localStorage.removeItem(key));
 }
 
-function clearSaves() {
-  for (const key of SAVE_KEYS) {
-    window.localStorage.removeItem(key);
-  }
+function writeSetup(setup: { leaderName: string; houseName: string; origin: Origin }) {
+  window.localStorage.setItem(setupKey, JSON.stringify(setup));
+  legacySetupKeys.forEach((key) => window.localStorage.setItem(key, JSON.stringify(setup)));
+}
+
+function hasSave() {
+  return Boolean(window.localStorage.getItem(saveKey) || legacySaveKeys.some((key) => window.localStorage.getItem(key)));
 }
 
 export default function HomePage() {
   const [leaderName, setLeaderName] = useState("Elowen");
   const [houseName, setHouseName] = useState("Vaelen");
-  const [origin, setOrigin] = useState("builder");
+  const [origin, setOrigin] = useState<Origin>("builder");
+  const canContinue = useMemo(() => (typeof window === "undefined" ? false : hasSave()), []);
 
-  const selectedOrigin = useMemo(
-    () => origins.find((item) => item.id === origin) ?? origins[0],
-    [origin]
-  );
-
-  function startNewGame() {
-    const setup = {
-      leaderName: leaderName.trim() || "Elowen",
-      houseName: houseName.trim() || "Vaelen",
-      origin
-    };
-
+  function startGame() {
+    const setup = { leaderName: leaderName.trim() || "Elowen", houseName: houseName.trim() || "Vaelen", origin };
     writeSetup(setup);
-    clearSaves();
-
+    clearKeys([saveKey, ...legacySaveKeys]);
     window.location.href = "/game";
   }
 
   function continueGame() {
-    const setup = {
-      leaderName: leaderName.trim() || "Elowen",
-      houseName: houseName.trim() || "Vaelen",
-      origin
-    };
-
+    const setup = { leaderName: leaderName.trim() || "Elowen", houseName: houseName.trim() || "Vaelen", origin };
     writeSetup(setup);
     window.location.href = "/game";
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, rgba(255,255,255,.75), transparent 32%), linear-gradient(135deg, #efe4cf, #f7f0df 55%, #e0cfad)",
-        color: "#123f35",
-        padding: "28px",
-        fontFamily:
-          "ui-serif, Georgia, Cambria, 'Times New Roman', 'Noto Serif Thai', serif"
-      }}
-    >
-      <section
-        style={{
-          maxWidth: 1180,
-          margin: "0 auto",
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1.1fr) minmax(340px, .9fr)",
-          gap: 24
-        }}
-      >
-        <div
-          style={{
-            background: "rgba(255, 251, 239, .82)",
-            border: "1px solid rgba(129, 97, 45, .22)",
-            borderRadius: 28,
-            padding: 32,
-            boxShadow: "0 18px 50px rgba(77, 55, 20, .12)"
-          }}
-        >
-          <div style={{ fontSize: 14, letterSpacing: 2, fontWeight: 800 }}>
-            EVOLUTION OF US
+    <main className="app start-shell">
+      <section className="start-card">
+        <article className="panel prologue">
+          <div className="brand" style={{ paddingLeft: 0, marginBottom: 18 }}>
+            <div className="brand-mark">⌛</div>
+            <span>EVOLUTION<br />OF US</span>
           </div>
-          <div style={{ marginTop: 6, color: "#8a6a2c", fontWeight: 700 }}>
-            ZERO START · GUIDED SURVIVAL EDITION · {VERSION}
+          <div className="kicker">{VERSION} · STABILITY REFACTOR FOUNDATION</div>
+          <h1>สิบชีวิตกลางผืนดินว่างเปล่า</h1>
+          <h2>เกมสร้างถิ่นฐานแบบเทิร์นรายเดือน ที่ทุกเดือนคือการตัดสินใจของคนจริง</h2>
+          <p>
+            คุณเริ่มจากชาวบ้านสิบคน เสบียงเล็กน้อย และพื้นที่ที่ยังไม่มีชื่อ ทุกการจัดแรงงาน การก่อสร้าง การวิจัย ข่าวลือ พ่อค้า และภัยภายนอกจะค่อย ๆ สร้างเรื่องราวของถิ่นฐานนี้ขึ้นมาเอง
+          </p>
+          <p>
+            เวอร์ชันนี้ปรับฐานระบบให้เสถียรขึ้น: save key กลาง, migrate save เก่า, fallback เข้าเกมได้แม้ setup หาย, และจัดโครง deploy ให้ปลอดภัยขึ้นสำหรับ Vercel
+          </p>
+          <div className="three-col" style={{ marginTop: 24 }}>
+            <div className="panel pad" style={{ boxShadow: "none" }}><b>เล่นเป็นเทิร์น</b><br /><span className="muted small">จัดแรงงาน → เลือกโครงการ → ตอบเหตุการณ์ → จบเดือน</span></div>
+            <div className="panel pad" style={{ boxShadow: "none" }}><b>เอาตัวรอดสมจริง</b><br /><span className="muted small">อาหาร น้ำ ฟืน โรค ความเหนื่อย และความไว้ใจมีผลจริง</span></div>
+            <div className="panel pad" style={{ boxShadow: "none" }}><b>ทดสอบง่ายขึ้น</b><br /><span className="muted small">Debug, Save, Feedback และ deploy-safe พร้อมสำหรับ Alpha Test</span></div>
           </div>
+        </article>
 
-          <h1
-            style={{
-              fontSize: "clamp(34px, 6vw, 72px)",
-              lineHeight: 1.04,
-              margin: "48px 0 24px",
-              color: "#0f4b3d"
-            }}
-          >
-            เริ่มต้นจากศูนย์
-            <br />
-            และสร้างถิ่นฐานด้วยมือของคุณ
-          </h1>
-
-          <p style={{ fontSize: 20, lineHeight: 1.9, color: "#5f503e" }}>
-            ไม่มีเมืองใหญ่ ไม่มีตำนานที่บังคับให้เดินตามล่วงหน้า
-            มีเพียงครอบครัวหนึ่ง ชาวบ้านสิบชีวิต เสบียงเล็กน้อย
-            และพื้นที่รกร้างที่อาจกลายเป็นบ้าน หรือกลายเป็นพงศาวดารของผู้ล้มเหลว
-          </p>
-
-          <p style={{ fontSize: 18, lineHeight: 1.85, color: "#5f503e" }}>
-            ทุกเดือนคือหนึ่งเทิร์นของชีวิตจริง ใครจะออกหาอาหาร ใครจะตัดไม้
-            ใครจะดูแลคนป่วย ใครจะยืนเฝ้ายาม และผู้นำจะเลือกเป็นคนแบบใด
-            การตัดสินใจเล็ก ๆ จะกลายเป็นความทรงจำ ความเชื่อใจ
-            ความสูญเสีย และสายเลือดของคนรุ่นถัดไป
-          </p>
-
-          <div
-            style={{
-              marginTop: 34,
-              display: "grid",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              gap: 14
-            }}
-          >
-            {[
-              ["เล่นง่ายขึ้น", "จัดแรงงาน → เลือกโครงการ → ตอบเหตุการณ์ → จบเดือน"],
-              ["สมจริงขึ้น", "อาหาร โรค ความเหนื่อย ภัยนอกค่าย และความสัมพันธ์มีผลจริง"],
-              ["น่าติดตามขึ้น", "ข่าวสาร พ่อค้า ภัยคุกคาม และเป้าหมายถิ่นฐาน"]
-            ].map(([title, body]) => (
-              <div
-                key={title}
-                style={{
-                  background: "rgba(255,255,255,.55)",
-                  border: "1px solid rgba(129, 97, 45, .2)",
-                  borderRadius: 18,
-                  padding: 18
-                }}
-              >
-                <b style={{ fontSize: 18 }}>{title}</b>
-                <p style={{ margin: "8px 0 0", color: "#6f614d", lineHeight: 1.6 }}>
-                  {body}
-                </p>
-              </div>
+        <aside className="panel setup">
+          <h2 className="title">ตั้งค่าตระกูลเริ่มต้น</h2>
+          <p className="muted">ตั้งชื่อและเลือกพื้นหลัง จุดเริ่มต้นมีผลต่อทรัพยากร ความเสี่ยง และสายตาที่ชาวบ้านใช้มองผู้นำ</p>
+          <label className="label">ชื่อตัวละครผู้นำ
+            <input className="input" value={leaderName} onChange={(e) => setLeaderName(e.target.value)} />
+          </label>
+          <label className="label">ชื่อตระกูล
+            <input className="input" value={houseName} onChange={(e) => setHouseName(e.target.value)} />
+          </label>
+          <h3 className="section-title" style={{ marginTop: 20 }}>พื้นหลังเริ่มต้น</h3>
+          <div className="choice-grid">
+            {origins.map((item) => (
+              <button key={item.id} className={origin === item.id ? "choice-card active" : "choice-card"} onClick={() => setOrigin(item.id)}>
+                <span className="choice-icon">{item.icon}</span>
+                <span><b>{item.title}</b><br /><small className="muted">{item.text}</small><br /><small>{item.detail}</small></span>
+              </button>
             ))}
           </div>
-        </div>
-
-        <aside
-          style={{
-            background: "rgba(255, 251, 239, .9)",
-            border: "1px solid rgba(129, 97, 45, .22)",
-            borderRadius: 28,
-            padding: 28,
-            boxShadow: "0 18px 50px rgba(77, 55, 20, .12)"
-          }}
-        >
-          <h2 style={{ marginTop: 0, fontSize: 30 }}>ตั้งค่าการเริ่มต้น</h2>
-
-          <label style={{ display: "block", fontWeight: 800, marginBottom: 8 }}>
-            ชื่อผู้นำ
-          </label>
-          <input
-            value={leaderName}
-            onChange={(event) => setLeaderName(event.target.value)}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "14px 16px",
-              borderRadius: 14,
-              border: "1px solid rgba(129, 97, 45, .25)",
-              background: "#fffaf0",
-              fontSize: 17,
-              marginBottom: 18
-            }}
-          />
-
-          <label style={{ display: "block", fontWeight: 800, marginBottom: 8 }}>
-            ชื่อ House / ตระกูล
-          </label>
-          <input
-            value={houseName}
-            onChange={(event) => setHouseName(event.target.value)}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "14px 16px",
-              borderRadius: 14,
-              border: "1px solid rgba(129, 97, 45, .25)",
-              background: "#fffaf0",
-              fontSize: 17,
-              marginBottom: 18
-            }}
-          />
-
-          <div style={{ fontWeight: 900, margin: "6px 0 12px" }}>
-            พื้นหลังของกลุ่มผู้ตั้งถิ่นฐาน
+          <div className="panel pad" style={{ boxShadow: "none", marginTop: 16 }}>
+            <b>เริ่มต้นจริง</b>
+            <table className="report-table" style={{ marginTop: 12 }}>
+              <tbody>
+                <tr><td>ประชากร</td><td>10 คน สุ่มชื่อ อายุ บทบาท และสถานะรายบุคคล</td></tr>
+                <tr><td>ทรัพยากร</td><td>อาหาร 30 · ไม้ 20 · หิน 5 · เครื่องมือ 5</td></tr>
+                <tr><td>เป้าหมายแรก</td><td>รอดปีแรกและตั้งค่ายให้มั่นคง</td></tr>
+              </tbody>
+            </table>
           </div>
-
-          <div style={{ display: "grid", gap: 10 }}>
-            {origins.map((item) => {
-              const active = item.id === origin;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setOrigin(item.id)}
-                  style={{
-                    textAlign: "left",
-                    cursor: "pointer",
-                    borderRadius: 18,
-                    padding: 16,
-                    border: active
-                      ? "2px solid #1d6b55"
-                      : "1px solid rgba(129, 97, 45, .24)",
-                    background: active ? "rgba(39, 111, 86, .1)" : "#fffaf0",
-                    color: "#143f35"
-                  }}
-                >
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <span style={{ fontSize: 24 }}>{item.icon}</span>
-                    <div>
-                      <b style={{ fontSize: 18 }}>{item.title}</b>
-                      <div style={{ color: "#6b5b47", marginTop: 4 }}>
-                        {item.desc}
-                      </div>
-                      {active && (
-                        <div style={{ color: "#1d6b55", marginTop: 6, fontWeight: 800 }}>
-                          {item.bonus}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          <div
-            style={{
-              marginTop: 18,
-              border: "1px solid rgba(129, 97, 45, .18)",
-              borderRadius: 18,
-              overflow: "hidden",
-              background: "rgba(255,255,255,.55)"
-            }}
-          >
-            {[
-              ["ประชากร", "10 คน มีชื่อและสถานะรายบุคคล"],
-              ["ทรัพยากร", "อาหาร 30 · ไม้ 20 · หิน 5 · เครื่องมือ 5"],
-              ["ที่พัก", "ยังไม่มีบ้านถาวร"],
-              ["เป้าหมายแรก", "รอดปีแรกและตั้งค่ายให้มั่นคง"]
-            ].map(([a, b]) => (
-              <div
-                key={a}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "120px 1fr",
-                  gap: 12,
-                  padding: "12px 14px",
-                  borderBottom: "1px solid rgba(129, 97, 45, .14)"
-                }}
-              >
-                <b>{a}</b>
-                <span style={{ color: "#5f503e" }}>{b}</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={startNewGame}
-            style={{
-              width: "100%",
-              marginTop: 20,
-              border: 0,
-              borderRadius: 16,
-              padding: "16px 18px",
-              background: "#1d6b55",
-              color: "white",
-              fontSize: 20,
-              fontWeight: 900,
-              cursor: "pointer"
-            }}
-          >
-            เริ่มต้นจากศูนย์ →
-          </button>
-
-          <button
-            type="button"
-            onClick={continueGame}
-            style={{
-              width: "100%",
-              marginTop: 12,
-              border: "1px solid rgba(129, 97, 45, .25)",
-              borderRadius: 16,
-              padding: "14px 18px",
-              background: "#fffaf0",
-              color: "#1d6b55",
-              fontSize: 17,
-              fontWeight: 900,
-              cursor: "pointer"
-            }}
-          >
-            เล่นต่อจาก Save
-          </button>
-
-          <p style={{ color: "#7c6b55", fontSize: 14, lineHeight: 1.6 }}>
-            เซฟจะถูกเก็บไว้ใน browser ของผู้เล่นแต่ละคน หากล้าง cache หรือเปลี่ยนอุปกรณ์
-            save อาจหายได้
-          </p>
+          <button className="primary" onClick={startGame} style={{ width: "100%", marginTop: 16 }}>เริ่มต้นจากศูนย์</button>
+          <button className="secondary" onClick={continueGame} disabled={!canContinue} style={{ width: "100%", marginTop: 10, opacity: canContinue ? 1 : .55 }}>เล่นต่อจาก Save</button>
+          <p className="muted small">เซฟจะอยู่ใน browser ของผู้เล่นแต่ละคน หากล้าง cache หรือเปลี่ยนอุปกรณ์ save อาจหายได้</p>
         </aside>
       </section>
     </main>

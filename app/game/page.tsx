@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -99,7 +99,7 @@ type SummaryModal = {
 } | null;
 
 type GameState = {
-  version: "0.9.13";
+  version: string;
   leaderName: string;
   houseName: string;
   origin: Origin;
@@ -177,12 +177,24 @@ type GameEvent = {
 
 const views: View[] = ["เมือง", "คน", "ก่อสร้าง", "วิจัย", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.13";
-const BUILD_LABEL = "Mega Systems Pack";
+const GAME_VERSION = "0.9.14";
+const BUILD_LABEL = "Stability Refactor Foundation";
 const BUILD_DATE = "2026-07-13";
-const saveKey = "eou-v0913-save";
-const setupKey = "eou-v0913-setup";
-const tutorialKey = "eou-v0913-tutorial-seen";
+const saveKey = "eou-current-save";
+const setupKey = "eou-current-setup";
+const tutorialKey = "eou-current-tutorial-seen";
+const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
+const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
+function readFirstStorage(keys: string[]) {
+  for (const key of keys) {
+    const value = window.localStorage.getItem(key);
+    if (value) return value;
+  }
+  return null;
+}
+function defaultSetup(): { leaderName: string; houseName: string; origin: Origin } {
+  return { leaderName: "Elowen", houseName: "Vaelen", origin: "builder" };
+}
 
 const laborMeta: Array<{ id: LaborKey; icon: string; title: string; text: string; category: string; unlock?: (game: GameState) => boolean; lockedText?: string }> = [
   { id: "forage", icon: "🌾", title: "หาอาหาร / ล่าสัตว์", category: "พื้นฐาน", text: "อาหารมากขึ้น แต่เสี่ยงอุบัติเหตุในป่าและสัตว์ร้าย" },
@@ -1879,18 +1891,45 @@ export default function GamePage() {
   }, []);
 
   useEffect(() => {
-    const setupText = window.localStorage.getItem(setupKey);
-    if (!setupText) { router.replace("/"); return; }
-    const setup = JSON.parse(setupText) as { leaderName: string; houseName: string; origin: Origin };
-    const saveText = window.localStorage.getItem(saveKey);
+    let setup = defaultSetup();
+    const setupText = readFirstStorage([setupKey, ...legacySetupKeys]);
+    if (setupText) {
+      try {
+        const parsed = JSON.parse(setupText) as Partial<{ leaderName: string; houseName: string; origin: Origin }>;
+        setup = {
+          leaderName: parsed.leaderName || setup.leaderName,
+          houseName: parsed.houseName || setup.houseName,
+          origin: parsed.origin || setup.origin,
+        };
+      } catch {}
+    }
+    window.localStorage.setItem(setupKey, JSON.stringify(setup));
+
+    const saveText = readFirstStorage([saveKey, ...legacySaveKeys]);
     if (saveText) {
       try {
         const loaded = JSON.parse(saveText) as GameState;
-        if (loaded.version === "0.9.13") { setGame({ ...loaded, summaryModal: null, savedText: "เปิดบันทึกเดิมแล้ว" }); return; }
+        const migrated: GameState = {
+          ...loaded,
+          version: GAME_VERSION,
+          leaderActionSelected: loaded.leaderActionSelected ?? false,
+          selectedChoiceId: loaded.selectedChoiceId ?? null,
+          currentEventId: loaded.currentEventId || "first_night",
+          pendingEvents: loaded.pendingEvents || [],
+          delayedEvents: loaded.delayedEvents || [],
+          recentEventIds: loaded.recentEventIds || [],
+          rumors: loaded.rumors || [],
+          summaryModal: null,
+          savedText: "เปิดบันทึกเดิมแล้ว · migrated",
+        };
+        window.localStorage.setItem(saveKey, JSON.stringify(migrated));
+        setGame(migrated);
+        return;
       } catch {}
     }
+
     setGame(createInitialGame(setup));
-  }, [router]);
+  }, []);
 
 
   useEffect(() => {
@@ -1952,6 +1991,7 @@ export default function GamePage() {
     const setup = { leaderName: game.leaderName, houseName: game.houseName, origin: game.origin };
     window.localStorage.setItem(setupKey, JSON.stringify(setup));
     window.localStorage.removeItem(saveKey);
+    legacySaveKeys.forEach((key) => window.localStorage.removeItem(key));
     setGame(createInitialGame(setup));
     setView("เมือง");
   }
@@ -1967,7 +2007,9 @@ export default function GamePage() {
 
   function resetGame() {
     window.localStorage.removeItem(saveKey);
+    legacySaveKeys.forEach((key) => window.localStorage.removeItem(key));
     window.localStorage.removeItem(setupKey);
+    legacySetupKeys.forEach((key) => window.localStorage.removeItem(key));
     router.push("/");
   }
 
@@ -2532,4 +2574,3 @@ function NewsView({ game, applyTrade }: { game: GameState; applyTrade: (offerId:
 function RumorPanel({ game }: { game: GameState }) {
   return <section className="panel pad"><h3 className="section-title">ข่าวลือ / สิ่งที่ยังไม่รู้</h3>{game.rumors.length ? <div className="timeline">{game.rumors.slice(0, 4).map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><span className="badge blue">อันตราย: {r.danger}</span></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ หากอยากเปิดเส้นทางเรื่องราว ลองให้ผู้นำออกสำรวจพื้นที่</div>}</section>;
 }
-
