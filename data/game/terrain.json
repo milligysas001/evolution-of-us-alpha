@@ -1,0 +1,12 @@
+{
+  "version": "0.9.17",
+  "purpose": "Portable terrain start data for future Godot local map generation.",
+  "terrainTypes": [
+    { "id": "riverbank", "name": "ริมลำธารเก่า", "effects": { "water": 14, "food": 4 }, "forageModifier": 0.08, "waterModifier": 0.25, "diseaseRisk": 8, "tags": ["น้ำดี", "เกษตรดี"] },
+    { "id": "forestEdge", "name": "ชายป่าหนาทึบ", "effects": { "wood": 12, "food": 8, "hides": 1 }, "forageModifier": 0.18, "woodModifier": 0.2, "beastRisk": 12, "tags": ["อาหารป่า", "สัตว์ป่า"] },
+    { "id": "rockyHollow", "name": "แอ่งหินใต้เนิน", "effects": { "stone": 12, "tools": 1 }, "stoneModifier": 0.24, "waterModifier": -0.12, "tags": ["หินมาก", "น้ำไกล"] },
+    { "id": "openMeadow", "name": "ทุ่งโล่งลมแรง", "effects": { "food": 6, "knowledge": 2 }, "beastRisk": -4, "weatherRisk": 8, "tags": ["เกษตร", "เปิดโล่ง"] },
+    { "id": "coldHighland", "name": "เนินสูงอากาศเย็น", "effects": { "stone": 6, "fuel": -2 }, "weatherRisk": 14, "diseaseRisk": -4, "tags": ["หนาว", "ปลอดน้ำขัง"] },
+    { "id": "marshland", "name": "หนองน้ำและดินชื้น", "effects": { "water": 20, "herbs": 4 }, "waterModifier": 0.32, "diseaseRisk": 15, "tags": ["น้ำมาก", "โรคสูง"] }
+  ]
+}

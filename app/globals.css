@@ -289,3 +289,19 @@ button { cursor: pointer; }
 .mini-warning-list{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.threat-matrix{display:grid;gap:10px}.threat-box{border:1px solid var(--line);border-radius:16px;background:#fffaf0;padding:12px;display:grid;gap:8px}.expanded-market .market-card.locked{opacity:.58;filter:grayscale(.25)}
 .market-card .secondary:disabled{cursor:not-allowed}.device-mobile .guidance-grid,.device-tablet .guidance-grid{grid-template-columns:1fr}.device-mobile .event-panel{order:1}.device-mobile .main{order:2}.device-mobile .sidebar{order:3}.device-mobile .top-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.device-mobile .pill:nth-child(n+9){display:none}.device-mobile .modal{max-height:92vh}.device-mobile textarea.input{font-size:12px}.device-mobile .market-grid.expanded-market{grid-template-columns:1fr!important}.device-tablet .market-grid.expanded-market{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 @media (max-width: 640px){.guidance-grid{grid-template-columns:1fr}.topbar .brand span{font-size:13px}.topbar .brand-mark{width:36px;height:36px}.top-stats .pill{font-size:11px}.event-card h2{font-size:22px}.summary-title{font-size:26px}.resource-card .num,.kpi b{font-size:20px}}
+
+/* v0.9.17 Named labor / notices / terrain polish */
+.notice-btn { position: relative; }
+.notice-btn span { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; border-radius: 99px; background: #a7352d; color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 900; }
+.terrain-panel { background: linear-gradient(135deg, rgba(255,255,255,.72), rgba(236,247,238,.55)); }
+.terrain-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.assignment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.assignment-card { border: 1px solid rgba(129,97,45,.22); border-radius: 18px; background: rgba(255,250,240,.72); padding: 14px; display: grid; grid-template-columns: minmax(0,1fr) minmax(230px,.85fr); gap: 12px; align-items: center; }
+.labor-select { width: 100%; border: 1px solid rgba(129,97,45,.25); background: #fffaf0; border-radius: 14px; padding: 11px 12px; font-weight: 800; color: #123f35; }
+.event-modal { max-width: 980px; }
+.notice-modal { max-width: 840px; }
+@media (max-width: 980px) {
+  .assignment-grid { grid-template-columns: 1fr; }
+  .assignment-card { grid-template-columns: 1fr; }
+  .event-modal .event-flow { max-height: 70vh; overflow: auto; }
+}

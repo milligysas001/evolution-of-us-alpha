@@ -1,0 +1,26 @@
+{
+  "version": "0.9.17",
+  "ageRules": {
+    "childrenUnder12": { "canWork": false, "foodNeed": 0.75 },
+    "children12to14": { "canWork": true, "workFactor": 0.5, "requiresAdultSameJob": true, "foodNeed": 1.15 },
+    "adult15to59": { "canWork": true, "workFactor": 1.0, "foodNeed": 1.65 },
+    "elder60plus": { "canWork": true, "workFactor": 0.5, "foodNeed": 1.05 }
+  },
+  "skillJobMap": {
+    "hunter": ["forage", "patrol"],
+    "builder": ["wood", "stone", "build", "craft"],
+    "healer": ["care", "herbs", "water"],
+    "keeper": ["research", "teach", "intel", "trade"],
+    "guard": ["guard", "patrol", "intel"],
+    "farmer": ["farm", "water", "feed", "preserve"]
+  },
+  "passives": [
+    { "id": "big_eater", "name": "กินจุ", "effect": "เพิ่มอาหารที่ใช้ต่อเดือน" },
+    { "id": "light_eater", "name": "กินน้อย", "effect": "ลดอาหารที่ใช้ต่อเดือนเล็กน้อย" },
+    { "id": "hard_worker", "name": "ขยันเป็นพิเศษ", "effect": "เพิ่มประสิทธิภาพงานทุกชนิดเล็กน้อย" },
+    { "id": "quick_learner", "name": "เรียนรู้ไว", "effect": "เพิ่มประสิทธิภาพวิจัย/สอน/ข่าวสาร" },
+    { "id": "heavy_hands", "name": "มือหนัก", "effect": "เพิ่มงานไม้ หิน และก่อสร้าง" },
+    { "id": "observant", "name": "ช่างสังเกต", "effect": "เพิ่มลาดตระเวน ข่าวสาร และหาอาหาร" },
+    { "id": "animal_friend", "name": "รักสัตว์", "effect": "เพิ่มงานอาหารสัตว์และดูแลฝูง" }
+  ]
+}

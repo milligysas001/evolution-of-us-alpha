@@ -25,3 +25,6 @@ Livestock should be ported as a standalone simulation module:
 - `resolveAnimals(gameState)` consumes feed/food, applies breeding, theft, escape, starvation and animal products.
 - Godot can map each animal type in `data/game/animals.json` to UI cards and future map objects.
 - Construction/research projects now require paused project arrays so Godot UI should support active + paused queues.
+
+## v0.9.17 Porting Notes
+Godot should treat `data/game/terrain.json` and `data/game/people_passives.json` as portable source data. In Godot, villagers should be Resources or Dictionaries with age, skill, traits, health, fatigue, and assignedJob. Monthly resolution should compute labor power from assigned villagers instead of plain worker counts.

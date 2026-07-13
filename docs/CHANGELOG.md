@@ -13,3 +13,12 @@
 - Added fodder/feed research and feed labor job.
 - Added animal event seeds and Godot-portable `data/game/animals.json`.
 - Leader actions now act as practical buffs; food leadership increases food, animal care reduces livestock risk.
+
+## v0.9.17 — Named Labor, Event Alerts & Terrain Start
+- Added named-person labor assignment.
+- Added age-based work rules: age 12–14 can help at half output only when an adult is assigned to the same job; age 15+ can work; age 60+ works at half efficiency.
+- Added passive/skill labor output bonuses and personal food consumption modifiers.
+- Added randomized settlement terrain with realistic resource and risk modifiers.
+- Added event popup and notification bell for important decisions.
+- Moved monthly labor management into People tab.
+- Added portable data files for terrain and people/passive rules for Godot preparation.

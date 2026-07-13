@@ -1,7 +1,9 @@
-# Quality Check v0.9.15
+# QUALITY CHECK v0.9.17
 
-- ใช้ save key กลางจาก v0.9.14 ต่อเนื่อง
-- ไม่สร้าง backup ใน project
-- เพิ่ม data JSON ที่ Godot อ่านได้
-- ระบบน้ำเริ่มต้นไม่ soft-lock: ผู้เล่นสามารถตักน้ำได้ตั้งแต่เดือนแรก
-- คำเตือนก่อนจบเดือนแจ้งเมื่อ water stock ไม่พอ
+- Build target: `npm run check`
+- Save keys remain: `eou-current-save`, `eou-current-setup`
+- Backup folders must stay outside project or be ignored.
+- Named labor assigns workers by person id and derives labor power from age + skill + passive.
+- Event popup and bell must not block saving; user can close and reopen the event.
+- Terrain start is randomized only on new game.
+- Added portable data: `terrain.json`, `people_passives.json`.
