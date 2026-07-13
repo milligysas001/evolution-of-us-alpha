@@ -12,3 +12,12 @@
 - เพิ่ม endgame crisis ที่เตือนล่วงหน้าหลายปีเมื่อเข้าสู่เมืองเล็ก
 - เพิ่มโฟลเดอร์ `types/` และ `logic/` สำหรับเตรียมแยก engine ไป Godot ในอนาคต
 
+
+
+## v0.9.29 — Era Progression & Exploration Economy
+- เพิ่ม Stage หลังเมืองเล็ก: เมืองการค้า, นครรัฐ, อาณาจักร
+- เพิ่มทรัพยากรขั้นสูง: ironOre, coal, timber, bricks, textiles, salt, spices, influence, steel, luxuries, warhorses, manpower, siegeMaterials
+- ซ่อนแท็บนโยบายจนกว่าจะมี research.campPolicies / projectPlanning หรือ meetingHall เพื่อลดความรกช่วงต้นเกม
+- เพิ่ม GameState สำหรับ guilds, outposts, factions, leaderAge, heir เพื่อเตรียมไป Godot
+- เพิ่มระบบ Outpost จากพื้นที่สำรวจครบ 100% และผลผลิตรายเดือนแบบ supply line
+- เชื่อมระบบสมาคม/คาราวาน/โรงเลื่อย/เตาเผา/โรงถลุงกับทรัพยากรและยุคเมือง

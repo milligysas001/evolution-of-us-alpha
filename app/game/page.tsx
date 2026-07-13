@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
 type View = "เมือง" | "ทรัพยากร" | "คน" | "แผนที่" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "นโยบาย" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
 type DeviceMode = "desktop" | "tablet" | "mobile";
-type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก";
+type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก" | "เมืองการค้า" | "นครรัฐ" | "อาณาจักร";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
 type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "feed" | "patrol" | "explore" | "trade" | "teach" | "intel";
-type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "waterReserve" | "knowledge" | "fuel" | "ore" | "gold" | "feed";
-type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "cistern" | "repairShed" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "animalPen" | "palisade" | "graveyard" | "meetingHall" | "smokeVent" | "dryingRack" | "livestockShed" | "waterTrough" | "crisisBeacon";
-type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "waterStorage" | "sanitation" | "maintenanceRoutine" | "familyRecords" | "animalQuarantine" | "apprenticeship" | "weatherReading" | "animalKeeping" | "fodderPrep" | "storyRecords" | "palisadeCraft" | "signalNetwork" | "shelterHygiene" | "animalBreeding" | "masonry" | "herbalWorkshop" | "projectPlanning" | "stormPrep" | "crisisDrills";
+type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "waterReserve" | "knowledge" | "fuel" | "ore" | "gold" | "feed" | "ironOre" | "coal" | "timber" | "bricks" | "textiles" | "salt" | "spices" | "influence" | "steel" | "luxuries" | "warhorses" | "manpower" | "siegeMaterials";
+type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "cistern" | "repairShed" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "animalPen" | "palisade" | "graveyard" | "meetingHall" | "smokeVent" | "dryingRack" | "livestockShed" | "waterTrough" | "crisisBeacon" | "marketSquare" | "caravanPost" | "huntersGuildHall" | "buildersGuildHall" | "merchantsGuildHall" | "sawmill" | "brickKiln" | "senateHouse" | "smeltery" | "castleKeep";
+type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "waterStorage" | "sanitation" | "maintenanceRoutine" | "familyRecords" | "animalQuarantine" | "apprenticeship" | "weatherReading" | "animalKeeping" | "fodderPrep" | "storyRecords" | "palisadeCraft" | "signalNetwork" | "shelterHygiene" | "animalBreeding" | "masonry" | "herbalWorkshop" | "projectPlanning" | "stormPrep" | "crisisDrills" | "campPolicies" | "guildCharters" | "currencyMinting" | "caravanContracts" | "outpostLogistics" | "bureaucracy" | "ironSmelting" | "smelteryOps" | "diplomacyProtocol" | "dynasticSuccession" | "siegeEngineering";
 type LeaderFocusKey = string;
 type LogKind = "normal" | "good" | "bad" | "death" | "rare" | "milestone";
 type MetricKey = "morale" | "security" | "trust" | "health" | "cohesion" | "fairness";
@@ -23,6 +23,12 @@ type LocationProgress = Record<LocationKey, { progress: number; status: Location
 type LaborAssignments = Partial<Record<LaborKey, string[]>>;
 type NoticeKind = "event" | "warning" | "trade" | "threat" | "birth" | "system";
 type Notice = { id: string; year: number; month: number; kind: NoticeKind; title: string; text: string; read: boolean; eventId?: string };
+type GuildKey = "huntersGuild" | "buildersGuild" | "merchantsGuild";
+type GuildState = Record<GuildKey, { level: number; funding: number; activeEdict: string }>;
+type FactionKey = "guards" | "farmers" | "merchants" | "builders";
+type FactionState = Record<FactionKey, { approval: number; power: number }>;
+type OutpostKind = "water" | "wood" | "food" | "mine" | "flax" | "trade";
+type Outpost = { id: string; location: LocationKey; name: string; kind: OutpostKind; workers: number; level: number; security: number; monthly: Partial<Resources>; };
 
 type Resources = Record<ResourceKey, number>;
 type ResourceHistoryYear = { year: number; stocks: Resources; produced: Partial<Resources>; used: Partial<Resources>; net: Partial<Resources>; population: number; quality: { food: number; water: number; shelter: number; }; };
@@ -168,6 +174,11 @@ type GameState = {
   policies: CampPolicies;
   buildingCondition: BuildingCondition;
   crisis: EndgameCrisis;
+  guilds: GuildState;
+  outposts: Outpost[];
+  factions: FactionState;
+  leaderAge: number;
+  heir: Person | null;
   summaryModal: SummaryModal;
   savedText: string;
 };
@@ -274,8 +285,8 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.28";
-const BUILD_LABEL = "Dynamic Weather · Policies · Mastery · Crisis";
+const GAME_VERSION = "0.9.29";
+const BUILD_LABEL = "Era Progression · Outposts · Guild Gates";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -544,7 +555,17 @@ const buildingData: Record<BuildingKey, { icon: string; title: string; text: str
   dryingRack: { icon: "☀️", title: "ชั้นตากอาหารและสมุนไพร", text: "ช่วยถนอมอาหารและสมุนไพร ลดอาหารเสียช่วงฝนและร้อน ทำให้คลังเล็กมีประโยชน์ขึ้น", cost: { wood: 16, tools: 1 }, work: 24, unlock: (g) => g.researchDone.foodPreservation || g.researchDone.shelterHygiene },
   livestockShed: { icon: "🐄", title: "โรงเรือนสัตว์", text: "กันฝน ลม และสัตว์ป่าให้วัว หมู แพะ และไก่ ลดหิวตาย หนี และโรคสัตว์", cost: { wood: 34, stone: 6, tools: 2 }, work: 58, unlock: (g) => g.researchDone.animalBreeding },
   waterTrough: { icon: "🚰", title: "รางน้ำสัตว์", text: "แยกน้ำสัตว์จากน้ำคน ลดโรคและลดการใช้น้ำสูญเปล่าในคอก", cost: { wood: 12, stone: 8 }, work: 26, unlock: (g) => g.researchDone.animalBreeding || g.buildings.well > 0 },
-  crisisBeacon: { icon: "🗼", title: "หอเตือนภัย", text: "จุดควันและระฆังเตือนล่วงหน้าสำหรับภัยใหญ่ ลดแรงกระแทกจากวิกฤตปลายเกม", cost: { wood: 34, stone: 18, tools: 2, gold: 4 }, work: 70, unlock: (g) => g.researchDone.crisisDrills || g.stage === "เมืองเล็ก" },
+  crisisBeacon: { icon: "🗼", title: "หอเตือนภัย", text: "จุดควันและระฆังเตือนล่วงหน้าสำหรับภัยใหญ่ ลดแรงกระแทกจากวิกฤตปลายเกม", cost: { wood: 34, stone: 18, tools: 2, gold: 4 }, work: 70, unlock: (g) => g.researchDone.crisisDrills || stageRank(g.stage) >= stageRank("เมืองเล็ก") },
+  marketSquare: { icon: "🏛️", title: "ลานตลาดถาวร", text: "จุดเปลี่ยนจากค่ายรอดชีวิตสู่เมืองการค้า เปิดคาราวาน ภาษี และการตั้งสมาคม", cost: { wood: 58, stone: 18, tools: 3, gold: 20 }, work: 96, unlock: (g) => g.researchDone.currencyMinting && stageRank(g.stage) >= stageRank("เมืองเล็ก") },
+  caravanPost: { icon: "🐪", title: "สถานีคาราวาน", text: "ทำให้เส้นทางการค้าเก่าเริ่มมีความหมายจริง ซื้อเกลือ เครื่องเทศ และส่งข่าวไกลกว่าเดิม", cost: { wood: 42, stone: 16, tools: 2, gold: 18 }, work: 82, unlock: (g) => g.researchDone.caravanContracts },
+  huntersGuildHall: { icon: "🏹", title: "สมาคมพรานป่า", text: "ลดการจัดพรานทีละคนในเมืองใหญ่ เปลี่ยนเป็นตั้งงบและโควต้าอาหารระดับเมือง", cost: { timber: 20, bricks: 8, gold: 35, tools: 4 }, work: 110, unlock: (g) => g.researchDone.guildCharters && stageRank(g.stage) >= stageRank("เมืองการค้า") },
+  buildersGuildHall: { icon: "🛠️", title: "สมาคมช่างก่อสร้าง", text: "รวมช่างไม้ ช่างหิน และคนซ่อมบำรุงให้ทำงานแบบระบบ ลดภาระจัดคนรายเดือนเมื่อเมืองโต", cost: { timber: 26, bricks: 12, gold: 35, tools: 5 }, work: 120, unlock: (g) => g.researchDone.guildCharters && stageRank(g.stage) >= stageRank("เมืองการค้า") },
+  merchantsGuildHall: { icon: "🪙", title: "สมาคมพ่อค้า", text: "ดูแลเส้นทางคาราวานและการซื้อขายทรัพยากรขั้นสูง เช่น เกลือ เครื่องเทศ และผ้าทอ", cost: { timber: 18, bricks: 10, gold: 50, tools: 3 }, work: 105, unlock: (g) => g.researchDone.guildCharters && g.buildings.marketSquare > 0 },
+  sawmill: { icon: "🪚", title: "โรงเลื่อย", text: "แปรรูปไม้ธรรมดาเป็นไม้แปรรูป ใช้สร้างอาคารยุคเมืองการค้าให้ทนภัยธรรมชาติมากขึ้น", cost: { wood: 50, stone: 14, tools: 4, gold: 10 }, work: 90, unlock: (g) => stageRank(g.stage) >= stageRank("เมืองการค้า") || g.researchDone.guildCharters },
+  brickKiln: { icon: "🧱", title: "เตาเผาอิฐ", text: "แปรหินและดินเป็นอิฐเผา ช่วยให้อาคารเมืองใหญ่ทนฝน หนาว และไฟได้ดีขึ้น", cost: { stone: 42, fuel: 18, tools: 2 }, work: 86, unlock: (g) => g.researchDone.masonry && stageRank(g.stage) >= stageRank("เมืองการค้า") },
+  senateHouse: { icon: "👑", title: "สภาเมือง", text: "เปิดระบบนครรัฐ ฝ่ายอำนาจในเมือง และการตัดสินใจที่ไม่ใช่คำสั่งของผู้นำคนเดียวอีกต่อไป", cost: { timber: 40, bricks: 35, gold: 90, influence: 40 }, work: 180, unlock: (g) => g.researchDone.bureaucracy && stageRank(g.stage) >= stageRank("เมืองการค้า") },
+  smeltery: { icon: "🏭", title: "โรงถลุง", text: "หลอมแร่เหล็กและถ่านหินเป็นเหล็กกล้า เปิดทางสู่อาวุธ กำแพง และยุคสงครามป้องกันเมือง", cost: { bricks: 32, stone: 30, tools: 6, gold: 45 }, work: 150, unlock: (g) => g.researchDone.ironSmelting },
+  castleKeep: { icon: "🏰", title: "ปราการกลาง", text: "หลักฐานว่าเมืองกลายเป็นอำนาจระดับอาณาจักร ลดการล้อมเมืองและเป็นศูนย์กลางการสืบทอด", cost: { steel: 160, bricks: 90, timber: 70, gold: 180, influence: 120 }, work: 320, unlock: (g) => g.researchDone.dynasticSuccession && stageRank(g.stage) >= stageRank("นครรัฐ") },
 };
 
 const researchData: Record<ResearchKey, { icon: string; title: string; text: string; cost: number; prereq?: ResearchKey[] }> = {
@@ -575,6 +596,17 @@ const researchData: Record<ResearchKey, { icon: string; title: string; text: str
   masonry: { icon: "🧱", title: "งานหินและฐานราก", text: "เพิ่มความทนทานของสิ่งปลูกสร้าง ลดอุบัติเหตุจากงานหิน และเปิดทางสู่สิ่งก่อสร้างถาวร", cost: 54, prereq: ["stoneTools", "simpleCraft"] },
   herbalWorkshop: { icon: "🧪", title: "การปรุงยาพื้นบ้าน", text: "ทำให้สมุนไพรกลายเป็นการรักษาที่มั่นคงขึ้น เพิ่มผลของงานเก็บสมุนไพรและดูแลคนป่วย", cost: 52, prereq: ["herbalCare", "sanitation"] },
   projectPlanning: { icon: "📐", title: "การวางแผนงานก่อสร้าง", text: "ช่วยให้ทีมก่อสร้างและทีมวิจัยแบ่งแรงงานชัดเจน ลดงานซ้ำ ลดอุบัติเหตุ และเร่งโครงการที่มีคนทำจริง", cost: 60, prereq: ["simpleCraft", "storyRecords"] },
+  campPolicies: { icon: "⚙️", title: "ธรรมเนียมบริหารค่าย", text: "ปลดล็อกแท็บนโยบาย ให้ชุมชนเริ่มมีข้อตกลงอัตโนมัติเรื่องเสบียง เด็ก น้ำ และซ่อมบำรุง โดยยังไม่รกตั้งแต่ต้นเกม", cost: 54, prereq: ["storyRecords", "watchRoutine"] },
+  guildCharters: { icon: "📜", title: "ใบอนุญาตตั้งสมาคม", text: "เปิดระบบสมาคมอาชีพสำหรับเมืองใหญ่ เพื่อลดการจัดคนทีละคนเมื่อประชากรเกินร้อย", cost: 96, prereq: ["signalNetwork", "campPolicies"] },
+  currencyMinting: { icon: "🪙", title: "การผลิตเหรียญและบัญชีตลาด", text: "ทำให้ทองเป็นทรัพย์สินเมืองจริง เปิดลานตลาดถาวรและภาษีการค้า", cost: 88, prereq: ["guildCharters"] },
+  caravanContracts: { icon: "🐪", title: "สัญญาคาราวาน", text: "เปิดสถานีคาราวาน เส้นทางซื้อเกลือ เครื่องเทศ และข่าวสารจากภูมิภาค", cost: 100, prereq: ["currencyMinting"] },
+  outpostLogistics: { icon: "🗺️", title: "ระบบฐานที่มั่นรอง", text: "เมื่อสำรวจครบ 100% สามารถตั้ง Outpost เพื่อส่งทรัพยากรกลับเมืองรายเดือนได้", cost: 110, prereq: ["caravanContracts", "projectPlanning"] },
+  bureaucracy: { icon: "🏛️", title: "ระบบราชการเมือง", text: "เปิดสภาเมืองและฝ่ายอำนาจภายใน เป็นประตูสู่ยุคนครรัฐ", cost: 140, prereq: ["guildCharters", "campPolicies"] },
+  ironSmelting: { icon: "⛏️", title: "การถลุงเหล็ก", text: "เปิดโรงถลุง ใช้แร่เหล็กและถ่านหินเพื่อสร้างเหล็กกล้า", cost: 132, prereq: ["masonry", "outpostLogistics"] },
+  smelteryOps: { icon: "🏭", title: "การจัดการโรงถลุง", text: "เพิ่มประสิทธิภาพการหลอมเหล็กกล้าและลดอุบัติเหตุจากเตาหลอม", cost: 160, prereq: ["ironSmelting"] },
+  diplomacyProtocol: { icon: "🕊️", title: "พิธีการทูตและอิทธิพล", text: "เปิดอิทธิพล การเจรจากับเมืองอื่น และวางรากฐานนครรัฐ/อาณาจักร", cost: 150, prereq: ["bureaucracy"] },
+  dynasticSuccession: { icon: "👑", title: "การสืบทอดสายเลือด", text: "เปิดระบบทายาทอย่างเป็นทางการ ผู้นำแก่ลงและเมืองต้องรอดต่อไปแม้ผู้ก่อตั้งจากไป", cost: 190, prereq: ["diplomacyProtocol", "familyRecords"] },
+  siegeEngineering: { icon: "🔥", title: "วิศวกรรมสงคราม", text: "เปลี่ยนภัยโจรระดับปลายเกมให้เป็นการล้อมเมือง ต้องใช้เหล็กกล้าและวัสดุป้องกันจริง", cost: 210, prereq: ["ironSmelting", "crisisDrills"] },
 };
 
 function clamp(n: number, min = 0, max = 100) { return Math.max(min, Math.min(max, Math.round(n))); }
@@ -636,13 +668,14 @@ function emptyResearch(): ResearchDone {
     foodPreservation: false, stoneTools: false, woodShelter: false, basicFarming: false, herbalCare: false,
     watchRoutine: false, simpleCraft: false, waterFinding: false, waterStorage: false, sanitation: false, maintenanceRoutine: false, familyRecords: false, animalQuarantine: false, apprenticeship: false, weatherReading: false, animalKeeping: false, fodderPrep: false, storyRecords: false, palisadeCraft: false, signalNetwork: false,
     shelterHygiene: false, animalBreeding: false, masonry: false, herbalWorkshop: false, projectPlanning: false, stormPrep: false, crisisDrills: false,
+    campPolicies: false, guildCharters: false, currencyMinting: false, caravanContracts: false, outpostLogistics: false, bureaucracy: false, ironSmelting: false, smelteryOps: false, diplomacyProtocol: false, dynasticSuccession: false, siegeEngineering: false,
   };
 }
 function emptyBuildings(): Buildings {
-  return { shelter: 0, campfire: 0, storage: 0, well: 0, cistern: 0, repairShed: 0, watchPost: 0, farmPlot: 0, workshop: 0, healerHut: 0, animalPen: 0, palisade: 0, graveyard: 0, meetingHall: 0, smokeVent: 0, dryingRack: 0, livestockShed: 0, waterTrough: 0, crisisBeacon: 0 };
+  return { shelter: 0, campfire: 0, storage: 0, well: 0, cistern: 0, repairShed: 0, watchPost: 0, farmPlot: 0, workshop: 0, healerHut: 0, animalPen: 0, palisade: 0, graveyard: 0, meetingHall: 0, smokeVent: 0, dryingRack: 0, livestockShed: 0, waterTrough: 0, crisisBeacon: 0, marketSquare: 0, caravanPost: 0, huntersGuildHall: 0, buildersGuildHall: 0, merchantsGuildHall: 0, sawmill: 0, brickKiln: 0, senateHouse: 0, smeltery: 0, castleKeep: 0 };
 }
 function baseResources(origin: Origin): Resources {
-  const r: Resources = { food: 30, wood: 20, stone: 5, tools: 5, herbs: 2, hides: 1, water: 20, waterReserve: 0, knowledge: 0, fuel: 8, ore: 0, gold: 0, feed: 0 };
+  const r: Resources = { food: 30, wood: 20, stone: 5, tools: 5, herbs: 2, hides: 1, water: 20, waterReserve: 0, knowledge: 0, fuel: 8, ore: 0, gold: 0, feed: 0, ironOre: 0, coal: 0, timber: 0, bricks: 0, textiles: 0, salt: 0, spices: 0, influence: 0, steel: 0, luxuries: 0, warhorses: 0, manpower: 0, siegeMaterials: 0 };
   if (origin === "builder") { r.wood += 12; r.tools += 1; }
   if (origin === "hunter") { r.food += 12; r.hides += 2; }
   if (origin === "healer") { r.herbs += 6; }
@@ -783,6 +816,58 @@ function emptyCrisis(): EndgameCrisis {
 function normalizeCrisis(c?: Partial<EndgameCrisis>): EndgameCrisis {
   return { ...emptyCrisis(), ...(c ?? {}) };
 }
+function emptyGuilds(): GuildState {
+  return {
+    huntersGuild: { level: 0, funding: 0, activeEdict: "balanced" },
+    buildersGuild: { level: 0, funding: 0, activeEdict: "balanced" },
+    merchantsGuild: { level: 0, funding: 0, activeEdict: "balanced" },
+  };
+}
+function normalizeGuilds(guilds?: Partial<GuildState>): GuildState {
+  const base = emptyGuilds();
+  return {
+    huntersGuild: { ...base.huntersGuild, ...(guilds?.huntersGuild ?? {}) },
+    buildersGuild: { ...base.buildersGuild, ...(guilds?.buildersGuild ?? {}) },
+    merchantsGuild: { ...base.merchantsGuild, ...(guilds?.merchantsGuild ?? {}) },
+  };
+}
+function emptyFactions(): FactionState {
+  return { guards: { approval: 55, power: 10 }, farmers: { approval: 55, power: 10 }, merchants: { approval: 50, power: 5 }, builders: { approval: 55, power: 8 } };
+}
+function normalizeFactions(factions?: Partial<FactionState>): FactionState {
+  const base = emptyFactions();
+  return {
+    guards: { ...base.guards, ...(factions?.guards ?? {}) },
+    farmers: { ...base.farmers, ...(factions?.farmers ?? {}) },
+    merchants: { ...base.merchants, ...(factions?.merchants ?? {}) },
+    builders: { ...base.builders, ...(factions?.builders ?? {}) },
+  };
+}
+function normalizeOutposts(outposts?: Partial<Outpost>[]): Outpost[] {
+  return (outposts ?? []).map((o, i) => ({
+    id: o.id ?? uid("outpost"),
+    location: (o.location ?? "shallowStream") as LocationKey,
+    name: o.name ?? "ฐานที่มั่นรอง",
+    kind: (o.kind ?? "food") as OutpostKind,
+    workers: Math.max(0, Math.round(o.workers ?? 10)),
+    level: Math.max(1, Math.round(o.level ?? 1)),
+    security: clamp(o.security ?? 55),
+    monthly: { ...(o.monthly ?? {}) },
+  })).slice(0, 24);
+}
+function stageRank(stage: Stage) {
+  const order: Stage[] = ["ค่ายพักแรม", "ชุมชนแรกเริ่ม", "หมู่บ้านถาวร", "เมืองเล็ก", "เมืองการค้า", "นครรัฐ", "อาณาจักร"];
+  return Math.max(0, order.indexOf(stage));
+}
+function canUsePolicies(game: GameState) {
+  return game.researchDone.campPolicies || game.researchDone.projectPlanning || game.buildings.meetingHall > 0;
+}
+function canUseRegionalSystems(game: GameState) {
+  return stageRank(game.stage) >= stageRank("เมืองการค้า") && game.researchDone.outpostLogistics;
+}
+function canUseKingdomSystems(game: GameState) {
+  return stageRank(game.stage) >= stageRank("อาณาจักร");
+}
 function emptyBuildingCondition(buildings: Buildings = emptyBuildings()): BuildingCondition {
   const result: BuildingCondition = {};
   (Object.keys(buildings) as BuildingKey[]).forEach((key) => { if ((buildings[key] ?? 0) > 0) result[key] = 100; });
@@ -801,6 +886,11 @@ function normalizeAdvancedSystems(game: GameState): GameState {
     weather: normalizeWeatherState((game as any).weather),
     policies: normalizePolicies((game as any).policies),
     crisis: normalizeCrisis((game as any).crisis),
+    guilds: normalizeGuilds((game as any).guilds),
+    outposts: normalizeOutposts((game as any).outposts),
+    factions: normalizeFactions((game as any).factions),
+    leaderAge: Math.max(18, Math.round((game as any).leaderAge ?? game.people?.find((p) => p.id === "leader")?.age ?? 28)),
+    heir: ((game as any).heir ?? null) as Person | null,
     buildingCondition: normalizeBuildingCondition(game),
     resources: { ...baseResources(game.origin), ...game.resources },
     researchDone: { ...emptyResearch(), ...game.researchDone },
@@ -1169,7 +1259,7 @@ function locationMonthlyBonusText(game: GameState) {
   const bonus = locationMonthlyBonus(game);
   const entries = Object.entries(bonus).filter(([, v]) => (v ?? 0) > 0);
   if (!entries.length) return "ยังไม่มีเส้นทางที่สำรวจจนใช้ประโยชน์ประจำเดือนได้";
-  const labels: Record<ResourceKey, { icon: string; name: string }> = { food: { icon: "🍲", name: "อาหาร" }, water: { icon: "💧", name: "น้ำ" }, waterReserve: { icon: "🏺", name: "น้ำสำรอง" }, fuel: { icon: "🔥", name: "ฟืน" }, wood: { icon: "🪵", name: "ไม้" }, stone: { icon: "🪨", name: "หิน" }, tools: { icon: "🛠️", name: "เครื่องมือ" }, herbs: { icon: "🌿", name: "สมุนไพร" }, hides: { icon: "🦬", name: "หนังสัตว์" }, gold: { icon: "🪙", name: "ทอง" }, knowledge: { icon: "📜", name: "ความรู้" }, feed: { icon: "🌾", name: "อาหารสัตว์" }, ore: { icon: "⛏️", name: "แร่" } };
+  const labels: Record<ResourceKey, { icon: string; name: string }> = { food: { icon: "🍲", name: "อาหาร" }, water: { icon: "💧", name: "น้ำ" }, waterReserve: { icon: "🏺", name: "น้ำสำรอง" }, fuel: { icon: "🔥", name: "ฟืน" }, wood: { icon: "🪵", name: "ไม้" }, stone: { icon: "🪨", name: "หิน" }, tools: { icon: "🛠️", name: "เครื่องมือ" }, herbs: { icon: "🌿", name: "สมุนไพร" }, hides: { icon: "🦬", name: "หนังสัตว์" }, gold: { icon: "🪙", name: "ทอง" }, knowledge: { icon: "📜", name: "ความรู้" }, feed: { icon: "🌾", name: "อาหารสัตว์" }, ore: { icon: "⛏️", name: "แร่ดิบ" }, ironOre: { icon: "⛏️", name: "แร่เหล็ก" }, coal: { icon: "⚫", name: "ถ่านหิน" }, timber: { icon: "🪚", name: "ไม้แปรรูป" }, bricks: { icon: "🧱", name: "อิฐเผา" }, textiles: { icon: "🧶", name: "ผ้าทอ" }, salt: { icon: "🧂", name: "เกลือ" }, spices: { icon: "🌶️", name: "เครื่องเทศ" }, influence: { icon: "📜", name: "อิทธิพล" }, steel: { icon: "⚔️", name: "เหล็กกล้า" }, luxuries: { icon: "💎", name: "สินค้าฟุ่มเฟือย" }, warhorses: { icon: "🐎", name: "ม้ารบ" }, manpower: { icon: "🪖", name: "กำลังพล" }, siegeMaterials: { icon: "🔥", name: "วัสดุสงคราม" } };
   return entries.map(([k, v]) => `${labels[k as ResourceKey]?.icon ?? "•"} ${labels[k as ResourceKey]?.name ?? k} +${fmt(v as number)}`).join(" · ");
 }
 
@@ -1308,7 +1398,7 @@ function stageเป้าหมายs(game: GameState): Array<{ text: string; 
 function maybeAdvanceStage(game: GameState): GameState {
   const allDone = stageเป้าหมายs(game).every((o) => o.done);
   if (!allDone) return game;
-  const next: Record<Stage, Stage> = { "ค่ายพักแรม": "ชุมชนแรกเริ่ม", "ชุมชนแรกเริ่ม": "หมู่บ้านถาวร", "หมู่บ้านถาวร": "เมืองเล็ก", "เมืองเล็ก": "เมืองเล็ก" };
+  const next: Record<Stage, Stage> = { "ค่ายพักแรม": "ชุมชนแรกเริ่ม", "ชุมชนแรกเริ่ม": "หมู่บ้านถาวร", "หมู่บ้านถาวร": "เมืองเล็ก", "เมืองเล็ก": "เมืองการค้า", "เมืองการค้า": "นครรัฐ", "นครรัฐ": "อาณาจักร", "อาณาจักร": "อาณาจักร" };
   const nextStage = next[game.stage];
   if (nextStage === game.stage) return game;
   let g = { ...game, stage: nextStage, metrics: changeMetrics(game.metrics, { morale: 10, trust: 7, cohesion: 5 }), milestones: [...game.milestones, `stage-${nextStage}`] };
@@ -1375,7 +1465,10 @@ const stagePlans: StagePlan[] = [
   { stage: "ค่ายพักแรม", title: "เอาชีวิตรอดปีแรก", goal: "ตั้งที่พัก กองไฟ เสบียง และความปลอดภัยพื้นฐาน", reward: "ปลดล็อกเส้นทางชุมชนแรกเริ่ม พ่อค้าเร่ และครอบครัวเร่ร่อน", unlocked: ["พ่อค้าเร่", "ข้อพิพาทเสบียง", "การเพาะปลูก", "คลังอาหาร"] },
   { stage: "ชุมชนแรกเริ่ม", title: "เปลี่ยนค่ายให้เป็นบ้าน", goal: "สร้างน้ำสะอาด คลังอาหาร แปลงเพาะปลูก และกฎร่วม", reward: "ปลดล็อกเหตุการณ์สังคม การค้า และภัยมนุษย์ที่ชัดขึ้น", unlocked: ["ราคาตลาด", "ครอบครัวใหม่", "การลาดตระเวน", "ช่างฝีมือ"] },
   { stage: "หมู่บ้านถาวร", title: "สร้างโครงสร้างถาวร", goal: "เพิงช่าง หอเฝ้ายาม ศาลาประชุม และสุขภาพชุมชน", reward: "ปลดล็อกเมืองเล็ก เครือข่ายข่าวสาร และระบบภัยภายนอกเต็มรูปแบบ", unlocked: ["สายข่าว", "คาราวานใหญ่", "โจรสอดแนม", "กฎหมายชุมชน"] },
-  { stage: "เมืองเล็ก", title: "รักษาเมืองที่เริ่มมีชื่อ", goal: "รักษาความมั่นคง ทรัพยากร ข่าวสาร และความไว้ใจระยะยาว", reward: "เตรียมต่อยอดไปสู่ระบบการเมืองและตระกูลรองในอนาคต", unlocked: ["เครือข่ายสายข่าว", "ตลาดประจำ", "การทูต", "ปัญหาชนชั้น"] },
+  { stage: "เมืองเล็ก", title: "รักษาเมืองที่เริ่มมีชื่อ", goal: "เตรียมเปลี่ยนจากการสั่งคนทีละคนสู่เศรษฐกิจและสมาคม", reward: "เปิดเมืองการค้าเมื่อประชากร ทอง ตลาด และสมาคมพร้อม", unlocked: ["ลานตลาดถาวร", "คาราวาน", "ใบอนุญาตสมาคม", "ฐานที่มั่นรอง"] },
+  { stage: "เมืองการค้า", title: "เครือข่ายภูมิภาค", goal: "ตั้งสมาคม คาราวาน และฐานที่มั่นรองเพื่อให้ทรัพยากรไหลกลับเมือง", reward: "เปิดนครรัฐและการเมืองภายใน", unlocked: ["สมาคม", "คาราวาน", "Outpost", "สินค้าแปรรูป"] },
+  { stage: "นครรัฐ", title: "อำนาจและสภาเมือง", goal: "รักษาฝ่ายอำนาจ สะสมอิทธิพล และเปิดเหล็กกล้า", reward: "เปิดอาณาจักรและระบบสืบทอด", unlocked: ["ฝ่ายอำนาจ", "เหล็กกล้า", "อิทธิพล", "ทายาท"] },
+  { stage: "อาณาจักร", title: "พงศาวดารของอำนาจ", goal: "รักษาเมืองขึ้น กองกำลัง และความทรงจำของผู้คน ไม่ให้ชัยชนะกลืนชีวิตเล็ก ๆ", reward: "เล่นระยะยาวด้วยสงคราม วิกฤต และการสืบทอด", unlocked: ["เมืองขึ้น", "สงคราม", "ส่วย", "วิกฤตทวีป"] },
 ];
 
 function currentStagePlan(game: GameState) {
@@ -1730,11 +1823,12 @@ function resourceLedger(game: GameState) {
     { icon: "📜", name: "ความรู้", stock: game.resources.knowledge, produced: knowledgeProd, used: 0, net: knowledgeProd, note: "ใช้ปลดล็อกภูมิปัญญา" },
     ...(game.researchDone.fodderPrep || game.resources.feed > 0 || animalCount(game) > 0 ? [{ icon: "🌿", name: "อาหารสัตว์", stock: game.resources.feed, produced: Math.round(l.feed * (game.buildings.animalPen ? 5 : 3)), used: animalNeed(game), net: Math.round(l.feed * (game.buildings.animalPen ? 5 : 3)) - animalNeed(game), note: "ใช้เลี้ยงแพะ ไก่ และสุนัข ลดการแย่งอาหารคน" }] : []),
     { icon: "🪙", name: "ทอง", stock: game.resources.gold, produced: goldProd, used: 0, net: goldProd, note: "ได้จากการแลกเปลี่ยน/ขายของส่วนเกิน ใช้ซื้อเครื่องมือ เมล็ดพันธุ์ หรือจ้างคนในอนาคต" },
+    ...(["ironOre","coal","timber","bricks","textiles","salt","spices","influence","steel","luxuries","warhorses","manpower","siegeMaterials"] as ResourceKey[]).filter((key) => (game.resources[key] ?? 0) > 0).map((key) => ({ icon: ({ ironOre:"⛏️", coal:"⚫", timber:"🪚", bricks:"🧱", textiles:"🧶", salt:"🧂", spices:"🌶️", influence:"📜", steel:"⚔️", luxuries:"💎", warhorses:"🐎", manpower:"🪖", siegeMaterials:"🔥" } as Record<string,string>)[key] ?? "•", name: resourceShortLabel(key), stock: game.resources[key] ?? 0, produced: 0, used: 0, net: 0, note: "ทรัพยากรขั้นสูงที่จะมีบทบาทเมื่อเมืองเข้าสู่ยุคเศรษฐกิจ นครรัฐ หรืออาณาจักร" })),
   ];
 }
 
 const resourceLabelToKey: Record<string, ResourceKey> = {
-  "อาหาร": "food", "น้ำ": "water", "น้ำสำรอง": "waterReserve", "ฟืน": "fuel", "ไม้": "wood", "หิน": "stone", "เครื่องมือ": "tools", "สมุนไพร": "herbs", "หนังสัตว์": "hides", "ความรู้": "knowledge", "อาหารสัตว์": "feed", "ทอง": "gold"
+  "อาหาร": "food", "น้ำ": "water", "น้ำสำรอง": "waterReserve", "ฟืน": "fuel", "ไม้": "wood", "หิน": "stone", "เครื่องมือ": "tools", "สมุนไพร": "herbs", "หนังสัตว์": "hides", "ความรู้": "knowledge", "อาหารสัตว์": "feed", "ทอง": "gold", "แร่เหล็ก": "ironOre", "ถ่านหิน": "coal", "ไม้แปรรูป": "timber", "อิฐเผา": "bricks", "ผ้าทอ": "textiles", "เกลือ": "salt", "เครื่องเทศ": "spices", "อิทธิพล": "influence", "เหล็กกล้า": "steel", "สินค้าฟุ่มเฟือย": "luxuries", "ม้ารบ": "warhorses", "กำลังพล": "manpower", "วัสดุสงคราม": "siegeMaterials"
 };
 
 function blankResourcePartial(): Partial<Resources> { return {}; }
@@ -1928,7 +2022,7 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
     collapse: { hungerMonths: 0, noWorkerMonths: 0, trustCrisisMonths: 0, assaultCrisisMonths: 0 }, gameOver: null,
-    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: emptyLocations(), exploreTarget: "shallowStream", animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), summaryModal: null, savedText: "ยังไม่เคยบันทึก",
+    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: emptyLocations(), exploreTarget: "shallowStream", animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), guilds: emptyGuilds(), outposts: [], factions: emptyFactions(), leaderAge: people.find((p) => p.id === "leader")?.age ?? 28, heir: null, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
   };
   return addNotice(addLog(base, "ค่ายแรกถูกตั้งขึ้น", `${setup.leaderName} แห่ง House ${setup.houseName} พาคนสิบชีวิตตั้งกองไฟแรกที่${terrainData[terrain].title} — ${terrainData[terrain].text}`, "milestone", ["เริ่มเกม", "พื้นที่เริ่มต้น"]), { kind: "system", title: `พื้นที่เริ่มต้น: ${terrainData[terrain].title}`, text: terrainData[terrain].text });
 }
@@ -3066,6 +3160,79 @@ function applyChoice(game: GameState, event: GameEvent, selected: EventChoice): 
   }
   return g;
 }
+function outpostYieldText(outpost: Outpost) {
+  return Object.entries(outpost.monthly).filter(([, v]) => (v ?? 0) > 0).map(([k, v]) => `${resourceShortLabel(k as ResourceKey)} +${fmt(v ?? 0)}`).join(" · ");
+}
+function resourceShortLabel(key: ResourceKey) {
+  const labels: Record<ResourceKey, string> = { food: "อาหาร", water: "น้ำ", waterReserve: "น้ำสำรอง", fuel: "ฟืน", wood: "ไม้", stone: "หิน", tools: "เครื่องมือ", herbs: "สมุนไพร", hides: "หนังสัตว์", knowledge: "ความรู้", feed: "อาหารสัตว์", ore: "แร่ดิบ", gold: "ทอง", ironOre: "แร่เหล็ก", coal: "ถ่านหิน", timber: "ไม้แปรรูป", bricks: "อิฐเผา", textiles: "ผ้าทอ", salt: "เกลือ", spices: "เครื่องเทศ", influence: "อิทธิพล", steel: "เหล็กกล้า", luxuries: "ฟุ่มเฟือย", warhorses: "ม้ารบ", manpower: "กำลังพล", siegeMaterials: "วัสดุสงคราม" };
+  return labels[key] ?? key;
+}
+function macroLocationKind(location: LocationKey): OutpostKind {
+  if (location === "oldCave" || location === "rockyRidge") return "mine";
+  if (location === "shallowStream" || location === "marshPools") return "water";
+  if (location === "deepWoods") return "wood";
+  if (location === "oldTradeRoad") return "trade";
+  return "food";
+}
+function outpostMonthlyFor(location: LocationKey): Partial<Resources> {
+  if (location === "oldCave" || location === "rockyRidge") return { ironOre: 8, coal: location === "oldCave" ? 4 : 2, stone: 3 };
+  if (location === "deepWoods") return { wood: 6, timber: 3, food: 2 };
+  if (location === "shallowStream") return { water: 8, herbs: 2, waterReserve: 2 };
+  if (location === "marshPools") return { water: 5, herbs: 4, feed: 3 };
+  if (location === "huntingGround") return { food: 8, hides: 2 };
+  if (location === "oldTradeRoad") return { gold: 4, salt: 2, spices: 1, influence: 2 };
+  if (location === "abandonedCamp") return { tools: 1, knowledge: 4 };
+  return { food: 4 };
+}
+function canEstablishOutpost(game: GameState, location: LocationKey) {
+  const loc = normalizeLocations(game.locations)[location];
+  return canUseRegionalSystems(game) && loc.discovered && loc.progress >= 100 && !normalizeOutposts(game.outposts).some((o) => o.location === location);
+}
+function outpostCost(location: LocationKey): Partial<Resources> {
+  const kind = macroLocationKind(location);
+  if (kind === "mine") return { wood: 45, stone: 25, tools: 4, gold: 25, food: 18, water: 12 };
+  if (kind === "trade") return { wood: 35, stone: 15, tools: 2, gold: 40, food: 14, water: 10 };
+  return { wood: 28, stone: 10, tools: 2, gold: 18, food: 12, water: 8 };
+}
+function establishOutpost(game: GameState, location: LocationKey): GameState {
+  if (!canEstablishOutpost(game, location) || !hasCost(game, outpostCost(location))) return { ...game, savedText: "ยังตั้งฐานที่มั่นรองไม่ได้ ต้องสำรวจครบ มีวิจัย และมีเสบียงพอ" };
+  const data = locationData[location];
+  const outpost: Outpost = { id: uid("outpost"), location, name: `ฐาน${data.title}`, kind: macroLocationKind(location), workers: 10 + Math.floor(alivePeople(game).length / 50), level: 1, security: 58, monthly: outpostMonthlyFor(location) };
+  let g = payCost(game, outpostCost(location));
+  g = { ...g, outposts: [...normalizeOutposts(g.outposts), outpost], locations: { ...normalizeLocations(g.locations), [location]: { ...normalizeLocations(g.locations)[location], outpost: true } }, metrics: changeMetrics(g.metrics, { morale: 3, trust: 2 }), savedText: `ตั้ง${outpost.name}แล้ว` };
+  g = addLog(g, `ตั้ง${outpost.name}`, `พื้นที่${data.title}ไม่ได้เป็นแค่เส้นทางสำรวจอีกต่อไป แต่กลายเป็นฐานที่มั่นรองที่ส่งทรัพยากรกลับเมืองทุกเดือน: ${outpostYieldText(outpost)}`, "milestone", ["Outpost", data.title]);
+  return g;
+}
+function resolveMacroSystems(game: GameState, changes: string[]): GameState {
+  let g = { ...game, guilds: normalizeGuilds(game.guilds), outposts: normalizeOutposts(game.outposts), factions: normalizeFactions(game.factions) };
+  if (g.outposts.length) {
+    const total: Partial<Resources> = {};
+    for (const o of g.outposts) {
+      for (const [key, value] of Object.entries(o.monthly)) total[key as ResourceKey] = (total[key as ResourceKey] ?? 0) + (value ?? 0) * o.level;
+      if (o.security < 35 && Math.random() < 0.12) {
+        g = { ...g, threat: clamp(g.threat + 4), metrics: changeMetrics(g.metrics, { security: -2 }) };
+        changes.push(`${o.name} รายงานภัยบนเส้นทางส่งเสบียง`);
+      }
+    }
+    g = { ...g, resources: changeResources(g.resources, total) };
+    changes.push(`ฐานที่มั่นรองส่งทรัพยากรกลับเมือง: ${Object.entries(total).filter(([,v]) => (v ?? 0) > 0).map(([k,v]) => `${resourceShortLabel(k as ResourceKey)} +${fmt(v ?? 0)}`).join(" · ")}`);
+  }
+  if (stageRank(g.stage) >= stageRank("เมืองการค้า")) {
+    const guilds = normalizeGuilds(g.guilds);
+    const hunterLevel = Math.max(guilds.huntersGuild.level, g.buildings.huntersGuildHall);
+    const builderLevel = Math.max(guilds.buildersGuild.level, g.buildings.buildersGuildHall);
+    const merchantLevel = Math.max(guilds.merchantsGuild.level, g.buildings.merchantsGuildHall);
+    const macro: Partial<Resources> = {};
+    if (hunterLevel > 0) { macro.food = (macro.food ?? 0) + hunterLevel * 18; macro.hides = (macro.hides ?? 0) + hunterLevel; }
+    if (builderLevel > 0) { macro.timber = (macro.timber ?? 0) + builderLevel * 5; macro.bricks = (macro.bricks ?? 0) + builderLevel * 3; }
+    if (merchantLevel > 0 && g.resources.gold >= 8 * merchantLevel) { macro.salt = (macro.salt ?? 0) + merchantLevel * 2; macro.spices = (macro.spices ?? 0) + merchantLevel; macro.influence = (macro.influence ?? 0) + merchantLevel * 2; g = { ...g, resources: changeResources(g.resources, { gold: -8 * merchantLevel }) }; }
+    if (Object.keys(macro).length) { g = { ...g, resources: changeResources(g.resources, macro) }; changes.push(`สมาคมเมืองจัดผลผลิตมหภาค: ${Object.entries(macro).map(([k,v]) => `${resourceShortLabel(k as ResourceKey)} +${fmt(v ?? 0)}`).join(" · ")}`); }
+  }
+  if (g.buildings.sawmill > 0 && g.resources.wood >= 10) { const make = Math.min(8 * g.buildings.sawmill, Math.floor(g.resources.wood / 5)); g = { ...g, resources: changeResources(g.resources, { wood: -make * 5, timber: make }) }; changes.push(`โรงเลื่อยแปรไม้เป็นไม้แปรรูป +${make}`); }
+  if (g.buildings.brickKiln > 0 && g.resources.stone >= 8 && g.resources.fuel >= 4) { const make = Math.min(6 * g.buildings.brickKiln, Math.floor(g.resources.stone / 4), Math.floor(g.resources.fuel / 2)); g = { ...g, resources: changeResources(g.resources, { stone: -make * 4, fuel: -make * 2, bricks: make }) }; changes.push(`เตาเผาผลิตอิฐเผา +${make}`); }
+  if (g.buildings.smeltery > 0 && g.resources.ironOre >= 3 && g.resources.coal >= 2) { const make = Math.min(10 * g.buildings.smeltery, Math.floor(g.resources.ironOre / 3), Math.floor(g.resources.coal / 2)); g = { ...g, resources: changeResources(g.resources, { ironOre: -make * 3, coal: -make * 2, steel: make }) }; changes.push(`โรงถลุงผลิตเหล็กกล้า +${make}`); }
+  return g;
+}
 function resolveProduction(game: GameState): { game: GameState; changes: string[] } {
   let g = { ...game, labor: normalizeLabor(game) };
   const l = g.labor;
@@ -3101,6 +3268,7 @@ function resolveProduction(game: GameState): { game: GameState; changes: string[
   g = applyWaterReserve(g, changes);
   if (feedGain) changes.push(`อาหารสัตว์ +${feedGain}`);
   if (Object.keys(routeBonus).length) changes.push(`เส้นทางที่สำรวจแล้วส่งทรัพยากรกลับค่าย: ${locationMonthlyBonusText(g)}`);
+  g = resolveMacroSystems(g, changes);
   if (l.intel > 0) {
     g = { ...g, metrics: changeMetrics(g.metrics, { security: Math.min(3, l.intel), trust: Math.min(2, l.intel) }), threat: clamp(g.threat - l.intel, 0, 100) };
     const newsPool: Array<Omit<Rumor, "id" | "discovered">> = [
@@ -3694,6 +3862,9 @@ export default function GamePage() {
     return <GameOverScreen game={game} restartSameSetup={restartSameSetup} resetGame={resetGame} />;
   }
 
+  const visibleViews = views.filter((v) => v !== "นโยบาย" || canUsePolicies(game));
+  const safeView = visibleViews.includes(view) ? view : "เมือง";
+
   return (
     <main className={`app device-${deviceMode} theme-${theme}`}>
       <header className="topbar">
@@ -3728,19 +3899,19 @@ export default function GamePage() {
 
         <section className="main">
           <nav className="view-tabs">
-            {views.map((v) => <button key={v} className={view === v ? "active" : ""} onClick={() => setView(v)}>{viewLabel(v)}</button>)}
+            {visibleViews.map((v) => <button key={v} className={safeView === v ? "active" : ""} onClick={() => setView(v)}>{viewLabel(v)}</button>)}
           </nav>
-          {view === "เมือง" && <CityView game={game} />}
-          {view === "ทรัพยากร" && <ResourcesView game={game} />}
-          {view === "คน" && <PeopleView game={game} assignPersonLabor={assignPersonLabor} applyRecommendedAssignments={() => updateGame((g) => { const laborAssignments = recommendedAssignments(g); return { ...g, laborAssignments, labor: deriveLaborFromAssignments(g, laborAssignments), savedText: "จัดแรงงานตามความถนัดแล้ว" }; })} />}
-          {view === "แผนที่" && <MapView game={game} setExploreTarget={(target) => updateGame((g) => ({ ...g, exploreTarget: target, savedText: `เลือกเส้นทางสำรวจ: ${locationData[target].title}` }))} />}
-          {view === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} pauseConstruction={pauseConstruction} cancelConstruction={cancelConstruction} jumpToPeopleFor={jumpToPeopleFor} />}
-          {view === "วิจัย" && <ResearchView game={game} startResearch={startResearch} pauseResearch={pauseResearch} cancelResearch={cancelResearch} jumpToPeopleFor={jumpToPeopleFor} />}
-          {view === "สัตว์เลี้ยง" && <AnimalsView game={game} setAnimalAction={(action) => updateGame((g) => ({ ...g, animalAction: action, savedText: `ตั้งแผนสัตว์เลี้ยง: ${animalActionLabel(action)}` }))} />}
-          {view === "นโยบาย" && <PoliciesView game={game} updatePolicies={(patch) => updateGame((g) => ({ ...g, policies: { ...normalizePolicies(g.policies), ...patch }, savedText: "ปรับนโยบายค่ายแล้ว" }))} />}
-          {view === "ข่าวสาร" && <NewsView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
-          {view === "พงศาวดาร" && <ChronicleView game={game} />}
-          {view === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} theme={theme} setTheme={setTheme} />}
+          {safeView === "เมือง" && <CityView game={game} />}
+          {safeView === "ทรัพยากร" && <ResourcesView game={game} />}
+          {safeView === "คน" && <PeopleView game={game} assignPersonLabor={assignPersonLabor} applyRecommendedAssignments={() => updateGame((g) => { const laborAssignments = recommendedAssignments(g); return { ...g, laborAssignments, labor: deriveLaborFromAssignments(g, laborAssignments), savedText: "จัดแรงงานตามความถนัดแล้ว" }; })} />}
+          {safeView === "แผนที่" && <MapView game={game} setExploreTarget={(target) => updateGame((g) => ({ ...g, exploreTarget: target, savedText: `เลือกเส้นทางสำรวจ: ${locationData[target].title}` }))} establishOutpost={(target) => updateGame((g) => establishOutpost(g, target))} />}
+          {safeView === "ก่อสร้าง" && <BuildView game={game} startConstruction={startConstruction} pauseConstruction={pauseConstruction} cancelConstruction={cancelConstruction} jumpToPeopleFor={jumpToPeopleFor} />}
+          {safeView === "วิจัย" && <ResearchView game={game} startResearch={startResearch} pauseResearch={pauseResearch} cancelResearch={cancelResearch} jumpToPeopleFor={jumpToPeopleFor} />}
+          {safeView === "สัตว์เลี้ยง" && <AnimalsView game={game} setAnimalAction={(action) => updateGame((g) => ({ ...g, animalAction: action, savedText: `ตั้งแผนสัตว์เลี้ยง: ${animalActionLabel(action)}` }))} />}
+          {safeView === "นโยบาย" && <PoliciesView game={game} updatePolicies={(patch) => updateGame((g) => ({ ...g, policies: { ...normalizePolicies(g.policies), ...patch }, savedText: "ปรับนโยบายค่ายแล้ว" }))} />}
+          {safeView === "ข่าวสาร" && <NewsView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
+          {safeView === "พงศาวดาร" && <ChronicleView game={game} />}
+          {safeView === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} theme={theme} setTheme={setTheme} />}
         </section>
 
         <aside className="event-panel">
@@ -3749,7 +3920,7 @@ export default function GamePage() {
       </section>
 
       <nav className="bottom-nav">
-        {views.map((v) => <button key={v} className={view === v ? "active" : ""} onClick={() => setView(v)}>{viewLabel(v)}</button>)}
+        {visibleViews.map((v) => <button key={v} className={safeView === v ? "active" : ""} onClick={() => setView(v)}>{viewLabel(v)}</button>)}
         <button onClick={endTurn}>จบเดือนนี้ →</button>
       </nav>
 
@@ -4023,6 +4194,11 @@ function ResourceHistoryChart({ game, history }: { game: GameState; history: Res
     { key: "wood", icon: "🪵", label: "ไม้", color: "#7f6a52" },
     { key: "stone", icon: "🪨", label: "หิน", color: "#8f98a6" },
     { key: "gold", icon: "🪙", label: "ทอง", color: "#c9a33d" },
+    ...(stageRank(game.stage) >= stageRank("เมืองการค้า") ? [
+      { key: "ironOre" as ResourceKey, icon: "⛏️", label: "แร่เหล็ก", color: "#7b8794" },
+      { key: "timber" as ResourceKey, icon: "🪚", label: "ไม้แปรรูป", color: "#9b7a4a" },
+      { key: "steel" as ResourceKey, icon: "⚔️", label: "เหล็กกล้า", color: "#9aa4b2" },
+    ] : []),
   ];
   const points = history.length ? history : [makeResourceYearSnapshot(game)];
   const maxValue = Math.max(1, ...points.flatMap((p) => rows.map((row) => p.stocks[row.key] ?? 0)));
@@ -4292,7 +4468,7 @@ function traitEmoji(trait: string) {
   return "•";
 }
 
-function MapView({ game, setExploreTarget }: { game: GameState; setExploreTarget: (target: LocationKey) => void }) {
+function MapView({ game, setExploreTarget, establishOutpost }: { game: GameState; setExploreTarget: (target: LocationKey) => void; establishOutpost: (target: LocationKey) => void }) {
   const locations = normalizeLocations(game.locations);
   const target = bestExploreTarget(game);
   const discovered = (Object.keys(locationData) as LocationKey[]).filter((key) => locations[key].discovered);
@@ -4328,7 +4504,7 @@ function MapView({ game, setExploreTarget }: { game: GameState; setExploreTarget
               <p className="muted small">{loc.discovered ? data.text : data.unlockHint}</p>
               <div className="bar"><div className="fill" style={{ width: `${loc.progress}%` }} /></div>
               {loc.discovered && <div className="deltas"><span className="badge blue">ทรัพยากร: {data.resource}</span><span className="badge red">เสี่ยง: {data.risk}</span>{data.tags.map((tag) => <span className="badge" key={`${key}-${tag}`}>{tag}</span>)}</div>}
-              <div className="location-actions"><button className={active ? "primary" : "secondary"} onClick={() => setExploreTarget(key)}>{active ? "กำลังสำรวจ" : "ตั้งเป็นเป้าหมายสำรวจ"}</button></div>
+              <div className="location-actions"><button className={active ? "primary" : "secondary"} onClick={() => setExploreTarget(key)}>{active ? "กำลังสำรวจ" : "ตั้งเป็นเป้าหมายสำรวจ"}</button>{canEstablishOutpost(game, key) && <button className="secondary" onClick={() => establishOutpost(key)}>ตั้ง Outpost</button>}</div>
             </article>
           );
         })}
@@ -4513,6 +4689,7 @@ function ChronicleView({ game }: { game: GameState }) {
 }
 
 function PoliciesView({ game, updatePolicies }: { game: GameState; updatePolicies: (patch: Partial<CampPolicies>) => void }) {
+  if (!canUsePolicies(game)) return <section className="panel pad"><h2 className="title">นโยบายยังไม่พร้อม</h2><p className="muted">ค่ายยังต้องพึ่งคำสั่งรายเดือนของผู้นำโดยตรง วิจัย “ธรรมเนียมบริหารค่าย” หรือสร้างศาลาประชุมก่อน ระบบนโยบายจึงจะเปิดให้ใช้</p></section>;
   const policies = normalizePolicies(game.policies);
   const damaged = Object.entries(normalizeBuildingCondition(game)).filter(([, hp]) => (hp ?? 100) < 72).length;
   const crisis = normalizeCrisis(game.crisis);

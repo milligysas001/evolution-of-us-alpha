@@ -1,16 +1,16 @@
-# QUALITY CHECK v0.9.28
+# QUALITY CHECK v0.9.29
 
 ตรวจแล้วในชุด ZIP:
 
-- JSON ใน `data/game` parse ได้
-- `app/game/page.tsx` ผ่าน TypeScript transpile syntax diagnostics
-- เพิ่มระบบตามไฟล์ผู้ใช้: Weather, Relationships/Grief, Decay/Maintenance, Livestock plague, Skill mastery, Policies, Water storage, Endgame crisis
-- ยังเก็บการเตรียมย้าย Godot ผ่าน `types/` และ `logic/`
+- JSON ใน `data/game/*.json` parse ได้
+- `app/game/page.tsx` และ `app/page.tsx` ผ่าน TypeScript transpile diagnostics
+- เพิ่ม Type/State สำหรับ guilds, outposts, factions, leaderAge, heir
+- เพิ่ม resource keys ใหม่ครบใน baseResources และ labels สำคัญ
+- ซ่อนแท็บนโยบายเมื่อยังไม่ปลดล็อก
+- ไม่มี backup folder ติด ZIP
 
-หลังติดตั้งบนเครื่องจริง ให้รัน:
+หลังติดตั้งในเครื่องจริงให้รัน:
 
 ```powershell
 npm run check
 ```
-
-ถ้า Next.js รายงาน type error ที่เกิดจากสภาพแวดล้อมจริง ให้ส่งภาพ error กลับมาเพื่อ patch ต่อทันที.

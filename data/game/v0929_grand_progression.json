@@ -1,0 +1,41 @@
+{
+  "version": "0.9.29",
+  "name": "Era Progression, Resources, Outposts and Policy Gating",
+  "stages": [
+    {
+      "id": "survival",
+      "range": ["ค่ายพักแรม", "ชุมชนแรกเริ่ม", "หมู่บ้านถาวร", "เมืองเล็ก"],
+      "mapScale": "Local Radius",
+      "loop": "micro labor assignments, forage, water, wood, stone, explore",
+      "resources": ["food", "water", "wood", "stone", "fuel", "herbs", "hides", "tools", "feed", "knowledge", "gold"]
+    },
+    {
+      "id": "trade_hub",
+      "stage": "เมืองการค้า",
+      "unlock": { "population": 100, "gold": 200, "buildings": ["meetingHall", "marketSquare"], "research": ["signalNetwork", "guildCharters"] },
+      "mapScale": "Regional Map",
+      "systems": ["guilds", "caravanRoutes", "outposts"],
+      "resources": ["ironOre", "coal", "timber", "bricks", "textiles", "salt", "spices", "influence"]
+    },
+    {
+      "id": "city_state",
+      "stage": "นครรัฐ",
+      "unlock": { "population": 300, "guildHalls": 3, "building": "senateHouse", "trust": 70, "fairness": 70 },
+      "systems": ["factions", "taxes", "bureaucracy", "ironSmelting"],
+      "resources": ["steel", "luxuries", "influence"]
+    },
+    {
+      "id": "kingdom",
+      "stage": "อาณาจักร",
+      "unlock": { "population": 1000, "influence": 500, "steel": 200, "research": ["dynasticSuccession"] },
+      "mapScale": "Continental Map",
+      "systems": ["heir", "vassals", "siege", "tribute"],
+      "resources": ["warhorses", "manpower", "siegeMaterials", "luxuries"]
+    }
+  ],
+  "policyGate": {
+    "showTabOnlyWhen": ["research.campPolicies", "research.projectPlanning", "building.meetingHall"],
+    "reason": "นโยบายเป็นระบบอัตโนมัติ จึงซ่อนช่วงต้นเพื่อลดความรกและเปิดเมื่อชุมชนมีธรรมเนียมหรือศาลาประชุม"
+  },
+  "explorationLoop": ["unexplored", "exploring", "discovered", "outpostEstablished", "vassalizedOrConquered"]
+}

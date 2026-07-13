@@ -8,3 +8,11 @@ export type EndgameCrisisKind = "none" | "long_winter" | "bandit_host" | "great_
 export type EndgameCrisis = { kind: EndgameCrisisKind; yearsUntil: number; warningLevel: number; active: boolean; resolved: boolean };
 export type BuildingCondition<T extends string = string> = Partial<Record<T, number>>;
 export type SkillXP<T extends string = string> = Partial<Record<T, number>>;
+
+export type EraStage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก" | "เมืองการค้า" | "นครรัฐ" | "อาณาจักร";
+export type GuildKey = "huntersGuild" | "buildersGuild" | "merchantsGuild";
+export type GuildState = Record<GuildKey, { level: number; funding: number; activeEdict: string }>;
+export type OutpostKind = "water" | "wood" | "food" | "mine" | "flax" | "trade";
+export type Outpost<TLocation extends string = string, TResource extends string = string> = { id: string; location: TLocation; name: string; kind: OutpostKind; workers: number; level: number; security: number; monthly: Partial<Record<TResource, number>> };
+export type FactionKey = "guards" | "farmers" | "merchants" | "builders";
+export type FactionState = Record<FactionKey, { approval: number; power: number }>;
