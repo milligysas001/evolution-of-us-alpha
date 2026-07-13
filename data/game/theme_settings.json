@@ -1,0 +1,11 @@
+{
+  "id": "theme_settings",
+  "version": "0.9.24",
+  "modes": ["light", "dark"],
+  "storageKey": "eou-ui-theme",
+  "description": "ตั้งค่าโหมดสว่าง/มืดสำหรับ UI บนเว็บ ไม่กระทบ save gameplay",
+  "godot_porting": {
+    "suggested_system": "UserDisplaySettings",
+    "notes": "ย้ายเป็น user config แยกจาก save state หลัก"
+  }
+}

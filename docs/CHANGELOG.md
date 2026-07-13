@@ -19,3 +19,10 @@
 - Moved detailed resource ledger out of Town view.
 - Added annual resource history snapshots, capped to the latest 10 years.
 - Added Godot-ready resource history behavior notes.
+
+## v0.9.24 — Annual Settlers & Dark Mode
+- เพิ่มระบบผู้มาตั้งถิ่นฐานประจำปี: ทุกสิ้นปีสุ่มคนเข้าร่วม 1–10 คน แยกจาก Event ผู้อพยพสุ่ม
+- ผู้มาตั้งถิ่นฐานประจำปีมีชื่อ อายุ ทักษะ สุขภาพ และ trait ของตนเอง
+- การรับคนประจำปีมีผลต่ออาหาร น้ำ ที่พัก ความไว้ใจ สุขภาพ และพงศาวดาร
+- เพิ่ม Dark Mode ในหน้า Settings และบันทึกค่าด้วย `eou-ui-theme`
+- เพิ่ม data/game/annual_settlers.json และ data/game/theme_settings.json เพื่อเตรียมพอร์ตไป Godot

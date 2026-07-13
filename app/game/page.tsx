@@ -261,12 +261,13 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.23";
-const BUILD_LABEL = "System Coherence, Project Crews & Herbal Flow";
+const GAME_VERSION = "0.9.24";
+const BUILD_LABEL = "Annual Settlers & Dark Mode";
 const BUILD_DATE = "2026-07-13";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
 const tutorialKey = "eou-current-tutorial-seen";
+const themeKey = "eou-ui-theme";
 const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
 const portableDataVersion = "0.9.16";
@@ -2071,6 +2072,95 @@ function addPerson(game: GameState, role = "ผู้มาใหม่", age?: 
   const newPerson: Person = { id: uid("person"), name: picked, age: age ?? (18 + Math.floor(Math.random() * 25)), kin: "ผู้มาใหม่", role, skill: Math.random() > 0.6 ? "hunter" : Math.random() > 0.5 ? "builder" : "farmer", health: 68 + Math.floor(Math.random() * 18), morale: 50, fatigue: 0, injured: false, alive: true, traits: ["ยังไม่ถูกพิสูจน์"] };
   return { ...game, people: [...game.people, newPerson] };
 }
+
+function makeNewcomer(game: GameState, index = 0, source = "ผู้มาตั้งถิ่นฐานประจำปี"): Person {
+  const names = ["Narin", "Boran", "Ysa", "Darin", "Mek", "Sorin", "Lora", "Pavel", "Nia", "Kiran", "Mali", "Arun", "Tala", "Keta", "Ruen", "Noa", "Sana", "Elna", "Tovin", "Mara", "Orin", "Sela"];
+  const templates: Array<{ role: string; skill: SkillKey; traits: string[]; ageMin: number; ageMax: number }> = [
+    { role: "พรานเร่", skill: "hunter", traits: ["อ่านรอยเก่ง", "ช่างสังเกต"], ageMin: 16, ageMax: 48 },
+    { role: "ช่างไม้พเนจร", skill: "builder", traits: ["มือหนัก", "อดทน"], ageMin: 18, ageMax: 55 },
+    { role: "ผู้รู้สมุนไพร", skill: "healer", traits: ["มือเบา", "ละเอียดอ่อน"], ageMin: 20, ageMax: 58 },
+    { role: "ผู้จดจำเส้นทาง", skill: "keeper", traits: ["ช่างสังเกต", "เรียนรู้ไว"], ageMin: 18, ageMax: 60 },
+    { role: "เวรยามไร้สังกัด", skill: "guard", traits: ["กล้าหาญ", "ไม่ค่อยไว้ใจใคร"], ageMin: 17, ageMax: 50 },
+    { role: "ชาวไร่พลัดถิ่น", skill: "farmer", traits: ["ชอบช่วยงาน", "สุขุม"], ageMin: 15, ageMax: 62 },
+  ];
+  const childTraits = ["เกิดไกลบ้าน", "รักนิทาน", "ช่างสังเกต", "เรียนรู้ไว"];
+  const elderTraits = ["จำเรื่องเก่า", "สุขุม", "กินน้อย", "เล่านิทานเก่ง"];
+  const roll = Math.random();
+  let role = "ผู้มาใหม่";
+  let skill: SkillKey = "farmer";
+  let age = 18;
+  let traits: string[] = [];
+  if (roll < 0.18) {
+    role = "เด็กผู้ติดตาม";
+    skill = "child";
+    age = 3 + Math.floor(Math.random() * 9);
+    traits = [pickFrom(childTraits)];
+  } else if (roll < 0.30) {
+    role = "เด็กช่วยงาน";
+    skill = "child";
+    age = 12 + Math.floor(Math.random() * 3);
+    traits = [pickFrom(childTraits), "ชอบช่วยงาน"];
+  } else if (roll > 0.88) {
+    role = "ผู้เฒ่าผู้เดินทาง";
+    skill = "elder";
+    age = 60 + Math.floor(Math.random() * 15);
+    traits = [pickFrom(elderTraits)];
+  } else {
+    const template = pickFrom(templates);
+    role = template.role;
+    skill = template.skill;
+    age = template.ageMin + Math.floor(Math.random() * (template.ageMax - template.ageMin + 1));
+    traits = Array.from(new Set([pickFrom(template.traits), Math.random() > 0.72 ? pickFrom(["กินจุ", "กินน้อย", "ขยันเป็นพิเศษ", "ใจร้อน", "ใจดี", "รักสัตว์"]) : "ยังไม่ถูกพิสูจน์"]));
+  }
+  const used = new Set(game.people.map((p) => p.name));
+  let name = pickFrom(names);
+  if (used.has(name)) name = `${name} ${game.year}-${index + 1}`;
+  const fragile = age < 15 || age >= 60;
+  return {
+    id: uid("annual"), name, age, kin: source, role, skill,
+    health: clamp((fragile ? 52 : 64) + Math.floor(Math.random() * 24)),
+    morale: clamp(44 + Math.floor(Math.random() * 28)), fatigue: fragile ? 8 : 4,
+    injured: Math.random() < (fragile ? 0.08 : 0.04), alive: true,
+    traits: traits.slice(0, 2),
+  };
+}
+
+function addAnnualSettlers(game: GameState, changes: string[]): GameState {
+  const count = 1 + Math.floor(Math.random() * 10);
+  const newcomers: Person[] = [];
+  let shadowGame = game;
+  for (let i = 0; i < count; i++) {
+    const person = makeNewcomer(shadowGame, i, "ผู้มาตั้งถิ่นฐานประจำปี");
+    newcomers.push(person);
+    shadowGame = { ...shadowGame, people: [...shadowGame.people, person] };
+  }
+  const workers = newcomers.filter((p) => baseWorkFactor(p) > 0).length;
+  const children = newcomers.filter((p) => p.age < 15).length;
+  const elders = newcomers.filter((p) => p.age >= 60).length;
+  const sick = newcomers.filter((p) => p.injured || p.health < 45).length;
+  const firstNightFood = count;
+  const firstNightWater = Math.ceil(count * 0.7);
+  const shelterPressure = Math.max(0, alivePeople(shadowGame).length - shelterCapacity(game));
+  let g: GameState = {
+    ...game,
+    people: [...game.people, ...newcomers],
+    resources: changeResources(game.resources, { food: -firstNightFood, water: -firstNightWater }),
+    metrics: changeMetrics(game.metrics, {
+      morale: count <= 4 ? 2 : 1,
+      trust: count > 7 ? -2 : 1,
+      health: shelterPressure > 0 ? -Math.min(6, shelterPressure) : 0,
+      cohesion: count > 6 ? -2 : 1,
+    }),
+    threat: clamp(game.threat + Math.max(0, Math.floor(count / 4) - 1)),
+  };
+  const preview = newcomers.slice(0, 4).map((p) => `${p.name}(${p.age})`).join(", ");
+  g = addLog(g, `ผู้มาตั้งถิ่นฐานประจำปี ${count} คน`, `ปลายปีมีคนเดินทางตามแสงไฟของ ${g.houseName} เข้ามาเพิ่ม ${count} ชีวิต รายชื่อแรกที่ถูกจดไว้คือ ${preview}${count > 4 ? " และคนอื่น ๆ" : ""} การต้อนรับใช้เสบียงคืนแรก ${firstNightFood} อาหาร และ ${firstNightWater} น้ำ`, "milestone", ["ประชากร", "ประจำปี"]);
+  g = addNotice(g, { kind: "system", title: `ผู้มาตั้งถิ่นฐานประจำปี ${count} คน`, text: `เพิ่มแรงงานพร้อมทำงาน ${workers} คน เด็ก ${children} คน ผู้สูงอายุ ${elders} คน และผู้เจ็บป่วย ${sick} คน ระบบนี้แยกจากเหตุการณ์ผู้อพยพสุ่ม` });
+  changes.push(`ผู้มาตั้งถิ่นฐานประจำปี +${count} คน`);
+  if (children || elders || sick) changes.push(`ผู้เปราะบางที่ต้องดูแลเพิ่ม: เด็ก ${children} · ผู้เฒ่า ${elders} · ป่วย/เจ็บ ${sick}`);
+  if (shelterPressure > 0) changes.push(`ที่พักเริ่มตึงตัวเกินความจุ ${shelterPressure} คน`);
+  return g;
+}
 function addChild(game: GameState): GameState {
   const names = ["Mira", "Lina", "Ren", "Toma", "Sana", "Eli", "Pim", "Noa", "Keta"];
   const name = names[Math.floor(Math.random() * names.length)] + ` ${game.year}`;
@@ -2390,11 +2480,7 @@ function ageYear(game: GameState, changes: string[]): GameState {
   elders.forEach((p) => {
     if (Math.random() * 100 < Math.max(5, p.age - 66) && p.alive) g = killSpecific(g, p.id, "ชราภาพและร่างกายถึงขีดจำกัด");
   });
-  if (g.stage !== "ค่ายพักแรม" && g.metrics.security > 40 && Math.random() * 100 < 20) {
-    g = addPerson(g, "ผู้เดินทางขอเข้าร่วม");
-    g = addLog(g, "ผู้เดินทางขอฝากชีวิตไว้กับค่าย", "ชื่อของค่ายเริ่มลอยไปถึงถนนเก่า ผู้ไร้บ้านบางคนเริ่มมองแสงไฟของที่นี่เหมือนคำตอบที่ยังไม่แน่ใจ", "good", ["ประชากร"]);
-    changes.push("ผู้เดินทางเข้าร่วม 1 คน");
-  }
+  g = addAnnualSettlers(g, changes);
   const fertileAdults = alivePeople(g).filter((p) => p.age >= 18 && p.age <= 42 && !p.injured && p.health > 45);
   const birthChance = Math.max(0, 4 + Math.min(8, fertileAdults.length) + Math.floor((g.metrics.morale + g.metrics.health + g.metrics.cohesion - 150) / 18));
   if (fertileAdults.length >= 2 && alivePeople(g).length < shelterCapacity(g) + 6 && Math.random() * 100 < birthChance) {
@@ -2478,6 +2564,7 @@ export default function GamePage() {
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [eventPopupOpen, setEventPopupOpen] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     // Event ประจำเดือนและการกระทำผู้นำจะไม่เด้งกลางจออัตโนมัติ เพื่อให้ flow เงียบและไม่รบกวนการเล่น
@@ -2496,6 +2583,17 @@ export default function GamePage() {
       window.removeEventListener("orientationchange", syncDeviceMode);
     };
   }, []);
+
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(themeKey);
+    setTheme(saved === "dark" ? "dark" : "light");
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(themeKey, theme);
+  }, [theme]);
 
   useEffect(() => {
     let setup = defaultSetup();
@@ -2556,14 +2654,14 @@ export default function GamePage() {
 
   const event = useMemo(() => game ? getEvent(game.currentEventId) : events[0], [game]);
   useEffect(() => {
+    // ไม่เปิดหน้าต่างเหตุการณ์อัตโนมัติ ยกเว้นผู้เล่นกดอ่านเอง เพื่อให้ flow เงียบและไม่รบกวนการวางแผน
     if (!game?.currentEventId) return;
-    const ev = getEvent(game.currentEventId);
-    if (isPriorityEvent(ev)) setEventPopupOpen(true);
+    setEventPopupOpen(false);
   }, [game?.currentEventId, game?.year, game?.month]);
   const availableWorkers = game ? adultWorkers(game) : 0;
   const risk = game ? riskPreview(game) : { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 };
 
-  if (!game) return <main className={`app device-${deviceMode}`}><div className="panel pad">กำลังก่อไฟและเปิดบันทึกค่าย...</div></main>;
+  if (!game) return <main className={`app device-${deviceMode} theme-${theme}`}><div className="panel pad">กำลังก่อไฟและเปิดบันทึกค่าย...</div></main>;
 
   function updateGame(fn: (g: GameState) => GameState) { setGame((prev) => prev ? fn(prev) : prev); }
   function adjustLabor(key: LaborKey, amount: number) {
@@ -2688,7 +2786,7 @@ export default function GamePage() {
   }
 
   return (
-    <main className={`app device-${deviceMode}`}>
+    <main className={`app device-${deviceMode} theme-${theme}`}>
       <header className="topbar">
         <div className="brand"><div className="brand-mark">⌛</div><span>EVOLUTION<br />OF US</span></div>
         <div className="top-stats">
@@ -2732,7 +2830,7 @@ export default function GamePage() {
           {view === "สัตว์เลี้ยง" && <AnimalsView game={game} setAnimalAction={(action) => updateGame((g) => ({ ...g, animalAction: action, savedText: `ตั้งแผนสัตว์เลี้ยง: ${animalActionLabel(action)}` }))} />}
           {view === "ข่าวสาร" && <NewsView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
           {view === "พงศาวดาร" && <ChronicleView game={game} />}
-          {view === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} />}
+          {view === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} theme={theme} setTheme={setTheme} />}
         </section>
 
         <aside className="event-panel">
@@ -3477,7 +3575,7 @@ function ChronicleView({ game }: { game: GameState }) {
     </section>
   );
 }
-function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void }) {
+function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void; theme: "light" | "dark"; setTheme: (theme: "light" | "dark") => void }) {
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState("");
   const [devCode, setDevCode] = useState("");
@@ -3499,7 +3597,52 @@ function SettingsView({ game, resetGame, showTutorialAgain }: { game: GameState;
     }
   };
   const mailBody = encodeURIComponent(`Feedback Evolution of Us Alpha v${GAME_VERSION}\n\nวาง Debug Report หรือความเห็นตรงนี้:\n\n${compactDebug}`);
-  return <section className="panel pad"><h2 className="title">ตั้งค่า</h2><div className="dashboard-grid"><div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>{BUILD_LABEL} · {BUILD_DATE}</small></div><div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div><div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ทรัพย์สินเมือง</small></div><div className="panel kpi"><span className="muted">พื้นหลัง</span><b>{originInfo(game.origin).icon} {originInfo(game.origin).title}</b><small>บัฟมีผลกับระบบจริง</small></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3>การเล่นและบันทึก</h3><p className="muted">ใช้เมื่อต้องการเริ่มรอบใหม่ หรือเปิดระบบสอนเล่นอีกครั้ง</p><div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div></div><div className="panel pad" style={{ boxShadow: "none" }}><h3>Feedback ผู้เล่น</h3><p className="muted">ผู้เล่นทั่วไปจะเห็นเฉพาะปุ่มส่ง Feedback ไม่เห็นเครื่องมือ debug จนกว่าจะปลดล็อกด้วยรหัสผู้พัฒนา</p><a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a></div></div><details className="details-box dev-tools-box" style={{ marginTop: 16 }}><summary>เครื่องมือผู้พัฒนา / Debug</summary>{!devUnlocked ? <div className="dev-lock"><p className="muted small">พื้นที่นี้ซ่อนจากผู้เล่นทดสอบทั่วไป ใส่รหัสเพื่อเปิดข้อมูล debug</p><div className="flex"><input className="input" placeholder="รหัสผู้พัฒนา" value={devCode} onChange={(e) => setDevCode(e.target.value)} /><button className="primary" onClick={() => setDevUnlocked(devCode.trim() === "248655")}>ปลดล็อก</button></div>{devCode && devCode.trim() !== "248655" && <small className="danger-text">รหัสไม่ถูกต้อง</small>}</div> : <div><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอก Godot Data Pack</button><button className="secondary" onClick={() => setDevUnlocked(false)}>ล็อกอีกครั้ง</button></div><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></div>}</details></section>;
+  return (
+    <section className="panel pad">
+      <h2 className="title">ตั้งค่า</h2>
+      <div className="dashboard-grid">
+        <div className="panel kpi"><span className="muted">เวอร์ชันเกม</span><b>Alpha v{GAME_VERSION}</b><small>{BUILD_LABEL} · {BUILD_DATE}</small></div>
+        <div className="panel kpi"><span className="muted">เซฟเกม</span><b>Local Save</b><small>บันทึกอยู่ใน browser เครื่องนี้</small></div>
+        <div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ทรัพย์สินเมือง</small></div>
+        <div className="panel kpi"><span className="muted">พื้นหลัง</span><b>{originInfo(game.origin).icon} {originInfo(game.origin).title}</b><small>บัฟมีผลกับระบบจริง</small></div>
+      </div>
+
+      <div className="two-col" style={{ marginTop: 14 }}>
+        <div className="panel pad" style={{ boxShadow: "none" }}>
+          <h3>การเล่นและบันทึก</h3>
+          <p className="muted">ใช้เมื่อต้องการเริ่มรอบใหม่ หรือเปิดระบบสอนเล่นอีกครั้ง</p>
+          <div className="flex"><button className="secondary" onClick={showTutorialAgain}>เปิดระบบสอนเล่นอีกครั้ง</button><button className="danger" onClick={resetGame}>ลบบันทึกเกมและกลับหน้าแรก</button></div>
+        </div>
+        <div className="panel pad" style={{ boxShadow: "none" }}>
+          <h3>โหมดแสดงผล</h3>
+          <p className="muted">เลือกโทนหน้าจอสำหรับอ่านข้อมูลยาว ๆ ตอนกลางวันหรือกลางคืน การตั้งค่านี้ไม่กระทบเซฟเกม</p>
+          <div className="theme-toggle" role="group" aria-label="เลือกธีม">
+            <button className={theme === "light" ? "active" : ""} onClick={() => setTheme("light")}>☀️ Light</button>
+            <button className={theme === "dark" ? "active" : ""} onClick={() => setTheme("dark")}>🌙 Dark</button>
+          </div>
+          <small className="muted">ตอนนี้ใช้: {theme === "dark" ? "Dark Mode" : "Light Mode"}</small>
+        </div>
+      </div>
+
+      <div className="two-col" style={{ marginTop: 14 }}>
+        <div className="panel pad" style={{ boxShadow: "none" }}>
+          <h3>ผู้มาตั้งถิ่นฐานประจำปี</h3>
+          <p className="muted">ทุกสิ้นปีจะมีคนเดินทางเข้ามา 1–10 คนแบบสุ่ม แยกจากเหตุการณ์ผู้อพยพที่ยังเกิดเป็น Event ให้ตัดสินใจได้เหมือนเดิม</p>
+          <table className="report-table"><tbody><tr><td>ช่วงจำนวน</td><td>1–10 คน/ปี</td></tr><tr><td>ผลที่ตามมา</td><td>เพิ่มแรงงานและครอบครัว แต่เพิ่มภาระอาหาร น้ำ และที่พัก</td></tr><tr><td>บันทึก</td><td>ขึ้นในพงศาวดารและกระดิ่งระบบ</td></tr></tbody></table>
+        </div>
+        <div className="panel pad" style={{ boxShadow: "none" }}>
+          <h3>Feedback ผู้เล่น</h3>
+          <p className="muted">ผู้เล่นทั่วไปจะเห็นเฉพาะปุ่มส่ง Feedback ไม่เห็นเครื่องมือ debug จนกว่าจะปลดล็อกด้วยรหัสผู้พัฒนา</p>
+          <a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Alpha%20Feedback&body=${mailBody}`}>ส่ง Feedback ทางอีเมล</a>
+        </div>
+      </div>
+
+      <details className="details-box dev-tools-box" style={{ marginTop: 16 }}>
+        <summary>เครื่องมือผู้พัฒนา / Debug</summary>
+        {!devUnlocked ? <div className="dev-lock"><p className="muted small">พื้นที่นี้ซ่อนจากผู้เล่นทดสอบทั่วไป ใส่รหัสเพื่อเปิดข้อมูล debug</p><div className="flex"><input className="input" placeholder="รหัสผู้พัฒนา" value={devCode} onChange={(e) => setDevCode(e.target.value)} /><button className="primary" onClick={() => setDevUnlocked(devCode.trim() === "248655")}>ปลดล็อก</button></div>{devCode && devCode.trim() !== "248655" && <small className="danger-text">รหัสไม่ถูกต้อง</small>}</div> : <div><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอก Debug Report</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอก Save JSON</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอก Godot Data Pack</button><button className="secondary" onClick={() => setDevUnlocked(false)}>ล็อกอีกครั้ง</button></div><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><details className="details-box" style={{ marginTop: 10 }}><summary>Export / Import Save JSON</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วาง Save JSON ที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>Import Save</button><span className="muted small">{importMessage}</span></div></details></div>}
+      </details>
+    </section>
+  );
 }
 
 function estimateBuildMonths(game: GameState): number | null {

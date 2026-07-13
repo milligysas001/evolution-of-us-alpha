@@ -54,3 +54,8 @@ Godot should treat `data/game/terrain.json` and `data/game/people_passives.json`
 - Migrant selection should be a modal/list scene with selectable candidate IDs. Costs should be calculated from selected people, not from fixed event delta.
 - Animal feed has two layers: rough feed from pen/outdoor husbandry and researched fodder preparation. Godot data should preserve both.
 - Construction and research crews should display assigned people and effective output from the same labor calculation engine.
+
+### v0.9.24 Annual Settlers & Display Theme
+- `annual_settlers.json` ควรถูกพอร์ตเป็นระบบ `AnnualPopulationFlow` ใน Godot โดยเรียกเมื่อเปลี่ยนปี
+- ระบบนี้ต้องแยกจาก event migration ปกติ เพื่อให้โลกดูมีการเคลื่อนของผู้คนตามชื่อเสียงถิ่นฐาน
+- `theme_settings.json` เป็น user display config ไม่ควรรวมใน gameplay save state หลัก

@@ -1,25 +1,11 @@
-# QUALITY CHECK — v0.9.22
+# QUALITY CHECK — v0.9.24
 
-- [x] JSON data ยัง parse ได้
-- [x] `app/game/page.tsx` ผ่าน TypeScript transpile syntax diagnostics
-- [x] แก้ `skillIcon` missing helper
-- [x] ไม่มี backup folder ใน package
-- [x] Save key หลักยังเป็น `eou-current-save`
-- [x] ระบบแรงงานคำนวณจาก `laborAssignments` เป็นหลัก
-- [x] ผู้อพยพเลือกทีละคนและมี dynamic cost ตามคนที่รับ
-- [x] Flow อาหารสัตว์สัมพันธ์กับคอก / อาหารหยาบ / วิจัย
-- [x] เพิ่ม note เตรียมพอร์ต Godot ใน docs
+- [x] เพิ่ม annual settlers แยกจาก migration event
+- [x] คนประจำปีมีข้อมูลรายบุคคลจริง ไม่ใช่ตัวเลขประชากรลอย ๆ
+- [x] ระบบมีผลต่ออาหาร น้ำ ที่พัก และความสัมพันธ์
+- [x] Dark mode อยู่ใน Settings และไม่กระทบ save game
+- [x] เพิ่ม data JSON สำหรับ Godot porting
+- [x] ตรวจ JSON ใน data/game ผ่านด้วย npm run check:data
+- [x] ตรวจ syntax TSX เบื้องต้นผ่าน TypeScript transpile diagnostics
 
-ควรทดสอบในเว็บ:
-
-1. เริ่มเกมใหม่ → ไปแท็บคน → จัดแรงงานเอง → จบเดือนได้
-2. Event ผู้ลี้ภัย → ติ๊กเลือกคน → เลือก “รับเฉพาะรายชื่อที่เลือก” → คนเข้าค่ายจริง
-3. สร้างคอกสัตว์ → งานตัดหญ้า/อาหารหยาบสัมพันธ์กับสัตว์
-4. หน้าก่อสร้าง/วิจัย → ปุ่มไปจัดทีมในแท็บคนทำงาน
-5. กระดิ่งไม่รกด้วย event ปกติ
-
-
-## v0.9.23 checks
-- Resource tab created and wired to navigation.
-- Detailed ledger removed from Town view and moved to Resources.
-- Annual history capped to 10 records via appendResourceYearHistory/normalizeResourceHistory.
+หมายเหตุ: ในเครื่องผู้ใช้ต้องรัน `npm run check` หลังติดตั้งเพื่อให้ Next.js ตรวจ build เต็มระบบอีกครั้ง

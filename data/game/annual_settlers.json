@@ -1,0 +1,20 @@
+{
+  "id": "annual_settlers",
+  "version": "0.9.24",
+  "description": "ระบบผู้มาตั้งถิ่นฐานประจำปี แยกจากเหตุการณ์ผู้อพยพสุ่ม",
+  "timing": "ทุกครั้งที่ขึ้นปีใหม่หลังเดือน 12",
+  "range": { "min": 1, "max": 10 },
+  "effects": {
+    "adds_people": true,
+    "first_night_food_cost_per_person": 1,
+    "first_night_water_cost_per_person": 0.7,
+    "morale": "เพิ่มเล็กน้อยเมื่อชุมชนดูมีอนาคต",
+    "trust": "ลดได้ถ้ามีคนมาเยอะเกินไป",
+    "health": "ลดได้ถ้าที่พักไม่พอ"
+  },
+  "godot_porting": {
+    "suggested_system": "AnnualPopulationFlow",
+    "input": ["year", "stage", "shelterCapacity", "currentPopulation", "settlementReputation"],
+    "output": ["newPeople[]", "resourceDelta", "notice", "chronicleLog"]
+  }
+}
