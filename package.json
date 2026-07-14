@@ -7,7 +7,7 @@
     "check": "npm run typecheck && npm run check:data && npm run audit:systems && npm run build",
     "deploy:push": "npm run build && git add -A && git commit -m \"update game\" && git push",
     "check:data": "node -e \"const fs=require('fs'); for (const f of fs.readdirSync('data/game')) if (f.endsWith('.json')) JSON.parse(fs.readFileSync('data/game/'+f,'utf8')); console.log('data json OK')\"",
-    "audit:systems": "node logic/audit-v0935.cjs"
+    "audit:systems": "node logic/audit-v0936.cjs"
   },
   "dependencies": {
     "@types/node": "latest",
@@ -26,7 +26,7 @@
       "postcss": "^8.5.19"
     }
   },
-  "name": "evolution-of-us-v0935",
-  "version": "0.9.35",
+  "name": "evolution-of-us-v0936",
+  "version": "0.9.36",
   "private": true
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
 
@@ -12,9 +12,11 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "Alpha v0.9.35";
+const VERSION = "Alpha v0.9.36";
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
+const saveSlotsKey = "eou-save-slots-v1";
+type HomeSaveSlot = { id: string; label: string; updatedAt: string; game: { leaderName: string; houseName: string; origin: Origin; year: number; month: number; stage: string; people?: Array<{ alive?: boolean }> } };
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
 const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
 
@@ -43,12 +45,28 @@ export default function HomePage() {
   const [leaderName, setLeaderName] = useState("Elowen");
   const [houseName, setHouseName] = useState("Vaelen");
   const [origin, setOrigin] = useState<Origin>("builder");
-  const canContinue = useMemo(() => (typeof window === "undefined" ? false : hasSave()), []);
+  const [canContinue, setCanContinue] = useState(false);
+  const [manualSlots, setManualSlots] = useState<HomeSaveSlot[]>([]);
+
+  useEffect(() => {
+    setCanContinue(hasSave());
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(saveSlotsKey) ?? "[]") as HomeSaveSlot[];
+      setManualSlots(Array.isArray(parsed) ? parsed.filter((slot) => slot?.game) : []);
+    } catch { setManualSlots([]); }
+  }, []);
 
   function startGame() {
     const setup = { leaderName: leaderName.trim() || "Elowen", houseName: houseName.trim() || "Vaelen", origin };
     writeSetup(setup);
     clearKeys([saveKey, ...legacySaveKeys]);
+    window.location.href = "/game";
+  }
+
+
+  function loadManualSlot(slot: HomeSaveSlot) {
+    window.localStorage.setItem(saveKey, JSON.stringify(slot.game));
+    writeSetup({ leaderName: slot.game.leaderName, houseName: slot.game.houseName, origin: slot.game.origin });
     window.location.href = "/game";
   }
 
@@ -112,7 +130,8 @@ export default function HomePage() {
           </div>
           <button className="primary" onClick={startGame} style={{ width: "100%", marginTop: 16 }}>เริ่มต้นจากศูนย์</button>
           <button className="secondary" onClick={continueGame} disabled={!canContinue} style={{ width: "100%", marginTop: 10, opacity: canContinue ? 1 : .55 }}>เล่นต่อจากบันทึก</button>
-          <p className="muted small">บันทึกจะอยู่ในเว็บเบราว์เซอร์ของผู้เล่นแต่ละคน หากล้างข้อมูลเว็บไซต์หรือเปลี่ยนอุปกรณ์ บันทึกอาจหายได้</p>
+          {manualSlots.length > 0 && <div className="home-save-list"><h3 className="section-title">บันทึกด้วยตนเอง</h3>{manualSlots.map((slot) => { const pop = slot.game.people?.filter((p) => p.alive !== false).length ?? 0; return <button className="home-save-card" key={slot.id} onClick={() => loadManualSlot(slot)}><span><b>{slot.label}</b><small>{slot.game.houseName} · {slot.game.stage}</small></span><span><b>ปี {slot.game.year} เดือน {slot.game.month}</b><small>ประชากร {pop} คน</small></span></button>; })}</div>}
+          <p className="muted small">เกมมี Autosave บันทึกด้วยตนเอง 3 ช่อง ระบบกู้บันทึกก่อนหน้า และดาวน์โหลดไฟล์เซฟได้จากหน้าตั้งค่า ข้อมูล Leader Board หลายตระกูลจะเก็บบนอุปกรณ์นี้</p>
         </aside>
       </section>
     </main>

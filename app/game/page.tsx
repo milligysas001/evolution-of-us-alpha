@@ -4,14 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
-type View = "เมือง" | "ทรัพยากร" | "คน" | "แผนที่" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "นโยบาย" | "ข่าวสาร" | "พงศาวดาร" | "ตั้งค่า";
+type View = "เมือง" | "ทรัพยากร" | "คน" | "แผนที่" | "ก่อสร้าง" | "วิจัย" | "สัตว์เลี้ยง" | "นโยบาย" | "ข่าวสาร" | "พ่อค้าเร่" | "การค้า" | "เมืองข้างเคียง" | "การทหาร" | "พงศาวดาร" | "ตั้งค่า";
 type DeviceMode = "desktop" | "tablet" | "mobile";
 type Stage = "ค่ายพักแรม" | "ชุมชนแรกเริ่ม" | "หมู่บ้านถาวร" | "เมืองเล็ก" | "เมืองการค้า" | "นครรัฐ" | "อาณาจักร";
 type Season = "ฤดูใบไม้ผลิ" | "ฤดูร้อน" | "ฤดูฝน" | "ฤดูใบไม้ร่วง" | "ฤดูหนาว";
 type LaborKey = "forage" | "wood" | "stone" | "build" | "guard" | "care" | "research" | "farm" | "water" | "preserve" | "craft" | "herbs" | "feed" | "patrol" | "explore" | "trade" | "teach" | "intel";
 type ResourceKey = "food" | "wood" | "stone" | "tools" | "herbs" | "hides" | "water" | "waterReserve" | "knowledge" | "fuel" | "ore" | "gold" | "feed" | "ironOre" | "coal" | "timber" | "bricks" | "textiles" | "salt" | "spices" | "influence" | "steel" | "luxuries" | "warhorses" | "manpower" | "siegeMaterials";
-type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "cistern" | "repairShed" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "animalPen" | "palisade" | "graveyard" | "meetingHall" | "smokeVent" | "dryingRack" | "livestockShed" | "waterTrough" | "crisisBeacon" | "marketSquare" | "caravanPost" | "huntersGuildHall" | "buildersGuildHall" | "merchantsGuildHall" | "sawmill" | "brickKiln" | "senateHouse" | "smeltery" | "castleKeep";
-type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "waterStorage" | "sanitation" | "maintenanceRoutine" | "familyRecords" | "animalQuarantine" | "apprenticeship" | "weatherReading" | "animalKeeping" | "fodderPrep" | "storyRecords" | "palisadeCraft" | "signalNetwork" | "shelterHygiene" | "animalBreeding" | "masonry" | "herbalWorkshop" | "projectPlanning" | "stormPrep" | "crisisDrills" | "campPolicies" | "guildCharters" | "currencyMinting" | "caravanContracts" | "outpostLogistics" | "bureaucracy" | "ironSmelting" | "smelteryOps" | "diplomacyProtocol" | "dynasticSuccession" | "siegeEngineering";
+type BuildingKey = "shelter" | "campfire" | "storage" | "well" | "cistern" | "repairShed" | "watchPost" | "farmPlot" | "workshop" | "healerHut" | "animalPen" | "palisade" | "graveyard" | "meetingHall" | "smokeVent" | "dryingRack" | "livestockShed" | "waterTrough" | "trainingGround" | "barracks" | "crisisBeacon" | "marketSquare" | "caravanPost" | "huntersGuildHall" | "buildersGuildHall" | "merchantsGuildHall" | "sawmill" | "brickKiln" | "senateHouse" | "smeltery" | "castleKeep";
+type ResearchKey = "foodPreservation" | "stoneTools" | "woodShelter" | "basicFarming" | "herbalCare" | "watchRoutine" | "simpleCraft" | "waterFinding" | "waterStorage" | "sanitation" | "maintenanceRoutine" | "familyRecords" | "animalQuarantine" | "apprenticeship" | "weatherReading" | "animalKeeping" | "fodderPrep" | "storyRecords" | "palisadeCraft" | "militiaTraining" | "standingArmy" | "militaryLogistics" | "signalNetwork" | "shelterHygiene" | "animalBreeding" | "masonry" | "herbalWorkshop" | "projectPlanning" | "stormPrep" | "crisisDrills" | "campPolicies" | "guildCharters" | "currencyMinting" | "caravanContracts" | "outpostLogistics" | "bureaucracy" | "ironSmelting" | "smelteryOps" | "diplomacyProtocol" | "dynasticSuccession" | "siegeEngineering";
 type LeaderFocusKey = string;
 type LogKind = "normal" | "good" | "bad" | "death" | "rare" | "milestone";
 type MetricKey = "morale" | "security" | "trust" | "health" | "cohesion" | "fairness";
@@ -29,6 +29,33 @@ type FactionKey = "guards" | "farmers" | "merchants" | "builders";
 type FactionState = Record<FactionKey, { approval: number; power: number }>;
 type OutpostKind = "water" | "wood" | "food" | "mine" | "flax" | "trade";
 type Outpost = { id: string; location: LocationKey; name: string; kind: OutpostKind; workers: number; level: number; security: number; monthly: Partial<Resources>; };
+
+type NeighborAttitude = "เป็นมิตร" | "ระวังตัว" | "ไม่ไว้ใจ" | "เป็นศัตรู" | "พันธมิตร";
+type NeighborSpecialty = "อาหาร" | "ไม้" | "หิน" | "สมุนไพร" | "การค้า" | "ม้า";
+type NeighborCity = {
+  id: string;
+  name: string;
+  ruler: string;
+  stage: Stage;
+  population: number;
+  territory: number;
+  relation: number;
+  trust: number;
+  fear: number;
+  borderTension: number;
+  specialty: NeighborSpecialty;
+  discovered: boolean;
+  tradeTreaty: boolean;
+  alliance: boolean;
+  atWar: boolean;
+  lastInteraction: string;
+};
+type NeighborAction = "envoy" | "gift" | "tradeTreaty" | "exchange" | "claim" | "attack" | "peace" | "alliance";
+type MilitaryStance = "ป้องกันเมือง" | "เฝ้าชายแดน" | "ฝึกกำลัง" | "เตรียมรบ";
+type MilitaryState = { soldiers: number; readiness: number; morale: number; equipment: number; experience: number; stance: MilitaryStance; lastReport: string; };
+type SaveSlotId = "slot-1" | "slot-2" | "slot-3";
+type SaveSlotRecord = { id: SaveSlotId; label: string; updatedAt: string; game: GameState; };
+type LeaderboardEntry = { id: string; houseName: string; leaderName: string; stage: Stage; year: number; month: number; population: number; score: number; updatedAt: string; };
 
 type Resources = Record<ResourceKey, number>;
 type ResourceHistoryYear = { year: number; stocks: Resources; produced: Partial<Resources>; used: Partial<Resources>; net: Partial<Resources>; population: number; quality: { food: number; water: number; shelter: number; }; };
@@ -177,6 +204,8 @@ type GameState = {
   crisis: EndgameCrisis;
   guilds: GuildState;
   outposts: Outpost[];
+  neighbors: NeighborCity[];
+  military: MilitaryState;
   factions: FactionState;
   leaderAge: number;
   heir: Person | null;
@@ -222,7 +251,7 @@ type GameEvent = {
   choices: EventChoice[];
 };
 
-const views: View[] = ["เมือง", "ทรัพยากร", "คน", "แผนที่", "ก่อสร้าง", "วิจัย", "สัตว์เลี้ยง", "นโยบาย", "ข่าวสาร", "พงศาวดาร", "ตั้งค่า"];
+const views: View[] = ["เมือง", "ทรัพยากร", "คน", "แผนที่", "ก่อสร้าง", "วิจัย", "สัตว์เลี้ยง", "นโยบาย", "ข่าวสาร", "พ่อค้าเร่", "การค้า", "เมืองข้างเคียง", "การทหาร", "พงศาวดาร", "ตั้งค่า"];
 const terrainData: Record<TerrainKey, { icon: string; title: string; text: string; effects: Partial<Record<ResourceKey, number>>; forage: number; wood: number; stone: number; water: number; disease: number; beast: number; weather: number; tags: string[] }> = {
   riverbank: { icon: "💧", title: "ริมลำธารเก่า", text: "มีน้ำเข้าถึงง่าย ดินชุ่ม และมีพืชริมน้ำ แต่ต้องระวังน้ำปนเปื้อนช่วงฝน", effects: { water: 14, food: 4 }, forage: 0.08, wood: 0, stone: 0, water: 0.25, disease: 8, beast: 1, weather: 0, tags: ["น้ำดี", "เกษตรดี"] },
   forestEdge: { icon: "🌲", title: "ชายป่าหนาทึบ", text: "ไม้และอาหารจากป่ามีมาก เหมาะกับพราน แต่เสียงสัตว์กลางคืนไม่เคยหายไป", effects: { wood: 12, food: 8, hides: 1 }, forage: 0.18, wood: 0.2, stone: -0.05, water: -0.05, disease: 2, beast: 12, weather: 0, tags: ["อาหารป่า", "สัตว์ป่า"] },
@@ -286,13 +315,17 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = "0.9.35";
-const BUILD_LABEL = "ทรัพยากร 6 เดือน · วัตถุดิบก่อสร้าง · ซ่อนตามยุค · สัตว์เลี้ยงตรวจครบ";
+const GAME_VERSION = "0.9.36";
+const BUILD_LABEL = "ระบบเซฟ 3 ช่อง · Leader Board · เมืองข้างเคียง · การค้าแยกแท็บ · ระบบทหาร";
 const BUILD_DATE = "2026-07-14";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
 const tutorialKey = "eou-current-tutorial-seen";
 const themeKey = "eou-ui-theme";
+const saveSlotsKey = "eou-save-slots-v1";
+const activeSlotKey = "eou-active-save-slot-v1";
+const autosaveBackupKey = "eou-autosave-backup-v1";
+const leaderboardKey = "eou-local-leaderboard-v1";
 const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
 const portableDataVersion = "0.9.16";
@@ -314,7 +347,8 @@ const portableDataSummary = {
     "data/game/exploration_jobs.json",
     "data/game/location_events.json",
     "data/game/travel_risks.json",
-    "data/game/outposts.json"
+    "data/game/outposts.json",
+    "data/game/v0936_save_leaderboard_neighbors_military.json"
   ],
   godotNotes: "Godot can load these JSON files with FileAccess + JSON.parse_string and map ids to UI nodes/resources."
 };
@@ -326,6 +360,39 @@ function readFirstStorage(keys: string[]) {
   }
   return null;
 }
+
+function safeGameForStorage(game: GameState): GameState {
+  return { ...game, summaryModal: null, savedText: "บันทึกเรียบร้อย" };
+}
+function readSaveSlots(): SaveSlotRecord[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(saveSlotsKey) ?? "[]") as SaveSlotRecord[];
+    return Array.isArray(parsed) ? parsed.filter((slot) => slot?.id && slot?.game) : [];
+  } catch { return []; }
+}
+function writeSaveSlots(slots: SaveSlotRecord[]) {
+  window.localStorage.setItem(saveSlotsKey, JSON.stringify(slots.slice(0, 3)));
+}
+function leaderboardScore(game: GameState) {
+  const metricAverage = Object.values(game.metrics).reduce((sum, value) => sum + value, 0) / Math.max(1, Object.values(game.metrics).length);
+  return stageRank(game.stage) * 1_000_000_000 + game.year * 1_000_000 + game.month * 10_000 + alivePeople(game).length * 100 + Math.round(metricAverage);
+}
+function readLeaderboard(): LeaderboardEntry[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(leaderboardKey) ?? "[]") as LeaderboardEntry[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+function updateLocalLeaderboard(game: GameState) {
+  const id = `${game.houseName.trim().toLowerCase()}::${game.leaderName.trim().toLowerCase()}`;
+  const entry: LeaderboardEntry = { id, houseName: game.houseName, leaderName: game.leaderName, stage: game.stage, year: game.year, month: game.month, population: alivePeople(game).length, score: leaderboardScore(game), updatedAt: new Date().toISOString() };
+  const current = readLeaderboard();
+  const previous = current.find((item) => item.id === id);
+  const next = [previous && previous.score > entry.score ? previous : entry, ...current.filter((item) => item.id !== id)].sort((a, b) => b.score - a.score || b.population - a.population).slice(0, 30);
+  window.localStorage.setItem(leaderboardKey, JSON.stringify(next));
+}
+function timeReachedText(year: number, month: number) { return `ปี ${year} · เดือน ${month}`; }
+
 function defaultSetup(): { leaderName: string; houseName: string; origin: Origin } {
   return { leaderName: "Elowen", houseName: "Vaelen", origin: "builder" };
 }
@@ -648,6 +715,8 @@ const buildingData: Record<BuildingKey, { icon: string; title: string; text: str
   dryingRack: { icon: "☀️", title: "ชั้นตากอาหารและสมุนไพร", text: "ช่วยถนอมอาหารและสมุนไพร ลดอาหารเสียช่วงฝนและร้อน ทำให้คลังเล็กมีประโยชน์ขึ้น", cost: { wood: 16, tools: 1 }, work: 16, unlock: (g) => g.researchDone.foodPreservation || g.researchDone.shelterHygiene },
   livestockShed: { icon: "🐄", title: "โรงเรือนสัตว์", text: "กันฝน ลม และสัตว์ป่าให้วัว หมู แพะ และไก่ ลดหิวตาย หนี และโรคสัตว์", cost: { wood: 34, stone: 6, tools: 2 }, work: 58, unlock: (g) => g.researchDone.animalBreeding },
   waterTrough: { icon: "🚰", title: "รางน้ำสัตว์", text: "แยกน้ำสัตว์จากน้ำคน ลดโรคและลดการใช้น้ำสูญเปล่าในคอก", cost: { wood: 12, stone: 8 }, work: 20, unlock: (g) => g.researchDone.animalBreeding || g.buildings.well > 0 },
+  trainingGround: { icon: "🎯", title: "ลานฝึกกองอาสา", text: "ฝึกเวรยามให้เป็นกองอาสาที่มีระเบียบ เพิ่มความพร้อมรบโดยไม่เปิดระบบทหารในยุคแรก", cost: { wood: 32, stone: 8, tools: 2, food: 10 }, work: 52, unlock: (g) => g.researchDone.militiaTraining },
+  barracks: { icon: "🏯", title: "ค่ายทหารประจำเมือง", text: "รองรับกองกำลังประจำ เพิ่มกำลังใจ อุปกรณ์ และความพร้อมสำหรับป้องกันชายแดน", cost: { wood: 70, stone: 30, tools: 4, gold: 20 }, work: 110, unlock: (g) => g.researchDone.standingArmy },
   crisisBeacon: { icon: "🗼", title: "หอเตือนภัย", text: "จุดควันและระฆังเตือนล่วงหน้าสำหรับภัยใหญ่ ลดแรงกระแทกจากวิกฤตปลายเกม", cost: { wood: 34, stone: 18, tools: 2, gold: 4 }, work: 70, unlock: (g) => g.researchDone.crisisDrills || stageRank(g.stage) >= stageRank("เมืองเล็ก") },
   marketSquare: { icon: "🏛️", title: "ลานตลาดถาวร", text: "จุดเปลี่ยนจากค่ายรอดชีวิตสู่เมืองการค้า เปิดคาราวาน ภาษี และการตั้งสมาคม", cost: { wood: 58, stone: 18, tools: 3, gold: 20 }, work: 96, unlock: (g) => g.researchDone.currencyMinting && stageRank(g.stage) >= stageRank("เมืองเล็ก") },
   caravanPost: { icon: "🐪", title: "สถานีคาราวาน", text: "ทำให้เส้นทางการค้าเก่าเริ่มมีความหมายจริง ซื้อเกลือ เครื่องเทศ และส่งข่าวไกลกว่าเดิม", cost: { wood: 42, stone: 16, tools: 2, gold: 18 }, work: 82, unlock: (g) => g.researchDone.caravanContracts },
@@ -681,6 +750,9 @@ const researchData: Record<ResearchKey, { icon: string; title: string; text: str
   fodderPrep: { icon: "🌿", title: "การทำอาหารสัตว์", text: "ปลดล็อกทรัพยากรอาหารสัตว์และงานตัดหญ้า/ทำฟาง ลดการแย่งอาหารคน", cost: 46, prereq: ["animalKeeping"] },
   storyRecords: { icon: "📜", title: "บันทึกความทรงจำ", text: "ทำให้พงศาวดารและความทรงจำส่งผลต่อคนรุ่นต่อไปมากขึ้น", cost: 38 },
   palisadeCraft: { icon: "🪵", title: "รั้วไม้และประตูค่าย", text: "ปลดล็อกรั้วไม้รอบค่าย ลดโจรและสัตว์ป่า", cost: 52, prereq: ["watchRoutine", "simpleCraft"] },
+  militiaTraining: { icon: "🪖", title: "ระบบกองอาสาป้องกันเมือง", text: "ปลดล็อกลานฝึกและแท็บการทหารเมื่อเข้าสู่ยุคหมู่บ้านถาวร ทำให้เวรยามกลายเป็นกำลังป้องกันที่มีสถานะจริง", cost: 72, prereq: ["watchRoutine", "palisadeCraft"] },
+  standingArmy: { icon: "⚔️", title: "กองกำลังประจำเมือง", text: "ปลดล็อกค่ายทหาร การเกณฑ์กำลังที่เป็นระบบ และการตอบโต้ภัยจากเมืองอื่น", cost: 112, prereq: ["militiaTraining", "currencyMinting"] },
+  militaryLogistics: { icon: "📦", title: "เสบียงและยุทธปัจจัยทางทหาร", text: "ลดค่าเลี้ยงดูกองทัพ เพิ่มความพร้อมรบ และทำให้สงครามชายแดนไม่ตัดเสบียงเมืองเร็วเกินไป", cost: 148, prereq: ["standingArmy", "caravanContracts"] },
   signalNetwork: { icon: "🕊️", title: "เครือข่ายสายข่าว", text: "จัดคนรับฟังข่าวจากพ่อค้า คนเดินทาง และครอบครัวรอบเมือง เพื่อเห็นภัยและโอกาสก่อนเกิดขึ้น", cost: 64, prereq: ["storyRecords", "watchRoutine"] },
   shelterHygiene: { icon: "🌬️", title: "ที่พักปลอดควันและความชื้น", text: "ปลดล็อกช่องระบายควัน ลดโรคจากควัน ฝน และการอยู่รวมกันในที่พักแออัด", cost: 40, prereq: ["woodShelter", "sanitation"] },
   animalBreeding: { icon: "🐄", title: "คัดพันธุ์และโรงเรือนสัตว์", text: "ปลดล็อกโรงเรือนสัตว์และรางน้ำสัตว์ เพิ่มโอกาสออกลูก ลดสัตว์หิว ป่วย หนี และถูกขโมย", cost: 58, prereq: ["animalKeeping", "fodderPrep"] },
@@ -727,6 +799,10 @@ function viewLabel(view: View) {
     "สัตว์เลี้ยง": "🐐 สัตว์เลี้ยง",
     "นโยบาย": "⚙️ นโยบาย",
     "ข่าวสาร": "🕊️ ข่าวสาร",
+    "พ่อค้าเร่": "🛒 พ่อค้าเร่",
+    "การค้า": "🏛️ การค้า",
+    "เมืองข้างเคียง": "🤝 เมืองข้างเคียง",
+    "การทหาร": "⚔️ การทหาร",
     "พงศาวดาร": "📖 พงศาวดาร",
     "ตั้งค่า": "⚙️ ตั้งค่า",
   };
@@ -759,13 +835,13 @@ function choice(id: string, icon: string, title: string, tone: string, hint: str
 function emptyResearch(): ResearchDone {
   return {
     foodPreservation: false, stoneTools: false, woodShelter: false, basicFarming: false, herbalCare: false,
-    watchRoutine: false, simpleCraft: false, waterFinding: false, waterStorage: false, sanitation: false, maintenanceRoutine: false, familyRecords: false, animalQuarantine: false, apprenticeship: false, weatherReading: false, animalKeeping: false, fodderPrep: false, storyRecords: false, palisadeCraft: false, signalNetwork: false,
+    watchRoutine: false, simpleCraft: false, waterFinding: false, waterStorage: false, sanitation: false, maintenanceRoutine: false, familyRecords: false, animalQuarantine: false, apprenticeship: false, weatherReading: false, animalKeeping: false, fodderPrep: false, storyRecords: false, palisadeCraft: false, militiaTraining: false, standingArmy: false, militaryLogistics: false, signalNetwork: false,
     shelterHygiene: false, animalBreeding: false, masonry: false, herbalWorkshop: false, projectPlanning: false, stormPrep: false, crisisDrills: false,
     campPolicies: false, guildCharters: false, currencyMinting: false, caravanContracts: false, outpostLogistics: false, bureaucracy: false, ironSmelting: false, smelteryOps: false, diplomacyProtocol: false, dynasticSuccession: false, siegeEngineering: false,
   };
 }
 function emptyBuildings(): Buildings {
-  return { shelter: 0, campfire: 0, storage: 0, well: 0, cistern: 0, repairShed: 0, watchPost: 0, farmPlot: 0, workshop: 0, healerHut: 0, animalPen: 0, palisade: 0, graveyard: 0, meetingHall: 0, smokeVent: 0, dryingRack: 0, livestockShed: 0, waterTrough: 0, crisisBeacon: 0, marketSquare: 0, caravanPost: 0, huntersGuildHall: 0, buildersGuildHall: 0, merchantsGuildHall: 0, sawmill: 0, brickKiln: 0, senateHouse: 0, smeltery: 0, castleKeep: 0 };
+  return { shelter: 0, campfire: 0, storage: 0, well: 0, cistern: 0, repairShed: 0, watchPost: 0, farmPlot: 0, workshop: 0, healerHut: 0, animalPen: 0, palisade: 0, graveyard: 0, meetingHall: 0, smokeVent: 0, dryingRack: 0, livestockShed: 0, waterTrough: 0, trainingGround: 0, barracks: 0, crisisBeacon: 0, marketSquare: 0, caravanPost: 0, huntersGuildHall: 0, buildersGuildHall: 0, merchantsGuildHall: 0, sawmill: 0, brickKiln: 0, senateHouse: 0, smeltery: 0, castleKeep: 0 };
 }
 const STARTING_FOOD_REFERENCE = 45;
 function baseResources(origin: Origin): Resources {
@@ -1090,6 +1166,54 @@ function normalizeOutposts(outposts?: Partial<Outpost>[]): Outpost[] {
     monthly: { ...(o.monthly ?? {}) },
   })).slice(0, 24);
 }
+
+const neighborTemplates: Array<Omit<NeighborCity, "discovered" | "lastInteraction">> = [
+  { id: "river-hold", name: "เมืองริเวอร์โฮลด์", ruler: "สภาแห่งสามท่า", stage: "เมืองเล็ก", population: 84, territory: 3, relation: 8, trust: 42, fear: 18, borderTension: 8, specialty: "อาหาร", tradeTreaty: false, alliance: false, atWar: false },
+  { id: "stone-gate", name: "นครประตูหิน", ruler: "เจ้าเมืองคารุน", stage: "เมืองการค้า", population: 210, territory: 5, relation: -6, trust: 28, fear: 34, borderTension: 22, specialty: "หิน", tradeTreaty: false, alliance: false, atWar: false },
+  { id: "green-vale", name: "ชุมชนกรีนเวล", ruler: "แม่เฒ่าอาเรีย", stage: "หมู่บ้านถาวร", population: 58, territory: 2, relation: 18, trust: 55, fear: 8, borderTension: 4, specialty: "สมุนไพร", tradeTreaty: false, alliance: false, atWar: false },
+  { id: "red-road", name: "เมืองทางแดง", ruler: "หัวหน้าคาราวานเซเรน", stage: "เมืองการค้า", population: 170, territory: 4, relation: 4, trust: 36, fear: 20, borderTension: 12, specialty: "การค้า", tradeTreaty: false, alliance: false, atWar: false },
+  { id: "high-pasture", name: "นครทุ่งสูง", ruler: "เจ้าม้าโทเรน", stage: "นครรัฐ", population: 360, territory: 7, relation: -2, trust: 30, fear: 38, borderTension: 20, specialty: "ม้า", tradeTreaty: false, alliance: false, atWar: false },
+];
+function normalizeNeighbors(neighbors?: Partial<NeighborCity>[]): NeighborCity[] {
+  return (neighbors ?? []).map((city, index) => {
+    const template = neighborTemplates.find((item) => item.id === city.id) ?? neighborTemplates[index % neighborTemplates.length];
+    return { ...template, ...city, discovered: city.discovered ?? true, relation: clamp(city.relation ?? template.relation, -100, 100), trust: clamp(city.trust ?? template.trust), fear: clamp(city.fear ?? template.fear), borderTension: clamp(city.borderTension ?? template.borderTension), population: Math.max(12, Math.round(city.population ?? template.population)), territory: Math.max(1, Math.round(city.territory ?? template.territory)), lastInteraction: city.lastInteraction ?? "เพิ่งพบร่องรอยของกันและกัน" };
+  }).slice(0, neighborTemplates.length);
+}
+function emptyMilitaryState(): MilitaryState { return { soldiers: 0, readiness: 18, morale: 55, equipment: 12, experience: 0, stance: "ป้องกันเมือง", lastReport: "ยังไม่จัดตั้งกองอาสา" }; }
+function normalizeMilitary(state?: Partial<MilitaryState>): MilitaryState {
+  const base = emptyMilitaryState();
+  return { ...base, ...(state ?? {}), soldiers: Math.max(0, Math.round(state?.soldiers ?? 0)), readiness: clamp(state?.readiness ?? base.readiness), morale: clamp(state?.morale ?? base.morale), equipment: clamp(state?.equipment ?? base.equipment), experience: Math.max(0, Math.round(state?.experience ?? 0)) };
+}
+function canUseMilitary(game: GameState) { return stageRank(game.stage) >= stageRank("หมู่บ้านถาวร") && game.researchDone.militiaTraining; }
+function canUseTradeSystem(game: GameState) { return game.researchDone.currencyMinting || game.researchDone.caravanContracts || game.buildings.marketSquare > 0 || game.buildings.caravanPost > 0 || stageRank(game.stage) >= stageRank("เมืองการค้า"); }
+function merchantEventActive(game: GameState) {
+  const event = getEvent(game.currentEventId);
+  return event.category.includes("การค้า") || event.category.includes("พ่อค้า") || event.title.includes("พ่อค้า") || event.title.includes("คาราวาน");
+}
+function wanderingMerchantVisible(game: GameState) { return merchantEventActive(game) && !canUseTradeSystem(game); }
+function neighborAttitude(city: NeighborCity): NeighborAttitude {
+  if (city.atWar || city.relation <= -55) return "เป็นศัตรู";
+  if (city.alliance || city.relation >= 70) return "พันธมิตร";
+  if (city.relation >= 25) return "เป็นมิตร";
+  if (city.relation <= -15) return "ไม่ไว้ใจ";
+  return "ระวังตัว";
+}
+function discoverNeighborCity(game: GameState, choiceId: string): GameState {
+  const existing = new Set((game.neighbors ?? []).map((city) => city.id));
+  const template = neighborTemplates.find((city) => !existing.has(city.id));
+  if (!template) return game;
+  const relationDelta = choiceId === "neighbor_send_envoy" ? 14 : choiceId === "neighbor_claim_first" ? -22 : 2;
+  const city: NeighborCity = { ...template, relation: clamp(template.relation + relationDelta, -100, 100), trust: clamp(template.trust + (relationDelta > 0 ? 8 : -8)), borderTension: clamp(template.borderTension + (relationDelta < 0 ? 18 : 0)), discovered: true, lastInteraction: choiceId === "neighbor_send_envoy" ? "ส่งทูตไปพบกันอย่างสันติ" : choiceId === "neighbor_claim_first" ? "ประกาศสิทธิ์เหนือชายแดนตั้งแต่พบกันครั้งแรก" : "เฝ้าดูควันไฟและเส้นทางจากระยะไกล" };
+  let g = { ...game, neighbors: [...(game.neighbors ?? []), city] };
+  g = addNotice(g, { kind: "event", title: `พบ${city.name}`, text: `${city.ruler} ปกครองประชากรราว ${city.population} คน ความสัมพันธ์เริ่มต้น: ${neighborAttitude(city)}` });
+  return addLog(g, `พบเมืองข้างเคียง: ${city.name}`, `ผู้คนของตระกูล ${g.houseName} พบถิ่นฐานที่มีอำนาจของตนเองเป็นครั้งแรก เมืองนี้เชี่ยวชาญด้าน${city.specialty} และจะจดจำการปฏิบัติครั้งแรกของเรา`, "milestone", ["เมืองข้างเคียง", "การทูต"]);
+}
+function militaryPower(game: GameState) {
+  const m = normalizeMilitary(game.military);
+  return Math.round(m.soldiers * (0.65 + m.readiness / 100 + m.equipment / 140) + game.metrics.security / 4 + game.buildings.palisade * 5 + game.buildings.barracks * 12);
+}
+
 function stageRank(stage: Stage) {
   const order: Stage[] = ["ค่ายพักแรม", "ชุมชนแรกเริ่ม", "หมู่บ้านถาวร", "เมืองเล็ก", "เมืองการค้า", "นครรัฐ", "อาณาจักร"];
   return Math.max(0, order.indexOf(stage));
@@ -1102,7 +1226,7 @@ const researchStageRequirements: Partial<Record<ResearchKey, Stage>> = {
   weatherReading: "ชุมชนแรกเริ่ม", animalKeeping: "ชุมชนแรกเริ่ม", fodderPrep: "ชุมชนแรกเริ่ม",
   palisadeCraft: "ชุมชนแรกเริ่ม", shelterHygiene: "ชุมชนแรกเริ่ม", animalBreeding: "ชุมชนแรกเริ่ม",
   masonry: "ชุมชนแรกเริ่ม", herbalWorkshop: "ชุมชนแรกเริ่ม", projectPlanning: "ชุมชนแรกเริ่ม",
-  campPolicies: "ชุมชนแรกเริ่ม", stormPrep: "หมู่บ้านถาวร", crisisDrills: "หมู่บ้านถาวร",
+  campPolicies: "ชุมชนแรกเริ่ม", militiaTraining: "หมู่บ้านถาวร", standingArmy: "เมืองเล็ก", militaryLogistics: "เมืองการค้า", stormPrep: "หมู่บ้านถาวร", crisisDrills: "หมู่บ้านถาวร",
   signalNetwork: "เมืองเล็ก", guildCharters: "เมืองเล็ก", currencyMinting: "เมืองเล็ก",
   caravanContracts: "เมืองเล็ก", outpostLogistics: "เมืองเล็ก", bureaucracy: "เมืองการค้า",
   ironSmelting: "เมืองการค้า", smelteryOps: "เมืองการค้า", diplomacyProtocol: "เมืองการค้า",
@@ -1114,7 +1238,7 @@ const buildingStageRequirements: Partial<Record<BuildingKey, Stage>> = {
   watchPost: "ชุมชนแรกเริ่ม", farmPlot: "ชุมชนแรกเริ่ม", workshop: "ชุมชนแรกเริ่ม",
   healerHut: "ชุมชนแรกเริ่ม", animalPen: "ชุมชนแรกเริ่ม", palisade: "ชุมชนแรกเริ่ม",
   smokeVent: "ชุมชนแรกเริ่ม", dryingRack: "ชุมชนแรกเริ่ม", livestockShed: "ชุมชนแรกเริ่ม",
-  waterTrough: "ชุมชนแรกเริ่ม", crisisBeacon: "หมู่บ้านถาวร", marketSquare: "เมืองเล็ก",
+  waterTrough: "ชุมชนแรกเริ่ม", trainingGround: "หมู่บ้านถาวร", barracks: "เมืองเล็ก", crisisBeacon: "หมู่บ้านถาวร", marketSquare: "เมืองเล็ก",
   caravanPost: "เมืองเล็ก", huntersGuildHall: "เมืองการค้า", buildersGuildHall: "เมืองการค้า",
   merchantsGuildHall: "เมืองการค้า", sawmill: "เมืองการค้า", brickKiln: "เมืองการค้า",
   senateHouse: "เมืองการค้า", smeltery: "เมืองการค้า", castleKeep: "นครรัฐ",
@@ -1153,6 +1277,8 @@ function normalizeAdvancedSystems(game: GameState): GameState {
     crisis: normalizeCrisis((game as any).crisis),
     guilds: normalizeGuilds((game as any).guilds),
     outposts: normalizeOutposts((game as any).outposts),
+    neighbors: normalizeNeighbors((game as any).neighbors),
+    military: normalizeMilitary((game as any).military),
     factions: normalizeFactions((game as any).factions),
     leaderAge: Math.max(18, Math.round((game as any).leaderAge ?? game.people?.find((p) => p.id === "leader")?.age ?? 28)),
     heir: ((game as any).heir ?? null) as Person | null,
@@ -1585,6 +1711,8 @@ function ensureGameState(game: GameState): GameState {
     policies: normalizePolicies((game as any).policies),
     crisis: normalizeCrisis((game as any).crisis),
     buildingCondition: normalizeBuildingCondition({ ...game, buildings }),
+    neighbors: normalizeNeighbors((game as any).neighbors),
+    military: normalizeMilitary((game as any).military),
     people: (game.people ?? []).map((person) => ({ ...person, xp: person.xp ?? {}, grief: person.grief ?? 0, closeKin: person.closeKin ?? [] })),
     summaryModal: null,
     savedText: game.savedText ?? "เปิดบันทึกเดิมแล้ว",
@@ -1808,8 +1936,8 @@ type StagePlan = {
 const stagePlans: StagePlan[] = [
   { stage: "ค่ายพักแรม", title: "เอาชีวิตรอดปีแรก", goal: "ตั้งที่พัก กองไฟ เสบียง และความปลอดภัยพื้นฐาน", reward: "ปลดล็อกเส้นทางชุมชนแรกเริ่ม พ่อค้าเร่ และครอบครัวเร่ร่อน", unlocked: ["พ่อค้าเร่", "ข้อพิพาทเสบียง", "การเพาะปลูก", "คลังอาหาร"] },
   { stage: "ชุมชนแรกเริ่ม", title: "เปลี่ยนค่ายให้เป็นบ้าน", goal: "สร้างน้ำสะอาด คลังอาหาร แปลงเพาะปลูก และกฎร่วม", reward: "ปลดล็อกเหตุการณ์สังคม การค้า และภัยมนุษย์ที่ชัดขึ้น", unlocked: ["ราคาตลาด", "ครอบครัวใหม่", "การลาดตระเวน", "ช่างฝีมือ"] },
-  { stage: "หมู่บ้านถาวร", title: "สร้างโครงสร้างถาวร", goal: "เพิงช่าง หอเฝ้ายาม ศาลาประชุม และสุขภาพชุมชน", reward: "ปลดล็อกเมืองเล็ก เครือข่ายข่าวสาร และระบบภัยภายนอกเต็มรูปแบบ", unlocked: ["สายข่าว", "คาราวานใหญ่", "โจรสอดแนม", "กฎหมายชุมชน"] },
-  { stage: "เมืองเล็ก", title: "รักษาเมืองที่เริ่มมีชื่อ", goal: "เตรียมเปลี่ยนจากการสั่งคนทีละคนสู่เศรษฐกิจและสมาคม", reward: "เปิดเมืองการค้าเมื่อประชากร ทอง ตลาด และสมาคมพร้อม", unlocked: ["ลานตลาดถาวร", "คาราวาน", "ใบอนุญาตสมาคม", "ฐานที่มั่นรอง"] },
+  { stage: "หมู่บ้านถาวร", title: "สร้างโครงสร้างถาวร", goal: "เพิงช่าง หอเฝ้ายาม ศาลาประชุม สุขภาพชุมชน และเตรียมกองอาสา", reward: "ปลดล็อกเมืองเล็ก เมืองข้างเคียง เครือข่ายข่าวสาร และการวิจัยกองอาสา", unlocked: ["เมืองข้างเคียง", "ระบบกองอาสา", "สายข่าว", "คาราวานใหญ่"] },
+  { stage: "เมืองเล็ก", title: "รักษาเมืองที่เริ่มมีชื่อ", goal: "เปลี่ยนจากพ่อค้าเร่สู่ตลาดถาวร จัดการเมืองข้างเคียง และพัฒนากองกำลังประจำ", reward: "เปิดเมืองการค้าเมื่อประชากร ทอง ตลาด สมาคม และเครือข่ายภูมิภาคพร้อม", unlocked: ["ลานตลาดถาวร", "การค้าแบบถาวร", "กองกำลังประจำเมือง", "การทูตชายแดน"] },
   { stage: "เมืองการค้า", title: "เครือข่ายภูมิภาค", goal: "ตั้งสมาคม คาราวาน และฐานที่มั่นรองเพื่อให้ทรัพยากรไหลกลับเมือง", reward: "เปิดนครรัฐและการเมืองภายใน", unlocked: ["สมาคม", "คาราวาน", "ฐานที่มั่นรอง", "สินค้าแปรรูป"] },
   { stage: "นครรัฐ", title: "อำนาจและสภาเมือง", goal: "รักษาฝ่ายอำนาจ สะสมอิทธิพล และเปิดเหล็กกล้า", reward: "เปิดอาณาจักรและระบบสืบทอด", unlocked: ["ฝ่ายอำนาจ", "เหล็กกล้า", "อิทธิพล", "ทายาท"] },
   { stage: "อาณาจักร", title: "พงศาวดารของอำนาจ", goal: "รักษาเมืองขึ้น กองกำลัง และความทรงจำของผู้คน ไม่ให้ชัยชนะกลืนชีวิตเล็ก ๆ", reward: "เล่นระยะยาวด้วยสงคราม วิกฤต และการสืบทอด", unlocked: ["เมืองขึ้น", "สงคราม", "ส่วย", "วิกฤตทวีป"] },
@@ -1934,8 +2062,8 @@ function threatBreakdown(game: GameState) {
 
 function tradeOffers(game: GameState): TradeOffer[] {
   const foodSurplus = Math.max(0, game.resources.food - foodNeedFor(game) * 3);
-  const merchantHere = getEvent(game.currentEventId).category.includes("การค้า") || getEvent(game.currentEventId).title.includes("พ่อค้า");
-  const marketOpen = merchantHere || game.labor.trade > 0 || game.stage !== "ค่ายพักแรม";
+  const merchantHere = merchantEventActive(game);
+  const marketOpen = merchantHere || canUseTradeSystem(game);
   return [
     { id: "sell_food", kind: "sell", icon: "🍲", title: "ขายอาหารส่วนเกิน 20 หน่วย", text: "เปลี่ยนเสบียงที่เกินความจำเป็นเป็นทอง แต่ไม่ควรขายเมื่อใกล้ฤดูหนาว", disabled: foodSurplus < 20 || !marketOpen, disabledReason: !marketOpen ? "ต้องมีพ่อค้า/งานแลกเปลี่ยน/ชุมชนโตขึ้น" : "อาหารส่วนเกินยังไม่พอ", preview: "+ทอง 6 · -อาหาร 20" },
     { id: "sell_hides", kind: "sell", icon: "🦌", title: "ขายหนังสัตว์ 3 ผืน", text: "หนังสัตว์ขายได้ราคาดีเมื่อพ่อค้ามา แต่เป็นวัสดุช่วยทำที่พักด้วย", disabled: game.resources.hides < 3 || !marketOpen, disabledReason: !marketOpen ? "ยังไม่มีช่องทางค้า" : "หนังสัตว์ไม่พอ", preview: "+ทอง 9 · -หนังสัตว์ 3" },
@@ -2386,7 +2514,7 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
     collapse: { hungerMonths: 0, noWorkerMonths: 0, trustCrisisMonths: 0, assaultCrisisMonths: 0 }, gameOver: null,
-    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: emptyLocations(), exploreTarget: "shallowStream", animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), guilds: emptyGuilds(), outposts: [], factions: emptyFactions(), leaderAge: people.find((p) => p.id === "leader")?.age ?? 28, heir: null, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
+    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: emptyLocations(), exploreTarget: "shallowStream", animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), guilds: emptyGuilds(), outposts: [], neighbors: [], military: emptyMilitaryState(), factions: emptyFactions(), leaderAge: people.find((p) => p.id === "leader")?.age ?? 28, heir: null, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
   };
   return addNotice(addLog(base, "ค่ายแรกถูกตั้งขึ้น", `${setup.leaderName} แห่งตระกูล ${setup.houseName} พาคนสิบห้าชีวิตตั้งกองไฟแรกที่ “${terrainData[terrain].title}” — ${terrainData[terrain].text}`, "milestone", ["เริ่มเกม", "พื้นที่เริ่มต้น"]), { kind: "system", title: `พื้นที่เริ่มต้น: ${terrainData[terrain].title}`, text: terrainData[terrain].text });
 }
@@ -3530,7 +3658,33 @@ const systemIntegrationEvents: GameEvent[] = [
   },
 ];
 
-const allEvents: GameEvent[] = [...events, ...expandedContentEvents, ...systemIntegrationEvents];
+
+const neighborSystemEvents: GameEvent[] = [
+  {
+    id: "neighbor_smoke_beyond_ridge", title: "ควันไฟที่ไม่ใช่ของเรา", category: "เมืองข้างเคียง/การค้นพบ",
+    text: "คนสำรวจเห็นแนวควันเป็นจังหวะอยู่หลังสันเขา รอยล้อและรอยเท้าบอกชัดว่ามีผู้คนจำนวนมากตั้งถิ่นฐานอยู่ไม่ไกล นี่อาจเป็นคู่ค้า พันธมิตร หรือผู้ที่มองผืนดินเดียวกับเรา",
+    condition: (g) => stageRank(g.stage) >= stageRank("หมู่บ้านถาวร") && (g.neighbors ?? []).length < neighborTemplates.length,
+    weight: (g) => 4 + g.labor.explore * 2 + g.labor.intel * 2 + (normalizeLocations(g.locations).oldTradeRoad.discovered ? 6 : 0),
+    choices: [
+      choice("neighbor_send_envoy", "🕊️", "ส่งทูตพร้อมอาหารและข่าวสาร", "สันติ", "ใช้เสบียงเล็กน้อยเพื่อเริ่มความสัมพันธ์ที่ดี", { resources: { food: -8, knowledge: -2 }, metrics: { trust: 2 }, path: { trade: 2 } }, ["ทูตเดินทางออกจากเมืองพร้อมผ้าขาวและอาหารแห้ง ไม่มีใครรู้ว่าจะได้รับรอยยิ้มหรือปลายหอกกลับมา", "การพบกันครั้งแรกไม่ทำให้ทั้งสองเมืองไว้ใจกันทันที แต่มันทำให้ชื่อของตระกูลถูกพูดอย่างไม่เป็นศัตรู"]),
+      choice("neighbor_watch_distance", "👁️", "เฝ้าดูจากระยะไกลก่อน", "ระวัง", "ได้ความรู้และลดความเสี่ยง แต่ความสัมพันธ์เริ่มอย่างเย็นชา", { resources: { knowledge: 4 }, metrics: { security: 2 }, path: { knowledge: 1 } }, ["คนสำรวจจดจำนวนควัน เส้นทาง และเวลาที่ประตูของเมืองนั้นเปิดปิด", "เราได้ข้อมูล แต่เมืองอีกฝั่งก็อาจเห็นเงาคนของเราบนสันเขาเช่นกัน"]),
+      choice("neighbor_claim_first", "🚩", "ปักหลักเขตแดนก่อนเข้าเจรจา", "กดดัน", "เพิ่มอิทธิพลแต่ทำให้เมืองข้างเคียงไม่พอใจ", { resources: { wood: -6 }, metrics: { security: 3, trust: -2 }, path: { fortress: 2 }, risk: { conflict: 8 } }, ["หลักเขตไม้ถูกตอกลงบนเส้นทางที่ทั้งสองเมืองอาจต้องใช้ร่วมกัน", "ข้อความนั้นชัดเจน แม้ไม่มีคำพูด: เรามาถึงแล้ว และเราจะไม่ถอยง่าย ๆ"]),
+    ],
+  },
+  {
+    id: "neighbor_border_dispute", title: "เส้นเขตแดนที่ไม่มีใครเห็นตรงกัน", category: "เมืองข้างเคียง/ชายแดน",
+    text: "คนตัดไม้ของสองเมืองพบกันในพื้นที่เดียวกัน ต่างฝ่ายต่างอ้างว่าป่านี้อยู่ในเขตของตน เสียงโต้เถียงยังไม่กลายเป็นการต่อสู้ แต่กำลังพลของทั้งสองฝั่งเริ่มเดินเข้ามาใกล้",
+    condition: (g) => (g.neighbors ?? []).some((city) => city.discovered && !city.atWar && city.borderTension >= 35),
+    weight: (g) => 5 + Math.max(0, ...(g.neighbors ?? []).map((city) => city.borderTension / 6)),
+    choices: [
+      choice("border_joint_use", "🤝", "เสนอใช้พื้นที่ร่วมและตั้งกติกา", "ประนีประนอม", "ลดความตึงเครียด ใช้อิทธิพลเพื่อรักษาสันติ", { resources: { influence: -4 }, metrics: { fairness: 4, trust: 2 }, path: { trade: 1 } }, ["ตัวแทนสองฝ่ายขีดเส้นบนดินใหม่ และยอมรับว่าป่าไม่รู้จักชื่อเมืองของใคร", "ข้อตกลงไม่สมบูรณ์ แต่ทำให้ขวานกลับไปตัดไม้แทนที่จะหันเข้าหาคน"]),
+      choice("border_hold_line", "🛡️", "ส่งกองอาสาไปรักษาแนวเขต", "แข็งกร้าว", "เพิ่มความปลอดภัยและความกลัว แต่เสี่ยงแตกหัก", { resources: { food: -6 }, metrics: { security: 5, morale: -1 }, risk: { conflict: 9 }, path: { fortress: 2 } }, ["กองอาสายืนเรียงหลังหลักเขตโดยไม่ชักอาวุธ แต่ทุกคนเห็นมือที่วางอยู่บนด้ามหอก", "เส้นเขตแดนชัดขึ้นในวันนั้น และความไม่ไว้ใจก็ชัดขึ้นพร้อมกัน"]),
+      choice("border_withdraw", "🌿", "ถอนคนออกชั่วคราว", "ลดการปะทะ", "เสียอิทธิพลแต่ลดโอกาสสงคราม", { resources: { influence: -3 }, metrics: { cohesion: 1 }, risk: { conflict: -8 } }, ["คนของเราถอยออกจากป่าก่อนพระอาทิตย์ตก บางคนเรียกว่าสติ บางคนเรียกว่าความอ่อนแอ", "ไม่มีเลือดไหล และบางครั้งการกลับบ้านครบทุกคนก็สำคัญกว่าหลักเขตหนึ่งต้น"]),
+    ],
+  },
+];
+
+const allEvents: GameEvent[] = [...events, ...expandedContentEvents, ...systemIntegrationEvents, ...neighborSystemEvents];
 
 
 function getEvent(id: string): GameEvent {
@@ -3782,6 +3936,11 @@ function applyChoice(game: GameState, event: GameEvent, selected: EventChoice): 
   if (fullPayment && selected.id === "accept_piglets") {
     const state = normalizeAnimalState(g.animalState);
     g = { ...g, animalState: { ...state, animals: { ...state.animals, pigs: state.animals.pigs + 2 }, log: ["รับลูกหมู 2 ตัวไว้เลี้ยง เศษอาหารเริ่มมีความหมายใหม่", ...state.log].slice(0, 20) } };
+  }
+  if (fullPayment && event.id === "neighbor_smoke_beyond_ridge") g = discoverNeighborCity(g, selected.id);
+  if (fullPayment && event.id === "neighbor_border_dispute") {
+    const target = [...(g.neighbors ?? [])].sort((a, b) => b.borderTension - a.borderTension)[0];
+    if (target) g = { ...g, neighbors: g.neighbors.map((city) => city.id !== target.id ? city : { ...city, relation: clamp(city.relation + (selected.id === "border_joint_use" ? 10 : selected.id === "border_hold_line" ? -12 : -2), -100, 100), borderTension: clamp(city.borderTension + (selected.id === "border_joint_use" ? -22 : selected.id === "border_hold_line" ? 16 : -12)), fear: clamp(city.fear + (selected.id === "border_hold_line" ? 12 : 0)), lastInteraction: selected.title }) };
   }
   if (fullPayment && selected.id === "keep_guard_dog") {
     const state = normalizeAnimalState(g.animalState);
@@ -4316,6 +4475,65 @@ function resolveDelayed(game: GameState): GameState {
   });
   return { ...game, delayedEvents: nextDelayed, pendingEvents: [...ready, ...game.pendingEvents] };
 }
+
+function resolveMilitaryMonth(game: GameState, changes: string[]): GameState {
+  if (!canUseMilitary(game)) return { ...game, military: normalizeMilitary(game.military) };
+  let m = normalizeMilitary(game.military);
+  let g = game;
+  const upkeepFood = Math.ceil(m.soldiers * (game.researchDone.militaryLogistics ? 0.16 : 0.25));
+  const upkeepGold = game.researchDone.standingArmy ? Math.ceil(m.soldiers / (game.researchDone.militaryLogistics ? 10 : 7)) : 0;
+  const foodPaid = Math.min(g.resources.food, upkeepFood);
+  const goldPaid = Math.min(g.resources.gold, upkeepGold);
+  g = { ...g, resources: changeResources(g.resources, { food: -foodPaid, gold: -goldPaid }) };
+  if (foodPaid < upkeepFood || goldPaid < upkeepGold) {
+    m = { ...m, morale: clamp(m.morale - 8), readiness: clamp(m.readiness - 7) };
+    changes.push(`กองกำลังขาดเสบียง ${upkeepFood - foodPaid} และทอง ${upkeepGold - goldPaid} · ขวัญและความพร้อมลดลง`);
+  } else if (m.soldiers > 0) {
+    const training = game.buildings.trainingGround * 3 + game.buildings.barracks * 5 + game.labor.guard * 0.7 + game.labor.patrol * 0.9;
+    m = { ...m, readiness: clamp(m.readiness + Math.round(training) - (m.stance === "ฝึกกำลัง" ? -3 : 2)), morale: clamp(m.morale + (game.buildings.barracks > 0 ? 2 : 0)), equipment: clamp(m.equipment - (m.soldiers > 20 ? 2 : 1)) };
+    changes.push(`กองกำลัง ${m.soldiers} นาย ใช้อาหาร ${foodPaid}${upkeepGold ? ` และทอง ${goldPaid}` : ""} · ความพร้อม ${m.readiness}%`);
+  }
+  return { ...g, military: { ...m, lastReport: m.soldiers > 0 ? `กำลังพล ${m.soldiers} · พร้อมรบ ${m.readiness}% · อุปกรณ์ ${m.equipment}%` : "วิจัยแล้วแต่ยังไม่ได้เกณฑ์กองอาสา" }, resources: { ...g.resources, manpower: Math.max(g.resources.manpower, m.soldiers) } };
+}
+function resolveNeighborMonth(game: GameState, changes: string[]): GameState {
+  let g = game;
+  const military = normalizeMilitary(g.military);
+  const next = normalizeNeighbors(g.neighbors).map((city) => {
+    let c = { ...city };
+    if (c.tradeTreaty && !c.atWar) {
+      const bonus: Partial<Resources> = c.specialty === "อาหาร" ? { food: 6, gold: 2 } : c.specialty === "ไม้" ? { wood: 5, gold: 2 } : c.specialty === "หิน" ? { stone: 5, gold: 2 } : c.specialty === "สมุนไพร" ? { herbs: 2, gold: 2 } : c.specialty === "ม้า" ? { warhorses: 1, gold: -2 } : { gold: 5, knowledge: 2 };
+      g = { ...g, resources: changeResources(g.resources, bonus) };
+      changes.push(`การค้ากับ${c.name}: ${Object.entries(bonus).map(([key, value]) => `${resourceShortLabel(key as ResourceKey)} ${Number(value) >= 0 ? "+" : ""}${value}`).join(" · ")}`);
+      c.relation = clamp(c.relation + 1, -100, 100);
+      c.trust = clamp(c.trust + 1);
+    }
+    if (c.alliance && !c.atWar) c.relation = clamp(c.relation + 1, -100, 100);
+    if (c.atWar) {
+      const ours = militaryPower(g);
+      const theirs = Math.round(c.population * 0.16 + c.territory * 8 + c.fear * 0.3);
+      const roll = ours + Math.random() * 35 - (theirs + Math.random() * 35);
+      if (roll >= 0) {
+        const loot = 4 + Math.floor(Math.random() * 8);
+        g = { ...g, resources: changeResources(g.resources, { gold: loot, food: Math.ceil(loot / 2) }), military: { ...normalizeMilitary(g.military), experience: normalizeMilitary(g.military).experience + 2, readiness: clamp(normalizeMilitary(g.military).readiness - 3) } };
+        c.fear = clamp(c.fear + 5); c.borderTension = clamp(c.borderTension + 3); c.population = Math.max(12, c.population - Math.floor(Math.random() * 3));
+        changes.push(`แนวรบกับ${c.name}: ฝ่ายเราได้เปรียบและยึดเสบียงเล็กน้อย +ทอง ${loot}`);
+      } else {
+        g = { ...g, resources: changeResources(g.resources, { food: -8, wood: -5 }), metrics: changeMetrics(g.metrics, { security: -4, morale: -3 }), military: { ...normalizeMilitary(g.military), readiness: clamp(normalizeMilitary(g.military).readiness - 8), morale: clamp(normalizeMilitary(g.military).morale - 6) } };
+        c.fear = clamp(c.fear - 2); c.borderTension = clamp(c.borderTension + 5);
+        changes.push(`แนวรบกับ${c.name}: ฝ่ายเราถูกกดดัน สูญอาหาร 8 และไม้ 5`);
+        if (Math.random() < 0.16 && alivePeople(g).length > 8) g = woundSomeone(g, `การปะทะชายแดนกับ${c.name}`);
+      }
+    } else {
+      c.borderTension = clamp(c.borderTension - (c.relation >= 25 ? 2 : 0));
+      c.population = Math.max(12, c.population + (Math.random() < 0.25 ? 1 : 0));
+    }
+    return c;
+  });
+  const highTension = next.some((city) => !city.atWar && city.borderTension >= 42);
+  if (highTension && !g.pendingEvents.includes("neighbor_border_dispute")) g = { ...g, pendingEvents: ["neighbor_border_dispute", ...g.pendingEvents] };
+  return { ...g, neighbors: next };
+}
+
 function advanceMonth(game: GameState): GameState {
   const event = getEvent(game.currentEventId);
   const selected = event.choices.find((c) => c.id === game.selectedChoiceId) ?? event.choices[0];
@@ -4328,6 +4546,8 @@ function advanceMonth(game: GameState): GameState {
   g = prod.game;
   const changes = [...earlyChanges, ...prod.changes];
   g = resolveExploration(g, changes);
+  g = resolveMilitaryMonth(g, changes);
+  g = resolveNeighborMonth(g, changes);
   g = applyRealismRisks(g, changes);
   g = applySkillMastery(g, changes);
   g = processGriefRecovery(g, changes);
@@ -4461,9 +4681,23 @@ export default function GamePage() {
   useEffect(() => {
     if (!game) return;
     const timeout = window.setTimeout(() => {
-      // บันทึกทุกส่วนของสถานะเกม รวมถึงงานที่มอบหมาย โครงการ ตัวเลือกเหตุการณ์ นโยบาย และการกระทำของผู้นำ
-      window.localStorage.setItem(saveKey, JSON.stringify({ ...game, summaryModal: null, savedText: "บันทึกอัตโนมัติเรียบร้อย" }));
-    }, 350);
+      const previousText = window.localStorage.getItem(saveKey);
+      if (previousText) {
+        try {
+          const previous = JSON.parse(previousText) as GameState;
+          if (previous.year !== game.year || previous.month !== game.month) window.localStorage.setItem(autosaveBackupKey, previousText);
+        } catch {}
+      }
+      const safe = safeGameForStorage(game);
+      window.localStorage.setItem(saveKey, JSON.stringify(safe));
+      const activeSlot = window.localStorage.getItem(activeSlotKey) as SaveSlotId | null;
+      if (activeSlot && (["slot-1", "slot-2", "slot-3"] as string[]).includes(activeSlot)) {
+        const slots = readSaveSlots();
+        const existing = slots.find((slot) => slot.id === activeSlot);
+        if (existing) writeSaveSlots([{ ...existing, updatedAt: new Date().toISOString(), game: safe }, ...slots.filter((slot) => slot.id !== activeSlot)].sort((a, b) => a.id.localeCompare(b.id)));
+      }
+      updateLocalLeaderboard(game);
+    }, 450);
     return () => window.clearTimeout(timeout);
   }, [game]);
 
@@ -4570,6 +4804,35 @@ export default function GamePage() {
       return { ...g, activeResearch: g.activeResearch?.id === target.id ? null : g.activeResearch, pausedResearch: (g.pausedResearch ?? []).filter((p) => p?.id !== target.id), savedText: `ยกเลิกการศึกษา ${researchData[target.id].title} ความคืบหน้าส่วนนั้นจะหายไป` };
     });
   }
+  function interactNeighborCity(cityId: string, action: NeighborAction) {
+    updateGame((g) => {
+      const city = g.neighbors.find((item) => item.id === cityId); if (!city) return g;
+      let nextCity = { ...city }; let next = g;
+      const fail = (text: string) => ({ ...g, savedText: text });
+      if (action === "envoy") { if (g.resources.knowledge < 3) return fail("ต้องมีความรู้ 3 เพื่อเตรียมทูต"); next = { ...next, resources: changeResources(next.resources, { knowledge: -3, influence: 2 }) }; nextCity = { ...nextCity, relation: clamp(nextCity.relation + 6, -100, 100), trust: clamp(nextCity.trust + 5), borderTension: clamp(nextCity.borderTension - 4), lastInteraction: "ส่งทูตแลกข่าวและสำรวจท่าที" }; }
+      if (action === "gift") { if (g.resources.food < 10 || g.resources.gold < 2) return fail("ต้องมีอาหาร 10 และทอง 2 สำหรับของขวัญ"); next = { ...next, resources: changeResources(next.resources, { food: -10, gold: -2 }) }; nextCity = { ...nextCity, relation: clamp(nextCity.relation + 10, -100, 100), trust: clamp(nextCity.trust + 8), borderTension: clamp(nextCity.borderTension - 5), lastInteraction: "มอบอาหารและของขวัญให้คณะผู้แทน" }; }
+      if (action === "tradeTreaty") { if (!canUseTradeSystem(g) || city.relation < 15 || city.atWar) return fail("ต้องเปิดระบบการค้า มีความสัมพันธ์อย่างน้อย 15 และไม่อยู่ในสงคราม"); if (g.resources.gold < 8) return fail("ต้องมีทอง 8 สำหรับค่ารับรองและเอกสาร"); next = { ...next, resources: changeResources(next.resources, { gold: -8 }), pathScores: { ...next.pathScores, trade: next.pathScores.trade + 3 } }; nextCity = { ...nextCity, tradeTreaty: true, relation: clamp(nextCity.relation + 5, -100, 100), trust: clamp(nextCity.trust + 6), lastInteraction: "ลงนามสนธิสัญญาการค้า" }; }
+      if (action === "exchange") { if (!city.tradeTreaty || city.atWar) return fail("ต้องมีสนธิสัญญาการค้าและไม่อยู่ในสงคราม"); const delta: Partial<Resources> = city.specialty === "อาหาร" ? { gold: -5, food: 18 } : city.specialty === "หิน" ? { gold: -5, stone: 12 } : city.specialty === "สมุนไพร" ? { gold: -5, herbs: 6 } : city.specialty === "ม้า" ? { gold: -12, warhorses: 1 } : { food: -10, gold: 8, knowledge: 2 }; const costOk = Object.entries(delta).every(([key, value]) => Number(value) >= 0 || g.resources[key as ResourceKey] >= Math.abs(Number(value))); if (!costOk) return fail("ทรัพยากรสำหรับแลกเปลี่ยนไม่พอ"); next = { ...next, resources: changeResources(next.resources, delta) }; nextCity = { ...nextCity, relation: clamp(nextCity.relation + 2, -100, 100), lastInteraction: "แลกเปลี่ยนสินค้าตามสนธิสัญญา" }; }
+      if (action === "claim") { if (!canUseMilitary(g) || normalizeMilitary(g.military).soldiers < 5) return fail("ต้องเปิดระบบทหารและมีกำลังพลอย่างน้อย 5"); nextCity = { ...nextCity, relation: clamp(nextCity.relation - 18, -100, 100), fear: clamp(nextCity.fear + 12), borderTension: clamp(nextCity.borderTension + 24), lastInteraction: "ฝ่ายเราอ้างสิทธิ์พื้นที่ชายแดน" }; next = { ...next, resources: changeResources(next.resources, { influence: 5 }), military: { ...normalizeMilitary(next.military), readiness: clamp(normalizeMilitary(next.military).readiness - 4) } }; }
+      if (action === "attack") { if (!canUseMilitary(g) || normalizeMilitary(g.military).soldiers < 5) return fail("ต้องมีกำลังพลอย่างน้อย 5 ก่อนเปิดศึก"); nextCity = { ...nextCity, atWar: true, alliance: false, tradeTreaty: false, relation: -80, borderTension: 100, fear: clamp(nextCity.fear + 15), lastInteraction: "ประกาศเปิดศึกอย่างเป็นทางการ" }; next = { ...next, metrics: changeMetrics(next.metrics, { morale: -3, security: 4 }), military: { ...normalizeMilitary(next.military), stance: "เตรียมรบ" } }; }
+      if (action === "peace") { if (!city.atWar) return fail("เมืองนี้ไม่ได้อยู่ในสงครามกับเรา"); if (g.resources.gold < 15 && g.resources.influence < 10) return fail("ต้องมีทอง 15 หรืออิทธิพล 10 เพื่อเสนอเงื่อนไขสันติภาพ"); const payGold = g.resources.gold >= 15; next = { ...next, resources: changeResources(next.resources, payGold ? { gold: -15 } : { influence: -10 }) }; nextCity = { ...nextCity, atWar: false, relation: -25, borderTension: 35, lastInteraction: "ยอมพักรบและเปิดการเจรจาสันติภาพ" }; }
+      if (action === "alliance") { if (!g.researchDone.diplomacyProtocol || city.relation < 65 || city.atWar) return fail("ต้องวิจัยพิธีการทูต มีความสัมพันธ์ 65+ และไม่อยู่ในสงคราม"); if (g.resources.influence < 20) return fail("ต้องใช้อิทธิพล 20 เพื่อทำพันธมิตร"); next = { ...next, resources: changeResources(next.resources, { influence: -20 }) }; nextCity = { ...nextCity, alliance: true, tradeTreaty: true, relation: clamp(nextCity.relation + 12, -100, 100), trust: clamp(nextCity.trust + 15), borderTension: clamp(nextCity.borderTension - 20), lastInteraction: "ลงนามพันธมิตรอย่างเป็นทางการ" }; }
+      next = { ...next, neighbors: next.neighbors.map((item) => item.id === cityId ? nextCity : item), savedText: `${nextCity.name}: ${nextCity.lastInteraction}` };
+      return addLog(next, `ความสัมพันธ์กับ${nextCity.name}`, nextCity.lastInteraction, action === "attack" ? "bad" : "normal", ["เมืองข้างเคียง", action]);
+    });
+  }
+  function militaryAction(action: "recruit" | "train" | "equip" | "demobilize" | "stance", stance?: MilitaryStance) {
+    updateGame((g) => {
+      if (!canUseMilitary(g)) return { ...g, savedText: "ต้องวิจัยระบบกองอาสาป้องกันเมืองก่อน" };
+      const m = normalizeMilitary(g.military);
+      if (action === "stance" && stance) return { ...g, military: { ...m, stance }, savedText: `ตั้งท่าทีกองกำลัง: ${stance}` };
+      if (action === "recruit") { if (alivePeople(g).length < 20) return { ...g, savedText: "ต้องมีประชากรอย่างน้อย 20 คนก่อนเกณฑ์กองอาสา" }; if (!hasCost(g, { food: 10, tools: 1, gold: 3 })) return { ...g, savedText: "ต้องมีอาหาร 10 เครื่องมือ 1 และทอง 3" }; const paid = payCost(g, { food: 10, tools: 1, gold: 3 }); return { ...paid, military: { ...m, soldiers: m.soldiers + 5, readiness: clamp(m.readiness + 4), morale: clamp(m.morale + 2), lastReport: "เกณฑ์กองอาสาเพิ่ม 5 นาย" }, resources: { ...paid.resources, manpower: Math.max(paid.resources.manpower, m.soldiers + 5) }, savedText: "เกณฑ์กองอาสาเพิ่ม 5 นาย" }; }
+      if (action === "train") { if (m.soldiers <= 0 || g.resources.food < 5) return { ...g, savedText: "ต้องมีกำลังพลและอาหาร 5 สำหรับการฝึก" }; return { ...g, resources: changeResources(g.resources, { food: -5 }), military: { ...m, readiness: clamp(m.readiness + 12), morale: clamp(m.morale + 4), experience: m.experience + 1, lastReport: "ฝึกยุทธวิธีและระเบียบกองอาสา" }, savedText: "ฝึกกองกำลังแล้ว" }; }
+      if (action === "equip") { const canSteel = g.resources.steel >= 3; if (!canSteel && g.resources.tools < 3) return { ...g, savedText: "ต้องมีเหล็กกล้า 3 หรือเครื่องมือ 3 เพื่อจัดหาอุปกรณ์" }; return { ...g, resources: changeResources(g.resources, canSteel ? { steel: -3 } : { tools: -3 }), military: { ...m, equipment: clamp(m.equipment + (canSteel ? 18 : 10)), readiness: clamp(m.readiness + 4), lastReport: canSteel ? "แจกอาวุธเหล็กกล้า" : "ปรับเครื่องมือเป็นอาวุธป้องกัน" }, savedText: "จัดหาอุปกรณ์กองกำลังแล้ว" }; }
+      if (action === "demobilize") { if (m.soldiers < 5) return g; return { ...g, military: { ...m, soldiers: m.soldiers - 5, morale: clamp(m.morale + 2), lastReport: "ปลดประจำการ 5 นายกลับสู่ชีวิตปกติ" }, resources: { ...g.resources, manpower: Math.max(0, m.soldiers - 5) }, savedText: "ปลดประจำการ 5 นาย" }; }
+      return g;
+    });
+  }
   function endTurn() { updateGame((g) => {
     const normalizedAssignments = normalizeLaborAssignments(g, g.laborAssignments ?? {});
     const labor = deriveLaborFromAssignments(g, normalizedAssignments);
@@ -4612,7 +4875,14 @@ export default function GamePage() {
     return <GameOverScreen game={game} restartSameSetup={restartSameSetup} resetGame={resetGame} />;
   }
 
-  const visibleViews = views.filter((v) => v !== "นโยบาย" || canUsePolicies(game));
+  const visibleViews = views.filter((v) => {
+    if (v === "นโยบาย") return canUsePolicies(game);
+    if (v === "พ่อค้าเร่") return wanderingMerchantVisible(game);
+    if (v === "การค้า") return canUseTradeSystem(game);
+    if (v === "เมืองข้างเคียง") return game.neighbors.length > 0;
+    if (v === "การทหาร") return canUseMilitary(game);
+    return true;
+  });
   const safeView = visibleViews.includes(view) ? view : "เมือง";
 
   return (
@@ -4659,9 +4929,13 @@ export default function GamePage() {
           {safeView === "วิจัย" && <ResearchView game={game} startResearch={startResearch} pauseResearch={pauseResearch} cancelResearch={cancelResearch} jumpToPeopleFor={jumpToPeopleFor} />}
           {safeView === "สัตว์เลี้ยง" && <AnimalsView game={game} setAnimalAction={(action) => updateGame((g) => ({ ...g, animalAction: action, savedText: `ตั้งแผนสัตว์เลี้ยง: ${animalActionLabel(action)}` }))} />}
           {safeView === "นโยบาย" && <PoliciesView game={game} updatePolicies={(patch) => updateGame((g) => ({ ...g, policies: { ...normalizePolicies(g.policies), ...patch }, savedText: "ปรับนโยบายค่ายแล้ว" }))} />}
-          {safeView === "ข่าวสาร" && <NewsView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
+          {safeView === "ข่าวสาร" && <NewsView game={game} />}
+          {safeView === "พ่อค้าเร่" && <MerchantView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
+          {safeView === "การค้า" && <TradeView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
+          {safeView === "เมืองข้างเคียง" && <NeighborCitiesView game={game} interact={interactNeighborCity} />}
+          {safeView === "การทหาร" && <MilitaryView game={game} act={militaryAction} />}
           {safeView === "พงศาวดาร" && <ChronicleView game={game} />}
-          {safeView === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} theme={theme} setTheme={setTheme} />}
+          {safeView === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} theme={theme} setTheme={setTheme} replaceGame={(next) => setGame(normalizeAdvancedSystems(next))} />}
         </section>
 
         <aside className="event-panel">
@@ -5370,7 +5644,7 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
                 <small className="muted">{person.role} · อายุ {person.age} · {workAgeLabel(person)} · กำลัง {factor}</small>
               </div>
               <div className="trait-line">
-                {person.traits.slice(0, 4).map((tr) => <span className="badge" key={`${person.id}-${tr}`}>{traitEmoji(tr)} {tr}</span>)}
+                {person.traits.slice(0, 2).map((tr) => <span className="badge" key={`${person.id}-${tr}`}>{traitEmoji(tr)} {tr}</span>)}
                 {person.fatigue > 65 && <span className="badge red">😓 ล้า</span>}
                 {personIsSick(person) && <span className="badge red">🤒 ป่วย</span>}
                 {personIsInjured(person) && <span className="badge red">🩹 บาดเจ็บ</span>}
@@ -5382,7 +5656,7 @@ function LaborAssignmentPanel({ game, assignPersonLabor, applyRecommendedAssignm
                   {currentJob && <span className="badge green">ทำอยู่: {currentJob.icon} {currentJob.title}</span>}
                   {!currentJob && <span className="badge blue">พักฟื้น {restRate}/เดือน</span>}
                 </div>
-                <small className="muted">{!currentJob ? `อัตราพัก: ${restRecoveryLabel(game, person)}` : `ทำงานอยู่ ความล้าจะเพิ่มน้อยลงตามที่พัก/กองไฟ/การวางแผน`}</small>
+                <small className="muted">สุขภาพ {person.health}% · ล้า {person.fatigue}% · {!currentJob ? restRecoveryLabel(game, person) : "คำนวณผลจริงตามความถนัด"}</small>
                 <select value={current} onChange={(e) => assignPersonLabor(person.id, e.target.value as LaborKey | "")} className="labor-select compact-select" disabled={cannotWork}>
                   <option value="">{cannotWork ? "ต้องพัก/ดูแลก่อน" : "พัก / ไม่ลงงาน"}</option>
                   {jobs.map((job) => <option key={job.id} value={job.id}>{job.icon} {job.title} · {Math.round(baseWorkFactor(person) * personJobBonus(person, job.id) * 100)}%</option>)}
@@ -5476,7 +5750,7 @@ function ProjectCrewCard({ game, title, jobs, hint }: { game: GameState; title: 
 }
 function buildingCategory(id: BuildingKey) {
   if (["shelter", "campfire", "storage", "well", "cistern", "smokeVent", "dryingRack", "waterTrough"].includes(id)) return "ยังชีพ";
-  if (["watchPost", "palisade", "crisisBeacon", "castleKeep"].includes(id)) return "ป้องกัน";
+  if (["watchPost", "palisade", "trainingGround", "barracks", "crisisBeacon", "castleKeep"].includes(id)) return "ป้องกัน/การทหาร";
   if (["workshop", "repairShed", "sawmill", "brickKiln", "smeltery"].includes(id)) return "ช่าง/อุตสาหกรรม";
   if (["healerHut", "graveyard", "meetingHall", "senateHouse"].includes(id)) return "สังคม/สุขภาพ";
   if (["animalPen", "livestockShed"].includes(id)) return "สัตว์เลี้ยง";
@@ -5487,6 +5761,7 @@ function researchCategory(id: ResearchKey) {
   if (["foodPreservation", "basicFarming", "waterFinding", "waterStorage", "weatherReading", "stormPrep"].includes(id)) return "เอาชีวิตรอด";
   if (["herbalCare", "sanitation", "shelterHygiene", "herbalWorkshop", "animalQuarantine"].includes(id)) return "สุขภาพ";
   if (["stoneTools", "woodShelter", "simpleCraft", "maintenanceRoutine", "masonry", "projectPlanning", "smelteryOps", "siegeEngineering"].includes(id)) return "ช่าง/ก่อสร้าง";
+  if (["militiaTraining", "standingArmy", "militaryLogistics"].includes(id)) return "การทหาร";
   if (["animalKeeping", "fodderPrep", "animalBreeding"].includes(id)) return "สัตว์เลี้ยง";
   if (["storyRecords", "familyRecords", "apprenticeship", "campPolicies", "bureaucracy", "dynasticSuccession"].includes(id)) return "สังคม/การปกครอง";
   if (["signalNetwork", "guildCharters", "currencyMinting", "caravanContracts", "outpostLogistics", "diplomacyProtocol", "ironSmelting"].includes(id)) return "เศรษฐกิจ/ยุคใหม่";
@@ -5524,7 +5799,8 @@ function resourceGuideFor(game: GameState, key: ResourceKey): ResourceGuide {
   if (key === "salt" || key === "spices" || key === "influence") { const ready = game.buildings.merchantsGuildHall > 0 || normalizeOutposts(game.outposts).some((o) => o.location === "oldTradeRoad"); return { ...base, ready, status: ready ? "ได้รับประจำแล้ว" : "ต้องเปิดการค้าภูมิภาค", source: "สมาคมพ่อค้าหรือฐานที่มั่นรองบนถนนการค้าเก่าส่งกลับเมืองทุกเดือน", next: ready ? "รักษาทองให้พอเป็นต้นทุนการค้าของสมาคม" : "วิจัยสัญญาคาราวาน/ระบบฐานที่มั่นรอง และสำรวจถนนการค้าเก่า" }; }
   if (key === "steel") { const ready = game.buildings.smeltery > 0; return { ...base, ready, status: ready ? "ผลิตได้แล้ว" : "ต้องสร้างโรงถลุง", source: ready ? "โรงถลุงใช้แร่เหล็ก 3 และถ่านหิน 2 ต่อเหล็กกล้า 1" : "วิจัยการถลุงเหล็กและสร้างโรงถลุง", next: ready ? "ตั้งฐานเหมืองเพื่อให้แร่เหล็กและถ่านหินไหลต่อเนื่อง" : "วิจัยการถลุงเหล็กในยุคเมืองการค้า" }; }
   if (key === "textiles") return { ...base, ready: tradeReady, status: tradeReady ? "หาได้จากการค้า/เหตุการณ์" : "ต้องเปิดการค้า", source: "ผ้าทอได้จากพ่อค้า เหตุการณ์ และการแลกเปลี่ยนระดับเมือง ปัจจุบันยังไม่มีสายผลิตประจำ", next: "พัฒนาการค้าและเก็บทองสำรองเพื่อซื้อเมื่อมีข้อเสนอ" };
-  if (key === "luxuries" || key === "warhorses" || key === "manpower" || key === "siegeMaterials") return { ...base, ready: stageRank(game.stage) >= stageRank("นครรัฐ"), status: stageRank(game.stage) >= stageRank("นครรัฐ") ? "หาได้จากระบบปลายเกม" : "รอยุคนครรัฐ", source: "ได้จากการทูต การค้า เหตุการณ์กองทัพ และระบบอาณาจักร", next: "พัฒนาเมือง การทูต และโครงสร้างป้องกันให้พร้อมก่อนเข้าสู่ระบบปลายเกม" };
+  if (key === "manpower") return { ...base, ready: canUseMilitary(game), status: canUseMilitary(game) ? "จัดตั้งได้แล้ว" : "ต้องวิจัยระบบกองอาสา", source: canUseMilitary(game) ? "เกณฑ์กองอาสาในแท็บการทหาร กำลังพลจะเท่ากับทหารที่จัดตั้งจริง" : "เข้าสู่ยุคหมู่บ้านถาวรและวิจัยระบบกองอาสาป้องกันเมือง", next: canUseMilitary(game) ? "สร้างลานฝึก ฝึกกำลัง และจัดหาอุปกรณ์เพื่อเพิ่มพลังรบ" : "วิจัยระบบเวรยาม → รั้วไม้ → ระบบกองอาสา" };
+  if (key === "luxuries" || key === "warhorses" || key === "siegeMaterials") return { ...base, ready: stageRank(game.stage) >= stageRank("นครรัฐ"), status: stageRank(game.stage) >= stageRank("นครรัฐ") ? "หาได้จากระบบปลายเกม" : "รอยุคนครรัฐ", source: "ได้จากการทูต การค้า เหตุการณ์กองทัพ และระบบอาณาจักร", next: "พัฒนาเมือง การทูต และโครงสร้างป้องกันให้พร้อมก่อนเข้าสู่ระบบปลายเกม" };
   return { ...base, ready: false, status: "ยังไม่มีเส้นทางประจำ", source: "ได้จากเหตุการณ์หรือการค้าเฉพาะทาง", next: "ติดตามข่าวสาร พ่อค้า และการสำรวจ" };
 }
 
@@ -5824,11 +6100,23 @@ function PoliciesView({ game, updatePolicies }: { game: GameState; updatePolicie
   );
 }
 
-function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void; theme: "light" | "dark"; setTheme: (theme: "light" | "dark") => void }) {
+function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, replaceGame }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void; theme: "light" | "dark"; setTheme: (theme: "light" | "dark") => void; replaceGame: (game: GameState) => void }) {
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState("");
   const [devCode, setDevCode] = useState("");
   const [devUnlocked, setDevUnlocked] = useState(false);
+  const [saveSlots, setSaveSlots] = useState<SaveSlotRecord[]>(() => typeof window === "undefined" ? [] : readSaveSlots());
+  const [slotLabels, setSlotLabels] = useState<Record<SaveSlotId, string>>({ "slot-1": "บันทึกที่ 1", "slot-2": "บันทึกที่ 2", "slot-3": "บันทึกที่ 3" });
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => typeof window === "undefined" ? [] : readLeaderboard());
+  useEffect(() => {
+    if (!saveSlots.length) return;
+    setSlotLabels((current) => {
+      const next = { ...current };
+      saveSlots.forEach((slot) => { next[slot.id] = slot.label; });
+      return next;
+    });
+  }, [saveSlots]);
+  useEffect(() => { setLeaderboard(readLeaderboard()); }, [game.stage, game.year, game.month, game.people.length]);
   const exportText = JSON.stringify(game, null, 2);
   const compactDebug = debugReport(game);
   const copyText = (text: string) => {
@@ -5845,6 +6133,18 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme }: {
       setImportMessage("นำเข้าไม่ได้: รูปแบบ JSON ไม่ถูกต้อง หรือข้อมูลนี้ไม่ใช่บันทึกของเกม");
     }
   };
+  const saveToSlot = (id: SaveSlotId) => {
+    const record: SaveSlotRecord = { id, label: slotLabels[id].trim() || `บันทึก ${id.slice(-1)}`, updatedAt: new Date().toISOString(), game: safeGameForStorage(game) };
+    const next = [record, ...saveSlots.filter((slot) => slot.id !== id)].sort((a, b) => a.id.localeCompare(b.id));
+    writeSaveSlots(next); window.localStorage.setItem(activeSlotKey, id); setSaveSlots(next); setImportMessage(`บันทึกลง ${record.label} แล้ว`);
+  };
+  const loadSlot = (id: SaveSlotId) => {
+    const slot = saveSlots.find((item) => item.id === id); if (!slot) return;
+    const loaded = ensureGameState(slot.game); window.localStorage.setItem(saveKey, JSON.stringify(safeGameForStorage(loaded))); window.localStorage.setItem(activeSlotKey, id); replaceGame({ ...loaded, savedText: `โหลด ${slot.label} แล้ว` });
+  };
+  const deleteSlot = (id: SaveSlotId) => { const next = saveSlots.filter((slot) => slot.id !== id); writeSaveSlots(next); setSaveSlots(next); };
+  const restoreBackup = () => { const raw = window.localStorage.getItem(autosaveBackupKey); if (!raw) { setImportMessage("ยังไม่มีบันทึกสำรองก่อนหน้า"); return; } try { const loaded = ensureGameState(JSON.parse(raw) as GameState); window.localStorage.setItem(saveKey, JSON.stringify(safeGameForStorage(loaded))); replaceGame({ ...loaded, savedText: "กู้บันทึกอัตโนมัติก่อนหน้าแล้ว" }); } catch { setImportMessage("บันทึกสำรองเสียหาย ไม่สามารถกู้ได้"); } };
+  const downloadSave = () => { const blob = new Blob([exportText], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `evolution-of-us-${game.houseName}-Y${game.year}M${game.month}.json`; a.click(); URL.revokeObjectURL(url); };
   const mailBody = encodeURIComponent(`ความคิดเห็น Evolution of Us Alpha v${GAME_VERSION}\n\nวางรายงานตรวจระบบหรือความคิดเห็นตรงนี้:\n\n${compactDebug}`);
   return (
     <section className="panel pad">
@@ -5855,6 +6155,18 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme }: {
         <div className="panel kpi"><span className="muted">คลังเมือง</span><b>{fmt(game.resources.gold)} 🪙</b><small>ทรัพย์สินเมือง</small></div>
         <div className="panel kpi"><span className="muted">พื้นหลัง</span><b>{originInfo(game.origin).icon} {originInfo(game.origin).title}</b><small>ผลเสริมถูกนำไปคำนวณจริง</small></div>
       </div>
+
+      <section className="panel pad save-system-panel" style={{ boxShadow: "none", marginTop: 14 }}>
+        <div className="split"><div><h3 className="section-title">ระบบบันทึกสำหรับผู้เล่น</h3><p className="muted small">เกมบันทึกอัตโนมัติทุกครั้งที่สถานะเปลี่ยน และเก็บสำรองก่อนข้ามเดือน ผู้เล่นสามารถมีบันทึกด้วยตนเอง 3 ช่อง โหลดกลับ กู้บันทึกก่อนหน้า หรือดาวน์โหลดไฟล์ไปเก็บนอกเบราว์เซอร์ได้</p></div><span className="badge green">Autosave เปิดอยู่</span></div>
+        <div className="save-slot-grid">{(["slot-1","slot-2","slot-3"] as SaveSlotId[]).map((id) => { const slot = saveSlots.find((item) => item.id === id); return <article className="save-slot-card" key={id}><input className="input" value={slotLabels[id]} onChange={(e) => setSlotLabels((old) => ({ ...old, [id]: e.target.value }))} /><div className="save-slot-summary">{slot ? <><b>{slot.game.houseName} · {slot.game.stage}</b><small>ปี {slot.game.year} เดือน {slot.game.month} · ประชากร {alivePeople(slot.game).length}</small><small>บันทึกล่าสุด {new Date(slot.updatedAt).toLocaleString("th-TH")}</small></> : <span className="muted">ช่องว่าง</span>}</div><div className="flex"><button className="primary" onClick={() => saveToSlot(id)}>บันทึกทับ</button><button className="secondary" disabled={!slot} onClick={() => loadSlot(id)}>โหลด</button><button className="danger" disabled={!slot} onClick={() => deleteSlot(id)}>ลบ</button></div></article>; })}</div>
+        <div className="flex" style={{ marginTop: 12 }}><button className="secondary" onClick={restoreBackup}>กู้ Autosave ก่อนหน้า</button><button className="secondary" onClick={downloadSave}>ดาวน์โหลดไฟล์เซฟ JSON</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอกข้อมูลเซฟ</button><span className="muted small">{importMessage}</span></div>
+      </section>
+
+      <section className="panel pad leaderboard-panel" style={{ boxShadow: "none", marginTop: 14 }}>
+        <div className="split"><div><h3 className="section-title">Leader Board ตระกูล</h3><p className="muted small">จัดอันดับจากยุคที่ไปถึง ระยะเวลาที่อยู่รอด จำนวนประชากร และสภาพเมือง รายการนี้เก็บในอุปกรณ์เดียวกัน เหมาะสำหรับแข่งขันหลายรอบหรือหลายผู้เล่นบนเครื่องเดียวกัน</p></div><span className="badge gold-pill">{leaderboard.some((entry) => entry.id === `${game.houseName.trim().toLowerCase()}::${game.leaderName.trim().toLowerCase()}`) ? `อันดับปัจจุบัน #${leaderboard.findIndex((entry) => entry.id === `${game.houseName.trim().toLowerCase()}::${game.leaderName.trim().toLowerCase()}`) + 1}` : "ยังไม่จัดอันดับ"}</span></div>
+        <div className="leaderboard-table-wrap"><table className="report-table leaderboard-table"><thead><tr><th>อันดับ</th><th>ตระกูล</th><th>ขนาดเมือง</th><th>เวลาที่ทำได้</th><th>ประชากร</th></tr></thead><tbody>{leaderboard.slice(0, 12).map((entry, index) => <tr key={entry.id}><td>{index + 1}</td><td><b>{entry.houseName}</b><small>{entry.leaderName}</small></td><td>{entry.stage}</td><td>{timeReachedText(entry.year, entry.month)}</td><td>{fmt(entry.population)} คน</td></tr>)}{!leaderboard.length && <tr><td colSpan={5}>ยังไม่มีอันดับ ระบบจะเพิ่มตระกูลปัจจุบันเมื่อบันทึกอัตโนมัติครั้งถัดไป</td></tr>}</tbody></table></div>
+        <div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={() => { updateLocalLeaderboard(game); setLeaderboard(readLeaderboard()); }}>อัปเดตอันดับตอนนี้</button><button className="danger" onClick={() => { window.localStorage.removeItem(leaderboardKey); setLeaderboard([]); }}>ล้าง Leader Board บนอุปกรณ์นี้</button></div>
+      </section>
 
       <div className="two-col" style={{ marginTop: 14 }}>
         <div className="panel pad" style={{ boxShadow: "none" }}>
@@ -6014,7 +6326,7 @@ function EventPanel({ game, event, setFocus, selectChoice, setMigrantSelection, 
 
 function MerchantEconomyPanel({ game }: { game: GameState }) {
   const market = marketReadiness(game);
-  const canTrade = game.stage !== "ค่ายพักแรม" || game.labor.trade > 0 || game.rumors.some((r) => r.title.includes("คาราวาน"));
+  const canTrade = merchantEventActive(game) || canUseTradeSystem(game);
   const buy = [
     { icon: "🛠️", title: "เครื่องมือ", cost: 9, value: "ลดอุบัติเหตุและเร่งงานไม้/หิน" },
     { icon: "🌱", title: "เมล็ดพันธุ์", cost: 6, value: "ช่วยเปิดทางสู่การเพาะปลูกและอาหารเสถียร" },
@@ -6060,54 +6372,35 @@ function MarketPanel({ game, applyTrade }: { game: GameState; applyTrade: (offer
 function ThreatMatrixPanel({ game }: { game: GameState }) {
   return <section className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">แผนภาพภัยคุกคาม</h3><div className="threat-matrix">{threatBreakdown(game).map((t) => <article key={t.title} className="threat-box"><div className="split"><b>{t.icon} {t.title}</b><span className={t.value >= 65 ? "badge red" : t.value >= 45 ? "badge" : "badge green"}>{pct(t.value)}</span></div><div className="bar"><div className={t.value >= 65 ? "fill danger" : t.value >= 45 ? "fill warn" : "fill"} style={{ width: `${clamp(t.value)}%` }} /></div><small>{t.text}</small></article>)}</div></section>;
 }
-function NewsView({ game, applyTrade }: { game: GameState; applyTrade: (offerId: string) => void }) {
+function NewsView({ game }: { game: GameState }) {
   const intelUnlocked = game.stage === "เมืองเล็ก" || game.researchDone.signalNetwork;
   const specialHints = [
-    { icon: "🪙", title: "คาราวานและพ่อค้า", text: "เมื่อพ่อค้ามาถึง จะมีกรอบเหตุการณ์พิเศษให้ซื้อ ขาย หรือแลกเปลี่ยนของส่วนเกินเป็นทอง" },
     { icon: "⚠️", title: "ภัยจากโจรและคนเร่ร่อน", text: "ข่าวล่วงหน้าช่วยให้เตรียมเวรยาม ซ่อนเสบียง หรือเลือกเจรจาก่อนเกิดความเสียหาย" },
-    { icon: "🌲", title: "ร่องรอยในป่า", text: "การสำรวจและสายข่าวจะเปิดข่าวลือเกี่ยวกับลำธาร ถ้ำ ซากเก่า และทรัพยากรที่ยังไม่รู้จัก" },
+    { icon: "🌲", title: "ร่องรอยในป่า", text: "การสำรวจและสายข่าวจะเปิดข่าวลือเกี่ยวกับลำธาร ถ้ำ ซากเก่า เมืองข้างเคียง และทรัพยากรที่ยังไม่รู้จัก" },
+    { icon: "🤝", title: "ข่าวจากเมืองอื่น", text: "เมื่อพบเมืองข้างเคียง ข่าวสารจะช่วยอ่านท่าที ความไม่พอใจ และความตึงเครียดชายแดน" },
   ];
-  return (
-    <div>
-      <section className="panel pad" style={{ marginBottom: 14 }}>
-        <div className="split">
-          <div>
-            <h2 className="title">ข่าวสาร การค้า และภัยภายนอก</h2>
-            <p className="muted">ศูนย์รวมข่าวลือ เครือข่ายสายข่าว พ่อค้า และสัญญาณภัย เพื่อให้ผู้เล่นเห็นโอกาสและอันตรายก่อนมันกลายเป็นเหตุการณ์ใหญ่</p>
-          </div>
-          <span className={intelUnlocked ? "badge green" : "badge"}>{intelUnlocked ? "เปิดระบบสายข่าวแล้ว" : "สายข่าวยังไม่ปลดล็อก"}</span>
-        </div>
-        <div className="dashboard-grid" style={{ marginTop: 12 }}>
-          <div className="panel kpi"><span className="muted">ข่าวลือที่มี</span><b>{game.rumors.length}</b><small>เกิดจากการสำรวจ เหตุการณ์ และงานสายข่าว</small></div>
-          <div className="panel kpi"><span className="muted">ภัยภายนอก</span><b>{pct(game.threat)}</b><small>{threatTier(game).name}</small></div>
-          <div className="panel kpi"><span className="muted">คลังเมือง</span><b>🪙 {fmt(game.resources.gold)}</b><small>ใช้ซื้อเครื่องมือ อาหาร ยา และข้อมูล</small></div>
-          <div className="panel kpi"><span className="muted">มูลค่าขายโดยประมาณ</span><b>🪙 {fmt(marketReadiness(game).totalPotential)}</b><small>จากอาหารส่วนเกิน หนัง สมุนไพร และเครื่องมือ</small></div>
-        </div>
-      </section>
-
-      <section className="two-col" style={{ marginBottom: 14 }}>
-        <MarketPanel game={game} applyTrade={applyTrade} />
-        <ThreatMatrixPanel game={game} />
-      </section>
-
-      <section className="two-col" style={{ marginTop: 14 }}>
-        <div className="panel pad" style={{ boxShadow: "none" }}>
-          <h3 className="section-title">ข่าวลือที่บันทึกไว้</h3>
-          {game.rumors.length ? <div className="timeline">{game.rumors.map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><div className="deltas"><span className="badge blue">อันตราย: {r.danger}</span><span className="badge">{r.discovered ? "ตรวจสอบแล้ว" : "ยังไม่ยืนยัน"}</span></div></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ ลองให้ผู้นำออกสำรวจ หรือปลดล็อกงานสายข่าวเมื่อถิ่นฐานเติบโตขึ้น</div>}
-        </div>
-        <div className="panel pad" style={{ boxShadow: "none" }}>
-          <h3 className="section-title">เหตุการณ์พิเศษที่ควรจับตา</h3>
-          <div className="timeline">{specialHints.map((h) => <div key={h.title} className="rumor-card"><b>{h.icon} {h.title}</b><p className="muted small">{h.text}</p></div>)}</div>
-          <details className="details-box" open><summary>การเรียนรู้สายข่าว</summary><p>เมื่อเข้าสู่ระยะเมืองเล็ก หรือเรียนรู้ “เครือข่ายสายข่าว” จะสามารถจัดแรงงานไปฟังข่าวจากพ่อค้า คนเดินทาง และครอบครัวรอบถิ่นฐาน เพื่อเพิ่มโอกาสเห็นเหตุการณ์ก่อนเกิดขึ้น</p></details>
-        </div>
-      </section>
-
-      <section className="two-col" style={{ marginTop: 14 }}>
-        <MerchantEconomyPanel game={game} />
-        <ThreatSystemPanel game={game} />
-      </section>
-    </div>
-  );
+  return <div>
+    <section className="panel pad" style={{ marginBottom: 14 }}><div className="split"><div><h2 className="title">ข่าวสารและสัญญาณภัย</h2><p className="muted">ข่าวลือ เครือข่ายสายข่าว และภัยภายนอกถูกแยกออกจากหน้าพ่อค้าและการค้า เพื่อให้เห็นข้อมูลที่ต้องตัดสินใจก่อนจบเดือนชัดขึ้น</p></div><span className={intelUnlocked ? "badge green" : "badge"}>{intelUnlocked ? "เปิดระบบสายข่าวแล้ว" : "สายข่าวยังไม่ปลดล็อก"}</span></div><div className="dashboard-grid" style={{ marginTop: 12 }}><div className="panel kpi"><span className="muted">ข่าวลือที่มี</span><b>{game.rumors.length}</b><small>สำรวจ เหตุการณ์ และงานสายข่าว</small></div><div className="panel kpi"><span className="muted">ภัยภายนอก</span><b>{pct(game.threat)}</b><small>{threatTier(game).name}</small></div><div className="panel kpi"><span className="muted">เมืองที่พบ</span><b>{game.neighbors.length}</b><small>จะเปิดแท็บเมืองข้างเคียงเมื่อพบเมืองแรก</small></div><div className="panel kpi"><span className="muted">ข่าวสำคัญยังไม่อ่าน</span><b>{game.notifications.filter((n) => !n.read).length}</b><small>ดูได้จากกระดิ่งด้านบน</small></div></div></section>
+    <section className="two-col"><ThreatMatrixPanel game={game} /><ThreatSystemPanel game={game} /></section>
+    <section className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ข่าวลือที่บันทึกไว้</h3>{game.rumors.length ? <div className="timeline">{game.rumors.map((r) => <div key={r.id} className="rumor-card"><b>{r.title}</b><p className="muted small">{r.detail}</p><div className="deltas"><span className="badge blue">อันตราย: {r.danger}</span><span className="badge">{r.discovered ? "ตรวจสอบแล้ว" : "ยังไม่ยืนยัน"}</span></div></div>)}</div> : <div className="empty">ยังไม่มีข่าวลือใหม่ ลองส่งคนสำรวจหรือจัดคนไปงานสายข่าว</div>}</div><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">สิ่งที่ควรจับตา</h3><div className="timeline">{specialHints.map((h) => <div key={h.title} className="rumor-card"><b>{h.icon} {h.title}</b><p className="muted small">{h.text}</p></div>)}</div><details className="details-box" open><summary>วิธีพัฒนาสายข่าว</summary><p>เข้าสู่ระยะเมืองเล็ก หรือวิจัย “เครือข่ายสายข่าว” แล้วจัดคนไปงานสายข่าว เพื่อเพิ่มโอกาสเห็นพ่อค้า เมืองข้างเคียง และภัยก่อนเกิดขึ้น</p></details></div></section>
+  </div>;
+}
+function MerchantView({ game, applyTrade }: { game: GameState; applyTrade: (offerId: string) => void }) {
+  if (!wanderingMerchantVisible(game)) return <section className="panel pad"><h2 className="title">พ่อค้าเร่เดินทางออกไปแล้ว</h2><p className="muted">แท็บนี้จะแสดงเฉพาะเดือนที่เหตุการณ์พ่อค้าเร่หรือคาราวานมาถึงเท่านั้น เมื่อวิจัยระบบเงินและตลาดสำเร็จ หน้านี้จะถูกแทนที่ด้วยแท็บ “การค้า” แบบถาวร</p></section>;
+  return <div><section className="panel pad" style={{ marginBottom: 14 }}><div className="split"><div><h2 className="title">พ่อค้าเร่มาถึงเมือง</h2><p className="muted">การซื้อขายชุดนี้ใช้ได้ในเดือนปัจจุบันเท่านั้น ตรวจเสบียงก่อนขาย เพราะพ่อค้าอาจไม่กลับมาในเดือนถัดไป</p></div><span className="badge green">มาเยือนเดือนนี้</span></div></section><MarketPanel game={game} applyTrade={applyTrade} /><div style={{ marginTop: 14 }}><MerchantEconomyPanel game={game} /></div></div>;
+}
+function TradeView({ game, applyTrade }: { game: GameState; applyTrade: (offerId: string) => void }) {
+  if (!canUseTradeSystem(game)) return <section className="panel pad"><h2 className="title">ระบบการค้ายังไม่เปิด</h2><p className="muted">วิจัยการผลิตเหรียญและบัญชีตลาด หรือสร้างลานตลาดถาวรก่อน หน้าการค้าจะเปิดแทนพ่อค้าเร่และใช้งานได้ทุกเดือน</p></section>;
+  return <div><section className="panel pad" style={{ marginBottom: 14 }}><div className="split"><div><h2 className="title">การค้าและตลาดถาวร</h2><p className="muted">ระบบตลาดทำงานต่อเนื่องทุกเดือน ไม่ต้องรอพ่อค้าเร่ การมีสถานีคาราวาน สนธิสัญญาเมืองข้างเคียง และสมาคมพ่อค้าจะเพิ่มช่องทางทรัพยากร</p></div><span className="badge green">ตลาดเปิดถาวร</span></div><div className="dashboard-grid" style={{ marginTop: 12 }}><div className="panel kpi"><span className="muted">ทอง</span><b>🪙 {fmt(game.resources.gold)}</b></div><div className="panel kpi"><span className="muted">สนธิสัญญาการค้า</span><b>{game.neighbors.filter((c) => c.tradeTreaty).length}</b></div><div className="panel kpi"><span className="muted">สถานีคาราวาน</span><b>{game.buildings.caravanPost}</b></div><div className="panel kpi"><span className="muted">สมาคมพ่อค้า</span><b>{game.buildings.merchantsGuildHall}</b></div></div></section><section className="two-col"><MarketPanel game={game} applyTrade={applyTrade} /><MerchantEconomyPanel game={game} /></section></div>;
+}
+function NeighborCitiesView({ game, interact }: { game: GameState; interact: (cityId: string, action: NeighborAction) => void }) {
+  if (!game.neighbors.length) return <section className="panel pad"><h2 className="title">ยังไม่พบเมืองข้างเคียง</h2><p className="muted">สำรวจถนนเก่า จัดคนไปงานสายข่าว และพัฒนาถิ่นฐานถึงยุคหมู่บ้านถาวร เพื่อเพิ่มโอกาสพบควันไฟและผู้คนจากเมืองอื่น</p></section>;
+  return <section className="panel pad"><div className="split"><div><h2 className="title">เมืองข้างเคียงและความสัมพันธ์</h2><p className="muted">ความสัมพันธ์ ความไว้ใจ ความกลัว สนธิสัญญา และความตึงเครียดมีผลจริงทุกเดือน การค้าให้ทรัพยากรต่อเนื่อง ส่วนสงครามกินเสบียงและทำให้คนบาดเจ็บได้</p></div><span className="badge green">พบแล้ว {game.neighbors.length} เมือง</span></div><div className="neighbor-grid">{game.neighbors.map((city) => { const attitude = neighborAttitude(city); const canTreaty = canUseTradeSystem(game) && city.relation >= 15 && !city.atWar; const canAlliance = game.researchDone.diplomacyProtocol && city.relation >= 65 && !city.atWar; const militaryReady = canUseMilitary(game) && normalizeMilitary(game.military).soldiers >= 5; return <article className={`neighbor-card ${city.atWar ? "at-war" : ""}`} key={city.id}><div className="split"><div><h3>{city.name}</h3><small className="muted">{city.ruler} · {city.stage} · เด่นด้าน{city.specialty}</small></div><span className={city.atWar ? "badge red" : city.relation >= 25 ? "badge green" : "badge"}>{attitude}</span></div><div className="neighbor-kpis"><span>ประชากร <b>{fmt(city.population)}</b></span><span>เขตแดน <b>{city.territory}</b></span><span>สัมพันธ์ <b>{city.relation}</b></span><span>ตึงเครียด <b>{pct(city.borderTension)}</b></span></div><div className="bar"><div className={city.relation < 0 ? "fill danger" : "fill"} style={{ width: `${clamp((city.relation + 100) / 2)}%` }} /></div><p className="muted small">ล่าสุด: {city.lastInteraction}</p><div className="neighbor-actions"><button className="secondary" onClick={() => interact(city.id, "envoy")}>ส่งทูต</button><button className="secondary" onClick={() => interact(city.id, "gift")}>มอบของขวัญ</button><button className="secondary" disabled={!canTreaty || city.tradeTreaty} onClick={() => interact(city.id, "tradeTreaty")}>{city.tradeTreaty ? "มีสนธิสัญญาแล้ว" : "ทำสนธิสัญญาการค้า"}</button><button className="secondary" disabled={!city.tradeTreaty || city.atWar} onClick={() => interact(city.id, "exchange")}>แลกเปลี่ยนสินค้า</button>{!city.atWar && <button className="secondary" disabled={!militaryReady} onClick={() => interact(city.id, "claim")}>อ้างสิทธิ์ชายแดน</button>}{!city.atWar && <button className="danger" disabled={!militaryReady} onClick={() => interact(city.id, "attack")}>เปิดศึก</button>}{city.atWar && <button className="secondary" onClick={() => interact(city.id, "peace")}>ขอเจรจาสันติภาพ</button>}<button className="primary" disabled={!canAlliance || city.alliance} onClick={() => interact(city.id, "alliance")}>{city.alliance ? "เป็นพันธมิตรแล้ว" : "ขอเป็นพันธมิตร"}</button></div></article>; })}</div></section>;
+}
+function MilitaryView({ game, act }: { game: GameState; act: (action: "recruit" | "train" | "equip" | "demobilize" | "stance", stance?: MilitaryStance) => void }) {
+  if (!canUseMilitary(game)) return <section className="panel pad"><h2 className="title">การทหารยังไม่เปิดในยุคนี้</h2><p className="muted">ระบบนี้จะไม่แสดงในยุคแรก ต้องเข้าสู่ “หมู่บ้านถาวร” และวิจัย “ระบบกองอาสาป้องกันเมือง” ก่อน</p></section>;
+  const m = normalizeMilitary(game.military); const power = militaryPower(game);
+  return <section className="panel pad"><div className="split"><div><h2 className="title">การทหารและการป้องกันชายแดน</h2><p className="muted">กำลังพลมีค่าเลี้ยงดูจริง ความพร้อม อุปกรณ์ ขวัญ และประสบการณ์ส่งผลต่อการปะทะกับเมืองข้างเคียง การมีกองทัพมากเกินไปอาจแย่งอาหารจากประชาชน</p></div><span className="badge green">พลังรบ {power}</span></div><div className="dashboard-grid" style={{ marginTop: 12 }}><div className="panel kpi"><span className="muted">กำลังพล</span><b>{m.soldiers}</b><small>อาหารเลี้ยงดูประมาณ {Math.ceil(m.soldiers * (game.researchDone.militaryLogistics ? .16 : .25))}/เดือน</small></div><div className="panel kpi"><span className="muted">ความพร้อม</span><b>{pct(m.readiness)}</b></div><div className="panel kpi"><span className="muted">อุปกรณ์</span><b>{pct(m.equipment)}</b></div><div className="panel kpi"><span className="muted">ขวัญทหาร</span><b>{pct(m.morale)}</b></div></div><div className="two-col" style={{ marginTop: 14 }}><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">จัดการกองกำลัง</h3><div className="military-actions"><button className="primary" onClick={() => act("recruit")}>เกณฑ์กองอาสา 5 นาย</button><button className="secondary" disabled={m.soldiers <= 0} onClick={() => act("train")}>ฝึกกำลัง</button><button className="secondary" disabled={m.soldiers <= 0} onClick={() => act("equip")}>จัดหาอุปกรณ์</button><button className="secondary" disabled={m.soldiers < 5} onClick={() => act("demobilize")}>ปลดประจำการ 5 นาย</button></div><p className="muted small">เกณฑ์ 5 นายใช้ อาหาร 10 · เครื่องมือ 1 · ทอง 3 และต้องมีประชากรอย่างน้อย 20 คน</p><p className="muted small">รายงานล่าสุด: {m.lastReport}</p></div><div className="panel pad" style={{ boxShadow: "none" }}><h3 className="section-title">ท่าทีของกองกำลัง</h3><div className="compact-filter">{(["ป้องกันเมือง","เฝ้าชายแดน","ฝึกกำลัง","เตรียมรบ"] as MilitaryStance[]).map((stance) => <button className={m.stance === stance ? "active" : ""} key={stance} onClick={() => act("stance", stance)}>{stance}</button>)}</div><table className="report-table" style={{ marginTop: 12 }}><tbody><tr><td>ลานฝึก</td><td>{game.buildings.trainingGround}</td></tr><tr><td>ค่ายทหาร</td><td>{game.buildings.barracks}</td></tr><tr><td>ประสบการณ์</td><td>{m.experience}</td></tr><tr><td>เมืองที่ทำสงคราม</td><td>{game.neighbors.filter((c) => c.atWar).length}</td></tr></tbody></table></div></div></section>;
 }
 
 function RumorPanel({ game }: { game: GameState }) {

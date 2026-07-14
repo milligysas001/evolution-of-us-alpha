@@ -1,0 +1,36 @@
+{
+  "version": "0.9.36",
+  "title": "Save, Leader Board, Neighbor Cities, Trade Split and Military",
+  "saveSystem": {
+    "autosave": true,
+    "manualSlots": 3,
+    "previousAutosaveRecovery": true,
+    "exportImportJson": true,
+    "homeScreenSlotLoading": true
+  },
+  "leaderboard": {
+    "scope": "local-device",
+    "fields": ["houseName", "leaderName", "stage", "year", "month", "population"],
+    "rankingPriority": ["stage", "survivalTime", "population", "cityMetrics"]
+  },
+  "tradeFlow": {
+    "newsSeparated": true,
+    "wanderingMerchantVisibleOnlyDuringVisit": true,
+    "permanentTradeReplacesWanderingMerchant": true,
+    "permanentTradeUnlocks": ["currencyMinting", "caravanContracts", "marketSquare", "caravanPost", "เมืองการค้า"]
+  },
+  "neighborCities": {
+    "discoveryEvent": "neighbor_smoke_beyond_ridge",
+    "borderEvent": "neighbor_border_dispute",
+    "actions": ["envoy", "gift", "tradeTreaty", "exchange", "claim", "attack", "peace", "alliance"],
+    "liveStats": ["relation", "trust", "fear", "borderTension", "tradeTreaty", "alliance", "atWar"]
+  },
+  "military": {
+    "hiddenInFirstEras": true,
+    "firstVisibleStage": "หมู่บ้านถาวร",
+    "unlockResearch": "militiaTraining",
+    "research": ["militiaTraining", "standingArmy", "militaryLogistics"],
+    "buildings": ["trainingGround", "barracks"],
+    "liveStats": ["soldiers", "readiness", "morale", "equipment", "experience", "stance"]
+  }
+}

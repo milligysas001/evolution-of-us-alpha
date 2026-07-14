@@ -1,0 +1,18 @@
+Evolution of Us v0.9.36
+STATUS: PASS
+
+TypeScript: PASS
+JSON: PASS
+Production Build: PASS
+HTTP /: 200
+HTTP /game: 200
+Initial population: 15 x 250 simulations
+Minimum starting food coverage: ~8.7 months
+Buildings checked: 31
+Research checked: 41
+Events checked: 338
+Choices executed: 1,017
+Trade tab flow: PASS
+Neighbor city discovery/monthly treaty: PASS
+Military unlock/upkeep/power: PASS
+Animal no-pair breeding simulations: 120 PASS
