@@ -1,0 +1,16 @@
+{
+  "version": "0.9.38",
+  "schemaVersion": 4,
+  "title": "Balance & UX",
+  "difficulty": {
+    "story": { "foodReserveMonths": 9, "riskMultiplier": 0.78, "eventDangerMultiplier": 0.8, "scoreMultiplier": 0.8 },
+    "normal": { "foodReserveMonths": 6, "riskMultiplier": 1, "eventDangerMultiplier": 1, "scoreMultiplier": 1 },
+    "survival": { "foodReserveMonths": 4, "riskMultiplier": 1.22, "eventDangerMultiplier": 1.15, "scoreMultiplier": 1.25 },
+    "ironman": { "foodReserveMonths": 3, "riskMultiplier": 1.35, "eventDangerMultiplier": 1.28, "scoreMultiplier": 1.5 }
+  },
+  "childLabor": { "minimumAge": 8, "maximumAge": 15, "workFactor": 0.5, "requiresAdultInSameJob": true },
+  "constructionDisplay": { "showRequiredQuantity": true, "showCurrentInventory": false, "highlightShortage": true },
+  "news": { "containsRiskPreview": true, "containsNextMonthForecast": true, "containsEndMonthWarnings": true },
+  "exploration": { "showOnlyDiscoveredLocations": true, "discoverySources": ["starting terrain", "exploration work", "event and rumor", "adjacent area discovery"] },
+  "eventPacing": { "recentCategoryPenalty": true, "rareEventCooldown": true, "difficultyDangerWeight": true }
+}

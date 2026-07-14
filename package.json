@@ -5,12 +5,13 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "check:data": "node logic/validate-data-v0937.mjs",
+    "check:data": "node logic/validate-data-v0938.mjs",
     "audit:legacy": "node logic/audit-v0936.cjs",
     "audit:stabilization": "node logic/audit-v0937.mjs",
-    "audit:systems": "npm run audit:legacy && npm run audit:stabilization",
-    "check": "node logic/run-checks-v0937.mjs",
-    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.37 stabilization\" && git push"
+    "audit:systems": "npm run audit:legacy && npm run audit:stabilization && npm run audit:balance",
+    "check": "node logic/run-checks-v0938.mjs",
+    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.38 balance and UX\" && git push",
+    "audit:balance": "node logic/audit-v0938.mjs"
   },
   "dependencies": {
     "@types/node": "26.1.1",
@@ -29,7 +30,7 @@
       "postcss": "8.5.19"
     }
   },
-  "name": "evolution-of-us-v0937",
-  "version": "0.9.37",
+  "name": "evolution-of-us-v0938",
+  "version": "0.9.38",
   "private": true
 }

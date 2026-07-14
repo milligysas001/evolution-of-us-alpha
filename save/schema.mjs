@@ -1,4 +1,5 @@
 const VALID_ORIGINS = new Set(["builder", "hunter", "healer", "keeper", "mediator"]);
+const VALID_DIFFICULTIES = new Set(["story", "normal", "survival", "ironman"]);
 const VALID_STAGES = new Set(["ค่ายพักแรม", "ชุมชนแรกเริ่ม", "หมู่บ้านถาวร", "เมืองเล็ก", "เมืองการค้า", "นครรัฐ", "อาณาจักร"]);
 const RESOURCE_KEYS = ["food","wood","stone","tools","herbs","hides","water","waterReserve","knowledge","fuel","ore","gold","feed","ironOre","coal","timber","bricks","textiles","salt","spices","influence","steel","luxuries","warhorses","manpower","siegeMaterials"];
 const METRIC_KEYS = ["morale","security","trust","health","cohesion","fairness"];
@@ -11,6 +12,7 @@ export function validateGameSave(value, options = {}) {
   requiredString(value, "leaderName", issues);
   requiredString(value, "houseName", issues);
   if (!VALID_ORIGINS.has(value.origin)) issues.push(issue("origin", "ชนิดผู้นำไม่ถูกต้อง", "error"));
+  if (!VALID_DIFFICULTIES.has(value.difficulty)) issues.push(issue("difficulty", "ระดับความยากไม่ถูกต้อง", strict ? "error" : "warning"));
   if (!VALID_STAGES.has(value.stage)) issues.push(issue("stage", "ยุคของเมืองไม่ถูกต้อง", "error"));
   integerRange(value.year, 1, 100000, "year", issues);
   integerRange(value.month, 1, 12, "month", issues);
@@ -41,7 +43,7 @@ export function validateGameSave(value, options = {}) {
   }
 
   if (!value.rng || typeof value.rng !== "object") {
-    issues.push(issue("rng", "ไม่มีสถานะระบบสุ่มแบบ Seed", strict ? "error" : "warning"));
+    issues.push(issue("rng", "ไม่มีสถานะระบบสุ่มตามรหัสประจำเกม", strict ? "error" : "warning"));
   } else {
     requiredString(value.rng, "seed", issues, "rng");
     integerRange(value.rng.state, 0, 0xffffffff, "rng.state", issues);
@@ -51,7 +53,7 @@ export function validateGameSave(value, options = {}) {
   for (const key of ["buildings","researchDone","labor","flags","locations","buildingCondition"]) {
     if (!value[key] || typeof value[key] !== "object" || Array.isArray(value[key])) issues.push(issue(key, `${key} ต้องเป็น object`, strict ? "error" : "warning"));
   }
-  for (const key of ["logs","casualties","memories","rumors","notifications","pendingEvents","delayedEvents","recentEventIds","neighbors","outposts"]) {
+  for (const key of ["logs","casualties","memories","rumors","notifications","pendingEvents","delayedEvents","recentEventIds","eventHistory","neighbors","outposts"]) {
     if (!Array.isArray(value[key])) issues.push(issue(key, `${key} ต้องเป็น array`, strict ? "error" : "warning"));
   }
 

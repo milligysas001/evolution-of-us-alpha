@@ -38,7 +38,7 @@ const runSeededTransition = (game, transition) => transition(game);
 `)
     .replace('import { runMonthlyPipeline } from "../../engine/monthly-pipeline.mjs";\n', `const runMonthlyPipeline = (initial, phases, context = {}) => { let state = initial; const changes = []; const trace = []; for (const phase of phases) { const result = phase.run(state, changes, context); if (result && typeof result === "object" && "state" in result) { state = result.state; if (Array.isArray(result.changes)) changes.push(...result.changes); } else if (result !== undefined) state = result; trace.push({ id: phase.id }); } return { state, changes, trace }; };
 `)
-    .replace('import { CURRENT_GAME_VERSION, CURRENT_SCHEMA_VERSION, createSaveEnvelope, migrateSavePayload } from "../../save/migrations.mjs";\n', `const CURRENT_GAME_VERSION = "0.9.37"; const CURRENT_SCHEMA_VERSION = 3; const createSaveEnvelope = (game) => ({ game }); const migrateSavePayload = (input) => ({ game: input && input.game ? input.game : input, warnings: [] });
+    .replace('import { CURRENT_GAME_VERSION, CURRENT_SCHEMA_VERSION, createSaveEnvelope, migrateSavePayload } from "../../save/migrations.mjs";\n', `const CURRENT_GAME_VERSION = "0.9.38"; const CURRENT_SCHEMA_VERSION = 4; const createSaveEnvelope = (game) => ({ game }); const migrateSavePayload = (input) => ({ game: input && input.game ? input.game : input, warnings: [] });
 `)
     .replace('import { formatValidationIssues, validateGameSave } from "../../save/schema.mjs";\n', `const formatValidationIssues = () => ""; const validateGameSave = () => ({ ok: true, issues: [] });
 `);
@@ -80,15 +80,13 @@ try {
     const need = foodNeedFor(game);
     const months = game.resources.food / Math.max(1, need);
     minFoodMonths = Math.min(minFoodMonths, months);
-    assert(months >= 8.5, `starting food only covers ${months.toFixed(2)} months before spoilage buffer`);
+    assert(months >= 6, `starting food only covers ${months.toFixed(2)} months, expected at least 6 in normal mode`);
     let reserve = game.resources.food;
     for (let month = 1; month <= 6; month++) {
       assert(reserve >= need, `starting food ran out before month ${month}`);
       reserve -= need;
-      const worstCaseSpoil = Math.floor(Math.max(0, reserve - 35) * 0.18);
-      reserve -= worstCaseSpoil;
     }
-    assert(reserve >= 0, "starting food did not survive six-month worst-case spoilage simulation");
+    assert(reserve >= -0.001, "starting food did not cover six months without new food production");
 
     const bundle = ["shelter", "shelter", "shelter", "campfire", "storage"];
     for (const id of bundle) {

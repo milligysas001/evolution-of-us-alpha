@@ -783,3 +783,34 @@ html[data-theme="dark"] .neighbor-kpis span { border-color:var(--line); }
 .home-save-card small { color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .home-save-card:hover { border-color:var(--green-2); transform:translateY(-1px); }
 html[data-theme="dark"] .home-save-card { background:#162019; border-color:var(--line); }
+
+/* v0.9.38 balance and UX */
+.difficulty-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.bulk-labor-toolbar { display:grid; grid-template-columns:auto auto minmax(210px,1fr) auto; gap:8px; align-items:center; margin-top:10px; padding:8px 10px; border:1px solid rgba(29,107,85,.18); border-radius:12px; background:rgba(238,248,241,.72); }
+.bulk-labor-toolbar label { display:flex; align-items:center; gap:7px; white-space:nowrap; font-size:12px; font-weight:800; }
+.bulk-labor-toolbar .compact-select { margin:0; min-height:36px; height:36px; }
+.assignment-check { display:flex; align-items:center; justify-content:center; align-self:stretch; }
+.assignment-check input { width:17px; height:17px; accent-color:var(--green-2); }
+.assignment-row { grid-template-columns:24px minmax(175px,.7fr) minmax(180px,.74fr) minmax(350px,1.3fr); }
+.monthly-report { margin:14px 0; }
+.monthly-report-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+.monthly-report-kpis > div { border:1px solid rgba(29,107,85,.18); border-radius:14px; padding:10px 12px; background:rgba(239,248,241,.62); display:grid; gap:3px; }
+.monthly-report-kpis small,.monthly-report-kpis span { color:var(--muted); }
+.monthly-warning-list { display:grid; gap:5px; margin-top:10px; padding:9px; border:1px solid rgba(168,77,48,.24); border-radius:12px; background:rgba(255,244,235,.72); }
+.monthly-warning-list small { display:block; line-height:1.45; }
+html[data-theme="dark"] .bulk-labor-toolbar,
+html[data-theme="dark"] .monthly-report-kpis > div { background:#162019 !important; border-color:var(--line); }
+html[data-theme="dark"] .monthly-warning-list { background:#2b2118 !important; border-color:#6f5137; }
+@media (min-width:761px) and (max-width:1100px) {
+  .assignment-row { grid-template-columns:24px minmax(180px,.8fr) minmax(0,1.2fr); }
+  .assignment-row .trait-line { grid-column:2; grid-row:2; }
+  .assignment-control { grid-column:3; grid-row:1 / span 2; }
+  .assignment-check { grid-column:1; grid-row:1 / span 2; }
+}
+@media (max-width:760px) {
+  .difficulty-grid,.monthly-report-kpis { grid-template-columns:1fr; }
+  .bulk-labor-toolbar { grid-template-columns:1fr; }
+  .assignment-row { grid-template-columns:24px 1fr; }
+  .assignment-check { grid-column:1; grid-row:1 / span 3; }
+  .assignment-row .person-line,.assignment-row .trait-line,.assignment-control { grid-column:2; }
+}

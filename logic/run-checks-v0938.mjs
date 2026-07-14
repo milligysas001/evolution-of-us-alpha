@@ -15,10 +15,11 @@ function run(label, args) {
 const tests = fs.readdirSync(path.join(root, "tests")).filter((name) => name.endsWith(".test.mjs")).sort().map((name) => path.join("tests", name));
 
 run("TypeScript", [path.join("node_modules", "typescript", "bin", "tsc"), "--noEmit"]);
-run("Data Schema", [path.join("logic", "validate-data-v0937.mjs")]);
+run("Data Schema", [path.join("logic", "validate-data-v0938.mjs")]);
 run("Unit Tests", ["--test", ...tests]);
 run("Legacy Regression Audit", [path.join("logic", "audit-v0936.cjs")]);
 run("Stabilization Audit", [path.join("logic", "audit-v0937.mjs")]);
+run("Balance and UX Audit", [path.join("logic", "audit-v0938.mjs")]);
 run("Production Build", [path.join("node_modules", "next", "dist", "bin", "next"), "build"]);
 
-console.log("\nALL CHECKS PASSED — Evolution of Us v0.9.37");
+console.log("\nALL CHECKS PASSED — Evolution of Us v0.9.38");

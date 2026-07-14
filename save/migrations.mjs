@@ -1,7 +1,7 @@
 import { createRngState, normalizeRngState } from "../engine/random.mjs";
 
-export const CURRENT_GAME_VERSION = "0.9.37";
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_GAME_VERSION = "0.9.38";
+export const CURRENT_SCHEMA_VERSION = 4;
 export const SAVE_FORMAT = "evolution-of-us-save";
 
 export function stableStringify(value) {
@@ -61,7 +61,7 @@ export function verifySaveEnvelope(value) {
 export function migrateSavePayload(input) {
   const warnings = [];
   const envelopeCheck = isSaveEnvelope(input) ? verifySaveEnvelope(input) : { ok: true, reason: "legacy-direct-save" };
-  if (isSaveEnvelope(input) && !envelopeCheck.ok) warnings.push("Checksum ของไฟล์เซฟไม่ตรงกัน อาจถูกแก้ไขหรือเสียหาย");
+  if (isSaveEnvelope(input) && !envelopeCheck.ok) warnings.push("รหัสตรวจความสมบูรณ์ของไฟล์บันทึกไม่ตรงกัน อาจถูกแก้ไขหรือเสียหาย");
   const source = isSaveEnvelope(input) ? input.game : input;
   if (!source || typeof source !== "object" || Array.isArray(source)) throw new Error("Save payload must be an object");
 
@@ -84,6 +84,12 @@ export function migrateSavePayload(input) {
     game.delayedEvents = Array.isArray(game.delayedEvents) ? game.delayedEvents : [];
     game.recentEventIds = Array.isArray(game.recentEventIds) ? game.recentEventIds : [];
     game.schemaVersion = 3;
+  }
+
+  if (fromSchema < 4) {
+    game.difficulty = ["story", "normal", "survival", "ironman"].includes(game.difficulty) ? game.difficulty : "normal";
+    game.eventHistory = Array.isArray(game.eventHistory) ? game.eventHistory : [];
+    game.schemaVersion = 4;
   }
 
   const fallbackSeed = `${game.houseName || "House"}-${game.leaderName || "Leader"}-${game.year || 1}-${game.month || 1}`;

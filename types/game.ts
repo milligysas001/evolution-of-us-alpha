@@ -46,3 +46,23 @@ export type RuntimeValidationIssue = {
   message: string;
   severity: "error" | "warning";
 };
+
+
+// v0.9.38 balance and UX contracts
+export type Difficulty = "story" | "normal" | "survival" | "ironman";
+
+export type EventHistoryEntry = {
+  id: string;
+  category: string;
+  year: number;
+  month: number;
+  rare: boolean;
+};
+
+export type MonthlyReportRow<TKey extends string = string> = {
+  key: TKey;
+  label: string;
+  before: number;
+  after: number;
+  delta: number;
+};

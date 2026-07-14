@@ -10,8 +10,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const page = fs.readFileSync(path.join(root, "app", "game", "page.tsx"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.37");
-assert.equal(CURRENT_SCHEMA_VERSION, 3);
+assert.equal(CURRENT_GAME_VERSION, "0.9.38");
+assert.equal(CURRENT_SCHEMA_VERSION, 4);
 assert.equal((page.match(/Math\.random/g) ?? []).length, 0, "app/game/page.tsx ยังมี Math.random");
 for (const token of [
   'from "../../engine/random.mjs"',
@@ -39,15 +39,15 @@ assert.ok(seqA.every((value) => value >= 0 && value < 1), "RNG ให้ค่�
 
 const resources = Object.fromEntries(["food","wood","stone","tools","herbs","hides","water","waterReserve","knowledge","fuel","ore","gold","feed","ironOre","coal","timber","bricks","textiles","salt","spices","influence","steel","luxuries","warhorses","manpower","siegeMaterials"].map((key) => [key, 0]));
 const fixture = {
-  version: "0.9.36", leaderName: "Audit", houseName: "Stability", origin: "builder", year: 1, month: 1, stage: "ค่ายพักแรม",
+  version: "0.9.36", difficulty: "normal", leaderName: "Audit", houseName: "Stability", origin: "builder", year: 1, month: 1, stage: "ค่ายพักแรม",
   resources, metrics: { morale: 50, security: 50, trust: 50, health: 50, cohesion: 50, fairness: 50 },
   people: [{ id: "leader", name: "Audit", age: 30, health: 80, morale: 70, fatigue: 0, alive: true }],
   buildings: {}, researchDone: {}, labor: {}, flags: {}, locations: {}, buildingCondition: {},
-  logs: [], casualties: [], memories: [], rumors: [], notifications: [], pendingEvents: [], delayedEvents: [], recentEventIds: [], neighbors: [], outposts: [],
+  logs: [], casualties: [], memories: [], rumors: [], notifications: [], pendingEvents: [], delayedEvents: [], recentEventIds: [], eventHistory: [], neighbors: [], outposts: [],
 };
 const migrated = migrateSavePayload(fixture).game;
-assert.equal(migrated.version, "0.9.37");
-assert.equal(migrated.schemaVersion, 3);
+assert.equal(migrated.version, "0.9.38");
+assert.equal(migrated.schemaVersion, 4);
 assert.equal(validateGameSave(migrated, { strict: true }).ok, true);
 const envelope = createSaveEnvelope(migrated, { source: "audit" });
 assert.equal(verifySaveEnvelope(envelope).ok, true);

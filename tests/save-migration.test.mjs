@@ -21,6 +21,8 @@ test("legacy direct save migrates to current schema", () => {
   assert.equal(result.game.schemaVersion, CURRENT_SCHEMA_VERSION);
   assert.equal(typeof result.game.rng.seed, "string");
   assert.ok(Array.isArray(result.game.pendingEvents));
+  assert.equal(result.game.difficulty, "normal");
+  assert.ok(Array.isArray(result.game.eventHistory));
 });
 
 test("save envelope checksum verifies", () => {

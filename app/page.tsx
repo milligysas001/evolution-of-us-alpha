@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
+type Difficulty = "story" | "normal" | "survival" | "ironman";
 
 type OriginCard = {
   id: Origin;
@@ -12,7 +13,7 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "Alpha v0.9.37";
+const VERSION = "รุ่นทดสอบ v0.9.38";
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
 const saveSlotsKey = "eou-save-slots-v1";
@@ -28,11 +29,18 @@ const origins: OriginCard[] = [
   { id: "mediator", icon: "⚖️", title: "ผู้นำผู้ไกล่เกลี่ย", text: "ลดรอยร้าวเรื่องเสบียง ความยุติธรรม และความเชื่อใจ", detail: "เหมาะกับถิ่นฐานที่โตขึ้นและเริ่มมีความเห็นต่าง" },
 ];
 
+const difficulties: Array<{ id: Difficulty; icon: string; title: string; text: string; reserve: string }> = [
+  { id: "story", icon: "📖", title: "เน้นเรื่องราว", text: "เสบียงมากขึ้นและความเสี่ยงเบาลง เหมาะกับการเรียนรู้ระบบ", reserve: "อาหารประมาณ 9 เดือน" },
+  { id: "normal", icon: "⚖️", title: "สมดุล", text: "ทรัพยากรและภัยตามมาตรฐาน เหมาะกับการเล่นรอบแรก", reserve: "อาหารประมาณ 6 เดือน" },
+  { id: "survival", icon: "🔥", title: "เอาชีวิตรอด", text: "เสบียงน้อยลงและเหตุการณ์อันตรายรุนแรงขึ้น", reserve: "อาหารประมาณ 4 เดือน" },
+  { id: "ironman", icon: "🛡️", title: "ไอรอนแมน", text: "ความเสี่ยงสูงสุด เหมาะกับผู้เล่นที่ต้องการความท้าทาย", reserve: "อาหารประมาณ 3 เดือน" },
+];
+
 function clearKeys(keys: string[]) {
   keys.forEach((key) => window.localStorage.removeItem(key));
 }
 
-function writeSetup(setup: { leaderName: string; houseName: string; origin: Origin }) {
+function writeSetup(setup: { leaderName: string; houseName: string; origin: Origin; difficulty: Difficulty }) {
   window.localStorage.setItem(setupKey, JSON.stringify(setup));
   legacySetupKeys.forEach((key) => window.localStorage.setItem(key, JSON.stringify(setup)));
 }
@@ -45,6 +53,7 @@ export default function HomePage() {
   const [leaderName, setLeaderName] = useState("Elowen");
   const [houseName, setHouseName] = useState("Vaelen");
   const [origin, setOrigin] = useState<Origin>("builder");
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [canContinue, setCanContinue] = useState(false);
   const [manualSlots, setManualSlots] = useState<HomeSaveSlot[]>([]);
 
@@ -57,7 +66,7 @@ export default function HomePage() {
   }, []);
 
   function startGame() {
-    const setup = { leaderName: leaderName.trim() || "Elowen", houseName: houseName.trim() || "Vaelen", origin };
+    const setup = { leaderName: leaderName.trim() || "Elowen", houseName: houseName.trim() || "Vaelen", origin, difficulty };
     writeSetup(setup);
     clearKeys([saveKey, ...legacySaveKeys]);
     window.location.href = "/game";
@@ -66,12 +75,12 @@ export default function HomePage() {
 
   function loadManualSlot(slot: HomeSaveSlot) {
     window.localStorage.setItem(saveKey, JSON.stringify(slot.game));
-    writeSetup({ leaderName: slot.game.leaderName, houseName: slot.game.houseName, origin: slot.game.origin });
+    writeSetup({ leaderName: slot.game.leaderName, houseName: slot.game.houseName, origin: slot.game.origin, difficulty: (slot.game as any).difficulty ?? "normal" });
     window.location.href = "/game";
   }
 
   function continueGame() {
-    const setup = { leaderName: leaderName.trim() || "Elowen", houseName: houseName.trim() || "Vaelen", origin };
+    const setup = { leaderName: leaderName.trim() || "Elowen", houseName: houseName.trim() || "Vaelen", origin, difficulty };
     writeSetup(setup);
     window.location.href = "/game";
   }
@@ -84,7 +93,7 @@ export default function HomePage() {
             <div className="brand-mark">⌛</div>
             <span>EVOLUTION<br />OF US</span>
           </div>
-          <div className="kicker">{VERSION} · REALISTIC SETTLEMENT ALPHA</div>
+          <div className="kicker">{VERSION} · เกมจำลองการตั้งถิ่นฐาน</div>
           <h1>คืนแรกก่อนถิ่นฐานจะมีชื่อ</h1>
           <h2>ก่อนที่ผู้คนจะเรียกที่นี่ว่า “บ้าน” มีเพียงกองไฟ เสียงลมหายใจ และการตัดสินใจของผู้นำคนหนึ่ง</h2>
           <p>
@@ -118,12 +127,21 @@ export default function HomePage() {
               </button>
             ))}
           </div>
+          <h3 className="section-title" style={{ marginTop: 20 }}>ระดับความยาก</h3>
+          <div className="difficulty-grid">
+            {difficulties.map((item) => (
+              <button key={item.id} className={difficulty === item.id ? "choice-card active" : "choice-card"} onClick={() => setDifficulty(item.id)}>
+                <span className="choice-icon">{item.icon}</span>
+                <span><b>{item.title}</b><br /><small className="muted">{item.text}</small><br /><small>{item.reserve}</small></span>
+              </button>
+            ))}
+          </div>
           <div className="panel pad" style={{ boxShadow: "none", marginTop: 16 }}>
-            <b>เริ่มต้นจริง</b>
+            <b>ข้อมูลเริ่มต้น</b>
             <table className="report-table" style={{ marginTop: 12 }}>
               <tbody>
                 <tr><td>ประชากร</td><td>15 คน สุ่มชื่อ อายุ บทบาท ทักษะ และสถานะรายบุคคล</td></tr>
-                <tr><td>ทรัพยากร</td><td>อาหารสำรองอย่างน้อย 6 เดือน · ไม้ 68+ · หิน 16+ · เครื่องมือ 6 · หนังสัตว์ 4</td></tr>
+                <tr><td>ทรัพยากร</td><td>ปรับตามระดับความยากที่เลือก และมีวัตถุดิบพื้นฐานสำหรับตั้งค่ายช่วงแรก</td></tr>
                 <tr><td>เป้าหมายแรก</td><td>รอดปีแรกและตั้งค่ายให้มั่นคง</td></tr>
               </tbody>
             </table>
@@ -131,7 +149,7 @@ export default function HomePage() {
           <button className="primary" onClick={startGame} style={{ width: "100%", marginTop: 16 }}>เริ่มต้นจากศูนย์</button>
           <button className="secondary" onClick={continueGame} disabled={!canContinue} style={{ width: "100%", marginTop: 10, opacity: canContinue ? 1 : .55 }}>เล่นต่อจากบันทึก</button>
           {manualSlots.length > 0 && <div className="home-save-list"><h3 className="section-title">บันทึกด้วยตนเอง</h3>{manualSlots.map((slot) => { const pop = slot.game.people?.filter((p) => p.alive !== false).length ?? 0; return <button className="home-save-card" key={slot.id} onClick={() => loadManualSlot(slot)}><span><b>{slot.label}</b><small>{slot.game.houseName} · {slot.game.stage}</small></span><span><b>ปี {slot.game.year} เดือน {slot.game.month}</b><small>ประชากร {pop} คน</small></span></button>; })}</div>}
-          <p className="muted small">เกมมี Autosave แบบตรวจ Checksum บันทึกด้วยตนเอง 3 ช่อง ระบบย้ายเซฟเก่า Seed ประจำเกม ระบบกู้บันทึก และดาวน์โหลดไฟล์เซฟได้จากหน้าตั้งค่า</p>
+          <p className="muted small">เกมมีระบบบันทึกอัตโนมัติ ตรวจความสมบูรณ์ของไฟล์ บันทึกด้วยตนเอง 3 ช่อง ย้ายบันทึกเก่า รหัสสุ่มประจำเกม และดาวน์โหลดไฟล์บันทึกได้จากหน้าตั้งค่า</p>
         </aside>
       </section>
     </main>
