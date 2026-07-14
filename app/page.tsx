@@ -12,7 +12,7 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "Alpha v0.9.25";
+const VERSION = "Alpha v0.9.35";
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
@@ -70,10 +70,10 @@ export default function HomePage() {
           <h1>คืนแรกก่อนถิ่นฐานจะมีชื่อ</h1>
           <h2>ก่อนที่ผู้คนจะเรียกที่นี่ว่า “บ้าน” มีเพียงกองไฟ เสียงลมหายใจ และการตัดสินใจของผู้นำคนหนึ่ง</h2>
           <p>
-            คนสิบชีวิตเดินทางมาถึงพื้นที่รกร้างในวันที่ฟ้าเริ่มมืด เด็กบางคนกอดห่อผ้าแน่น ผู้เฒ่ามองหาไม้แห้งสำหรับไฟแรก ส่วนผู้ใหญ่ยืนเงียบ เพราะทุกคนรู้ดีว่าเสบียงที่แบกมานั้นไม่พอสำหรับความผิดพลาดมากนัก
+            คนสิบห้าชีวิตเดินทางมาถึงพื้นที่รกร้างในวันที่ฟ้าเริ่มมืด เด็กบางคนกอดห่อผ้าแน่น ผู้เฒ่ามองหาไม้แห้งสำหรับไฟแรก ส่วนผู้ใหญ่ยืนเงียบ เพราะทุกคนรู้ดีว่าเสบียงที่แบกมานั้นไม่พอสำหรับความผิดพลาดมากนัก
           </p>
           <p>
-            คุณไม่ได้รับมอบเมืองที่สร้างเสร็จแล้ว คุณได้รับเพียงชื่อของผู้นำ ชื่อของตระกูล และพื้นหลังของกลุ่มคนที่ยังไม่รู้ว่าพรุ่งนี้จะอยู่รอดหรือไม่ พื้นหลังที่เลือกจะกลายเป็นบัฟจริงในเกม: ทักษะเริ่มต้น ทรัพยากร ความไว้ใจ และทางรอดของเดือนแรก
+            คุณไม่ได้รับมอบเมืองที่สร้างเสร็จแล้ว คุณได้รับเพียงชื่อของผู้นำ ชื่อของตระกูล และพื้นหลังของกลุ่มคนที่ยังไม่รู้ว่าพรุ่งนี้จะอยู่รอดหรือไม่ พื้นหลังที่เลือกจะกลายเป็นผลเสริมที่ใช้งานจริงในเกม: ทักษะเริ่มต้น ทรัพยากร ความไว้ใจ และทางรอดของเดือนแรก
           </p>
           <div className="three-col" style={{ marginTop: 24 }}>
             <div className="panel pad" style={{ boxShadow: "none" }}><b>ชื่อที่ถูกจดจำ</b><br /><span className="muted small">ตั้งชื่อผู้นำและตระกูลที่จะกลายเป็นรากของพงศาวดาร</span></div>
@@ -104,15 +104,15 @@ export default function HomePage() {
             <b>เริ่มต้นจริง</b>
             <table className="report-table" style={{ marginTop: 12 }}>
               <tbody>
-                <tr><td>ประชากร</td><td>10 คน สุ่มชื่อ อายุ บทบาท และสถานะรายบุคคล</td></tr>
-                <tr><td>ทรัพยากร</td><td>อาหาร 30 · ไม้ 20 · หิน 5 · เครื่องมือ 5</td></tr>
+                <tr><td>ประชากร</td><td>15 คน สุ่มชื่อ อายุ บทบาท ทักษะ และสถานะรายบุคคล</td></tr>
+                <tr><td>ทรัพยากร</td><td>อาหารสำรองอย่างน้อย 6 เดือน · ไม้ 68+ · หิน 16+ · เครื่องมือ 6 · หนังสัตว์ 4</td></tr>
                 <tr><td>เป้าหมายแรก</td><td>รอดปีแรกและตั้งค่ายให้มั่นคง</td></tr>
               </tbody>
             </table>
           </div>
           <button className="primary" onClick={startGame} style={{ width: "100%", marginTop: 16 }}>เริ่มต้นจากศูนย์</button>
-          <button className="secondary" onClick={continueGame} disabled={!canContinue} style={{ width: "100%", marginTop: 10, opacity: canContinue ? 1 : .55 }}>เล่นต่อจาก Save</button>
-          <p className="muted small">เซฟจะอยู่ใน browser ของผู้เล่นแต่ละคน หากล้าง cache หรือเปลี่ยนอุปกรณ์ save อาจหายได้</p>
+          <button className="secondary" onClick={continueGame} disabled={!canContinue} style={{ width: "100%", marginTop: 10, opacity: canContinue ? 1 : .55 }}>เล่นต่อจากบันทึก</button>
+          <p className="muted small">บันทึกจะอยู่ในเว็บเบราว์เซอร์ของผู้เล่นแต่ละคน หากล้างข้อมูลเว็บไซต์หรือเปลี่ยนอุปกรณ์ บันทึกอาจหายได้</p>
         </aside>
       </section>
     </main>

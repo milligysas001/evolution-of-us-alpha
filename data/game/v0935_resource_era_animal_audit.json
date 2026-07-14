@@ -1,0 +1,76 @@
+{
+  "version": "0.9.35",
+  "title": "Population, Construction Materials, Era Visibility, Resource Guide and Animal System Audit",
+  "runtimeSource": "app/game/page.tsx",
+  "startingGame": {
+    "population": 15,
+    "composition": "1 leader + 10 adults + 2 elders + 2 children",
+    "foodReserveFormula": "actual randomized monthly need x 9, including origin and terrain bonuses",
+    "sixMonthWorstCaseSpoilageSimulationPassed": true,
+    "baseMaterials": {
+      "wood": 68,
+      "stone": 16,
+      "tools": 6,
+      "herbs": 4,
+      "hides": 4,
+      "water": 45,
+      "fuel": 18
+    },
+    "initialConstructionBundle": {
+      "shelter": 3,
+      "campfire": 1,
+      "storage": 1
+    },
+    "minimumWoodRemainingAfterBundle": 6
+  },
+  "construction": {
+    "costChargedAtProjectStart": true,
+    "costChargedAgainAfterPause": false,
+    "shortagesUseThaiLabels": true,
+    "shortageAcquisitionGuidance": true,
+    "buildingsWithPositiveCostsChecked": 29
+  },
+  "eraVisibility": {
+    "futureBuildingsHidden": true,
+    "futureResearchHidden": true,
+    "stages": [
+      "ค่ายพักแรม",
+      "ชุมชนแรกเริ่ม",
+      "หมู่บ้านถาวร",
+      "เมืองเล็ก",
+      "เมืองการค้า",
+      "นครรัฐ",
+      "อาณาจักร"
+    ],
+    "researchEntriesChecked": 38
+  },
+  "peopleUi": {
+    "desktopRowsCompacted": true,
+    "statusAndAssignmentRemainOnSameRow": true,
+    "zeroCountFiltersHidden": true,
+    "sickInjuredAndBothFiltersSeparated": true
+  },
+  "resourceGuide": {
+    "dynamicByStage": true,
+    "dynamicByResearch": true,
+    "dynamicByBuildings": true,
+    "dynamicByExploration": true,
+    "showsCurrentStock": true
+  },
+  "animals": {
+    "sameSpeciesPairRequired": true,
+    "animalKeepingResearchRequiredForBreeding": true,
+    "foodWaterHealthChecked": true,
+    "pigSlaughterFood": 22,
+    "acquisitionConditionsDisplayed": true
+  },
+  "regressionAudit": {
+    "randomInitialGames": 250,
+    "events": 336,
+    "choicesApplied": 1011,
+    "animalNoPairSimulations": 120,
+    "typescript": "pass",
+    "json": "pass",
+    "productionBuild": "pass"
+  }
+}

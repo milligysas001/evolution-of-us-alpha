@@ -1,0 +1,23 @@
+Evolution of Us v0.9.35 — Final Automated Audit
+Date: 2026-07-14
+
+PASS
+- TypeScript: passed
+- JSON data: passed
+- Production build: passed
+- Runtime HTTP: / = 200, /game = 200
+- Randomized new games: 250
+- Starting population: 15 in every run
+- Minimum starting food coverage observed: 8.73 months
+- Starting construction bundle: 3 shelters + 1 campfire + 1 storage affordable; minimum wood remaining 6
+- Buildings checked: 29
+- Research entries checked: 38
+- Events checked: 336
+- Event choices applied: 1,011
+- Animal no-pair breeding simulations: 120; no offspring
+
+Commands:
+  npm run typecheck
+  npm run check:data
+  npm run audit:systems
+  npm run build

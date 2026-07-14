@@ -4,9 +4,10 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "check": "npm run check:data && npm run build",
+    "check": "npm run typecheck && npm run check:data && npm run audit:systems && npm run build",
     "deploy:push": "npm run build && git add -A && git commit -m \"update game\" && git push",
-    "check:data": "node -e \"const fs=require('fs'); for (const f of fs.readdirSync('data/game')) if (f.endsWith('.json')) JSON.parse(fs.readFileSync('data/game/'+f,'utf8')); console.log('data json OK')\""
+    "check:data": "node -e \"const fs=require('fs'); for (const f of fs.readdirSync('data/game')) if (f.endsWith('.json')) JSON.parse(fs.readFileSync('data/game/'+f,'utf8')); console.log('data json OK')\"",
+    "audit:systems": "node logic/audit-v0935.cjs"
   },
   "dependencies": {
     "@types/node": "latest",
@@ -24,5 +25,8 @@
     "next": {
       "postcss": "^8.5.19"
     }
-  }
+  },
+  "name": "evolution-of-us-v0935",
+  "version": "0.9.35",
+  "private": true
 }

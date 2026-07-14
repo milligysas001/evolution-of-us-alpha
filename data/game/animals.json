@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "gameVersion": "0.9.25",
-  "purpose": "Portable livestock data for current web game and future Godot port.",
+  "gameVersion": "0.9.35",
+  "purpose": "Portable livestock data aligned with the current web runtime and future engine ports.",
   "animalTypes": [
     {
       "id": "goats",
@@ -9,8 +9,17 @@
       "name": "แพะ",
       "feedNeed": 2,
       "waterNeed": 1.2,
-      "outputs": { "foodOccasional": 1, "hideOnSlaughter": 1, "foodOnSlaughter": 18 },
-      "risks": ["หิวตาย", "หลุดเชือก", "ถูกขโมย", "สัตว์ป่ากัด"],
+      "outputs": {
+        "foodOccasional": 1,
+        "hideOnSlaughter": 1,
+        "foodOnSlaughter": 18
+      },
+      "risks": [
+        "หิวตาย",
+        "หลุดเชือก",
+        "ถูกขโมย",
+        "สัตว์ป่ากัด"
+      ],
       "notes": "เป็นฐานอาหารระยะยาว ขยายฝูงได้ดี แต่ต้องมีอาหารและน้ำพอ"
     },
     {
@@ -19,8 +28,15 @@
       "name": "ไก่",
       "feedNeed": 0.35,
       "waterNeed": 0.12,
-      "outputs": { "foodOccasional": 0.25, "foodOnSlaughter": 4 },
-      "risks": ["หนี", "ถูกขโมย", "โรคในคอก"],
+      "outputs": {
+        "foodOccasional": 0.25,
+        "foodOnSlaughter": 4
+      },
+      "risks": [
+        "หนี",
+        "ถูกขโมย",
+        "โรคในคอก"
+      ],
       "notes": "ใช้พื้นที่น้อย ออกลูกง่าย เป็นเสบียงเสริมที่ดีช่วงต้นเกม"
     },
     {
@@ -29,8 +45,13 @@
       "name": "สุนัขเฝ้าค่าย",
       "feedNeed": 1.2,
       "waterNeed": 0.75,
-      "outputs": { "securityBonus": 3 },
-      "risks": ["หิว", "บาดเจ็บจากการเฝ้ายาม"],
+      "outputs": {
+        "securityBonus": 3
+      },
+      "risks": [
+        "หิว",
+        "บาดเจ็บจากการเฝ้ายาม"
+      ],
       "notes": "ช่วยเตือนภัยและลดการขโมย แต่ไม่ใช่สัตว์ผลิตอาหาร"
     },
     {
@@ -39,8 +60,18 @@
       "name": "วัว",
       "feedNeed": 3.4,
       "waterNeed": 2.6,
-      "outputs": { "foodOccasional": 1, "hideOnSlaughter": 2, "foodOnSlaughter": 32, "milkFood": 1 },
-      "risks": ["กินทรัพยากรสูง", "ถูกขโมย", "ป่วยง่ายเมื่อไม่มีน้ำ", "หนีเมื่อคอกอ่อนแอ"],
+      "outputs": {
+        "foodOccasional": 1,
+        "hideOnSlaughter": 2,
+        "foodOnSlaughter": 32,
+        "milkFood": 1
+      },
+      "risks": [
+        "กินทรัพยากรสูง",
+        "ถูกขโมย",
+        "ป่วยง่ายเมื่อไม่มีน้ำ",
+        "หนีเมื่อคอกอ่อนแอ"
+      ],
       "notes": "ให้ผลตอบแทนดีมาก แต่เป็นภาระอาหารและน้ำสูง ต้องมีคอกหรือแหล่งน้ำมั่นคง"
     },
     {
@@ -49,14 +80,92 @@
       "name": "หมู",
       "feedNeed": 1.7,
       "waterNeed": 0.9,
-      "outputs": { "foodOccasional": 0, "foodOnSlaughter": 22 },
-      "risks": ["กินอาหารมาก", "กลิ่น/โรค", "หนีเมื่อหิว"],
+      "outputs": {
+        "foodOccasional": 0,
+        "foodOnSlaughter": 22
+      },
+      "risks": [
+        "กินอาหารมาก",
+        "กลิ่น/โรค",
+        "หนีเมื่อหิว"
+      ],
       "notes": "เหมาะเป็นอาหารสำรองระยะกลาง แต่ถ้าอาหารขาดจะกลายเป็นภาระเร็ว"
     }
   ],
   "researchUnlocks": [
-    { "id": "animalKeeping", "name": "การเลี้ยงสัตว์พื้นฐาน", "unlocks": ["animalPen", "livestock event pool"] },
-    { "id": "fodderPrep", "name": "การทำอาหารสัตว์", "unlocks": ["feed resource", "feed labor job"] }
+    {
+      "id": "animalKeeping",
+      "name": "การเลี้ยงสัตว์พื้นฐาน",
+      "unlocks": [
+        "animalPen",
+        "breeding eligibility",
+        "livestock event pool"
+      ]
+    },
+    {
+      "id": "fodderPrep",
+      "name": "การทำอาหารสัตว์",
+      "unlocks": [
+        "feed resource",
+        "feed labor job"
+      ]
+    },
+    {
+      "id": "animalBreeding",
+      "name": "คัดพันธุ์และโรงเรือนสัตว์",
+      "unlocks": [
+        "livestockShed",
+        "waterTrough",
+        "higher breeding chance"
+      ]
+    }
   ],
-  "actions": ["keep", "breed", "slaughter", "release", "protect"]
+  "actions": [
+    "keep",
+    "breed",
+    "slaughter",
+    "release",
+    "protect"
+  ],
+  "breedingRules": {
+    "requiresResearch": "animalKeeping",
+    "requiresSameSpeciesPair": true,
+    "eligibleSpecies": [
+      "goats",
+      "chickens",
+      "cows",
+      "pigs"
+    ],
+    "dogsBreedInCurrentRuntime": false,
+    "minimumHerdHealth": 45,
+    "maximumHunger": 69,
+    "requiresCurrentMonthFoodAndWater": true
+  },
+  "acquisitionRoutes": [
+    {
+      "animal": "goats",
+      "route": "เหตุการณ์แพะหลง",
+      "condition": "เดือน 3 ขึ้นไป หรือพ้นค่ายพักแรม หรือวิจัย animalKeeping"
+    },
+    {
+      "animal": "chickens",
+      "route": "เหตุการณ์จับไก่ป่า",
+      "condition": "สำรวจ huntingGround 45% หรือวิจัย animalKeeping"
+    },
+    {
+      "animal": "cows",
+      "route": "พ่อค้าบนถนนเก่า",
+      "condition": "สำรวจ oldTradeRoad 40% และเกิดเหตุการณ์แลกเปลี่ยน"
+    },
+    {
+      "animal": "pigs",
+      "route": "เหตุการณ์ลูกหมู",
+      "condition": "ค้นพบ marshPools หรือวิจัย animalKeeping"
+    },
+    {
+      "animal": "dogs",
+      "route": "เหตุการณ์สุนัขเฝ้าค่าย",
+      "condition": "สำรวจ deepWoods หรือระดับภัยสูงช่วยเพิ่มโอกาส"
+    }
+  ]
 }
