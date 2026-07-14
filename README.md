@@ -1,10 +1,10 @@
-# Evolution of Us — Alpha v0.9.36
+# Evolution of Us — Alpha v0.9.37 Stabilization
 
-เวอร์ชันนี้เพิ่มระบบบันทึก 3 ช่องและกู้ Autosave, Leader Board ตระกูล, การแยกข่าว/พ่อค้า/การค้า, เมืองข้างเคียงแบบ Interactive และระบบทหารที่เปิดตามยุค พร้อมตรวจ Flow และ Regression อัตโนมัติ
+เวอร์ชันนี้เน้นทำให้ระบบเดิมมั่นคงก่อนเพิ่ม Content ใหม่ โดยแยก Game Engine ส่วนสำคัญ เพิ่มระบบสุ่มแบบ Seed, Save Migration, Schema Validation, Checksum และชุดทดสอบ Regression ครบทั้งระบบเดิม
 
 ## ติดตั้งลงโครงการเดิม
 
-ไฟล์ ZIP ต้องถูกแตกออกก่อน เช่นอยู่ที่:
+แตก ZIP ไว้ที่:
 
 ```text
 C:\Users\phass\Desktop\game\New folder (2)
@@ -14,51 +14,66 @@ C:\Users\phass\Desktop\game\New folder (2)
 
 ```powershell
 cd "C:\Users\phass\Desktop\game\New folder (2)"
-powershell -ExecutionPolicy Bypass -File .\apply-v0936-save-leaderboard-neighbors-military.ps1 -ProjectPath "C:\Users\phass\evolution-of-us"
+powershell -ExecutionPolicy Bypass -File .\apply-v0937-stabilization.ps1 -ProjectPath "C:\Users\phass\evolution-of-us"
 ```
 
-ตัวติดตั้งจะสำรองโครงการเดิมเป็นโฟลเดอร์ชื่อประมาณ:
+ตัวติดตั้งจะสำรองโครงการเดิมเป็น:
 
 ```text
-C:\Users\phass\evolution-of-us_backup_before_v0936_YYYYMMDD_HHMMSS
+C:\Users\phass\evolution-of-us_backup_before_v0937_YYYYMMDD_HHMMSS
 ```
 
-## ตรวจระบบด้วยตนเอง
+## ตรวจระบบ
 
 ```powershell
 cd "C:\Users\phass\evolution-of-us"
-npm run typecheck
-npm run check:data
-npm run audit:systems
-npm run build
-npm run dev
+npm run check
 ```
 
-เปิดเกมที่:
+คำสั่งเดียวจะตรวจ:
+
+- TypeScript
+- JSON และ Data Schema
+- Unit Tests
+- Regression Audit ของระบบเดิม
+- Seed / Save Migration / Checksum / Monthly Pipeline
+- Production Build
+
+เปิดเกม:
+
+```powershell
+npm run dev
+```
 
 ```text
 http://localhost:3000/game
 ```
 
-## อัปขึ้น GitHub และ Vercel
+## สิ่งที่เปลี่ยนใน v0.9.37
+
+- แยก `engine/random.mjs`, `engine/transition.mjs`, `engine/monthly-pipeline.mjs`
+- ลบ `Math.random()` จากหน้าเกมทั้งหมด
+- เก็บ Seed และ RNG State ลงในไฟล์เซฟ
+- Seed เดียวกันให้ลำดับผลสุ่มเหมือนกัน
+- เพิ่ม Save Envelope และ `schemaVersion: 3`
+- เพิ่ม Checksum ตรวจเซฟเสียหรือถูกแก้ไข
+- รองรับ Migration เซฟเก่าแบบ Direct JSON
+- Autosave ล่าสุดเสียจะลองกู้ Backup ก่อนหน้าอัตโนมัติ
+- ตรวจ Schema ของเซฟก่อนโหลด
+- ตรวจ JSON ต้นทุนสิ่งก่อสร้างและ Resource Reference
+- เพิ่ม Unit Tests 10 รายการ
+- คง Regression Audit เดิม: 250 เกมเริ่มต้น, 338 Events, 1,017 Choices
+- ล็อกเวอร์ชัน Dependency ไม่ใช้ `latest`, `^` หรือ `~`
+
+## GitHub / Vercel
+
+หลังทดสอบแล้ว:
 
 ```powershell
-cd "C:\Users\phass\evolution-of-us"
 git status
 git add -A
-git commit -m "update v0.9.36 save leaderboard neighbors military"
+git commit -m "update v0.9.37 stabilization"
 git push
 ```
 
-## จุดสำคัญของเวอร์ชันนี้
-
-- Autosave พร้อมสำรองก่อนข้ามเดือน
-- บันทึกด้วยตนเอง 3 ช่องและโหลดจากหน้าแรก
-- ดาวน์โหลด/นำเข้าไฟล์เซฟ JSON
-- Leader Board ตระกูลในหน้าตั้งค่า
-- แยกข่าวสาร พ่อค้าเร่ และการค้าถาวร
-- เมืองข้างเคียง ความสัมพันธ์ การค้า ชายแดน พันธมิตร และสงคราม
-- ระบบทหารซ่อนในยุคแรก เปิดด้วยงานวิจัยและมีค่าเลี้ยงดูจริง
-- แถวจัดแรงงานประหยัดพื้นที่มากขึ้น
-
-รายละเอียดทั้งหมดอยู่ใน `AUDIT_REPORT_v0936.md` และ `QUALITY_CHECK.md`
+รายละเอียดอยู่ใน `AUDIT_REPORT_v0937.md`, `AUDIT_RESULT_v0937.txt`, `docs/CHANGELOG_v0937.md` และ `docs/QUALITY_CHECK_v0937.md`

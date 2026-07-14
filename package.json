@@ -4,29 +4,32 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run check:data && npm run audit:systems && npm run build",
-    "deploy:push": "npm run build && git add -A && git commit -m \"update game\" && git push",
-    "check:data": "node -e \"const fs=require('fs'); for (const f of fs.readdirSync('data/game')) if (f.endsWith('.json')) JSON.parse(fs.readFileSync('data/game/'+f,'utf8')); console.log('data json OK')\"",
-    "audit:systems": "node logic/audit-v0936.cjs"
+    "test": "node --test tests/*.test.mjs",
+    "check:data": "node logic/validate-data-v0937.mjs",
+    "audit:legacy": "node logic/audit-v0936.cjs",
+    "audit:stabilization": "node logic/audit-v0937.mjs",
+    "audit:systems": "npm run audit:legacy && npm run audit:stabilization",
+    "check": "node logic/run-checks-v0937.mjs",
+    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.37 stabilization\" && git push"
   },
   "dependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "next": "16.2.10",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   },
   "devDependencies": {
-    "postcss": "^8.5.19",
-    "typescript": "^5.9.3"
+    "postcss": "8.5.19",
+    "typescript": "5.9.3"
   },
   "overrides": {
     "next": {
-      "postcss": "^8.5.19"
+      "postcss": "8.5.19"
     }
   },
-  "name": "evolution-of-us-v0936",
-  "version": "0.9.36",
+  "name": "evolution-of-us-v0937",
+  "version": "0.9.37",
   "private": true
 }

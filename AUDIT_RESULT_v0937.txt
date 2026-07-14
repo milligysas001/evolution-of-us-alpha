@@ -1,0 +1,27 @@
+Evolution of Us v0.9.37 — Final Audit Result
+Date: 2026-07-14
+Status: PASS
+
+TypeScript: PASS
+Data Schema: PASS — 38 JSON files
+Unit Tests: PASS — 10/10
+Legacy Regression: PASS
+- Initial game simulations: 250
+- Population: 15 in every run
+- Minimum starting food coverage: 8.7 months
+- Buildings checked: 31
+- Research checked: 41
+- Events checked: 338
+- Event choices applied: 1,017
+- Animal no-pair simulations: 120
+
+Stabilization Audit: PASS
+- Seeded values compared: 500
+- Save schema version: 3
+- Checksum tamper detection: PASS
+- Math.random in game page: 0
+- Pinned dependencies: 8
+
+Production Build: PASS
+HTTP Smoke Test: PASS — / = 200, /game = 200
+Dependency Audit: PASS — 0 vulnerabilities

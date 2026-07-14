@@ -12,7 +12,7 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "Alpha v0.9.36";
+const VERSION = "Alpha v0.9.37";
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
 const saveSlotsKey = "eou-save-slots-v1";
@@ -131,7 +131,7 @@ export default function HomePage() {
           <button className="primary" onClick={startGame} style={{ width: "100%", marginTop: 16 }}>เริ่มต้นจากศูนย์</button>
           <button className="secondary" onClick={continueGame} disabled={!canContinue} style={{ width: "100%", marginTop: 10, opacity: canContinue ? 1 : .55 }}>เล่นต่อจากบันทึก</button>
           {manualSlots.length > 0 && <div className="home-save-list"><h3 className="section-title">บันทึกด้วยตนเอง</h3>{manualSlots.map((slot) => { const pop = slot.game.people?.filter((p) => p.alive !== false).length ?? 0; return <button className="home-save-card" key={slot.id} onClick={() => loadManualSlot(slot)}><span><b>{slot.label}</b><small>{slot.game.houseName} · {slot.game.stage}</small></span><span><b>ปี {slot.game.year} เดือน {slot.game.month}</b><small>ประชากร {pop} คน</small></span></button>; })}</div>}
-          <p className="muted small">เกมมี Autosave บันทึกด้วยตนเอง 3 ช่อง ระบบกู้บันทึกก่อนหน้า และดาวน์โหลดไฟล์เซฟได้จากหน้าตั้งค่า ข้อมูล Leader Board หลายตระกูลจะเก็บบนอุปกรณ์นี้</p>
+          <p className="muted small">เกมมี Autosave แบบตรวจ Checksum บันทึกด้วยตนเอง 3 ช่อง ระบบย้ายเซฟเก่า Seed ประจำเกม ระบบกู้บันทึก และดาวน์โหลดไฟล์เซฟได้จากหน้าตั้งค่า</p>
         </aside>
       </section>
     </main>

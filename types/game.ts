@@ -16,3 +16,33 @@ export type OutpostKind = "water" | "wood" | "food" | "mine" | "flax" | "trade";
 export type Outpost<TLocation extends string = string, TResource extends string = string> = { id: string; location: TLocation; name: string; kind: OutpostKind; workers: number; level: number; security: number; monthly: Partial<Record<TResource, number>> };
 export type FactionKey = "guards" | "farmers" | "merchants" | "builders";
 export type FactionState = Record<FactionKey, { approval: number; power: number }>;
+
+// v0.9.37 stabilization contracts
+export type RngState = {
+  seed: string;
+  state: number;
+  calls: number;
+};
+
+export type EngineTraceEntry = {
+  id: string;
+  before: unknown;
+  after: unknown;
+  delta: unknown;
+};
+
+export type SaveEnvelope<TGame = unknown> = {
+  format: "evolution-of-us-save";
+  schemaVersion: number;
+  gameVersion: string;
+  savedAt: string;
+  metadata: Record<string, unknown>;
+  game: TGame;
+  checksum: string;
+};
+
+export type RuntimeValidationIssue = {
+  path: string;
+  message: string;
+  severity: "error" | "warning";
+};

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v0.9.37 — Stabilization
+
+- แยก Seeded Random, Transition และ Monthly Pipeline ออกจากหน้า UI
+- Save Envelope + Schema 3 + Checksum + Migration เซฟเก่า
+- Runtime Schema Validation และ Data Validation
+- Unit Tests, Legacy Regression และ Production Build Gate
+- ล็อกเวอร์ชัน Dependency เพื่อป้องกัน Build เปลี่ยนโดยไม่ตั้งใจ
+
 ## v0.9.28 — System Integration & Godot-Ready Foundations
 
 - เพิ่ม Dynamic Weather: ฝนหลงฤดู แล้งจัด หนาวยาว พายุเข้าเร็ว หมอกชื้น

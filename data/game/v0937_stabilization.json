@@ -1,0 +1,49 @@
+{
+  "version": "0.9.37",
+  "title": "Stabilization Foundation",
+  "gameEngine": {
+    "monthlyPipeline": [
+      "event-choice",
+      "camp-policies",
+      "weather",
+      "production-consumption",
+      "exploration",
+      "military",
+      "neighbors",
+      "risks-health",
+      "skills",
+      "grief-recovery",
+      "delayed-events",
+      "stage-progression"
+    ],
+    "traceSaved": true
+  },
+  "random": {
+    "algorithm": "xorshift32",
+    "seedStoredInSave": true,
+    "stateStoredInSave": true,
+    "mathRandomRemovedFromGamePage": true
+  },
+  "save": {
+    "format": "evolution-of-us-save",
+    "schemaVersion": 3,
+    "checksum": "fnv1a-32",
+    "legacyDirectSaveSupported": true,
+    "migrations": [1, 2, 3]
+  },
+  "validation": {
+    "runtimeSaveValidation": true,
+    "contentJsonValidation": true,
+    "duplicatePersonIdDetection": true,
+    "rangeValidation": true
+  },
+  "tests": {
+    "nodeTestRunner": true,
+    "randomDeterminism": true,
+    "saveMigration": true,
+    "schemaValidation": true,
+    "monthlyPipeline": true,
+    "legacyRegressionAudit": true,
+    "productionBuild": true
+  }
+}

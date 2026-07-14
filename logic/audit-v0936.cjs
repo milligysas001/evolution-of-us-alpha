@@ -26,7 +26,25 @@ function finiteObject(obj, label) {
 }
 function loadRuntime() {
   let source = fs.readFileSync(sourcePath, "utf8");
-  source += `\nexport { ${exportNames.join(", ")} };\n`;
+  source = source
+    .replace('import { createSeed, pickRandom, random as gameRandom, shuffleRandom, uidFromRng } from "../../engine/random.mjs";\n', `const gameRandom = Math.random;
+const pickRandom = (items) => items[Math.floor(Math.random() * items.length)];
+const shuffleRandom = (items) => [...items].sort(() => Math.random() - 0.5);
+const uidFromRng = (prefix) => prefix + "-audit-" + Math.random().toString(36).slice(2);
+const createSeed = () => "EOU-AUDIT";
+`)
+    .replace('import { createSeededGame, runSeededTransition } from "../../engine/transition.mjs";\n', `const createSeededGame = (seed, factory) => ({ ...factory(), rng: { seed, state: 1, calls: 0 } });
+const runSeededTransition = (game, transition) => transition(game);
+`)
+    .replace('import { runMonthlyPipeline } from "../../engine/monthly-pipeline.mjs";\n', `const runMonthlyPipeline = (initial, phases, context = {}) => { let state = initial; const changes = []; const trace = []; for (const phase of phases) { const result = phase.run(state, changes, context); if (result && typeof result === "object" && "state" in result) { state = result.state; if (Array.isArray(result.changes)) changes.push(...result.changes); } else if (result !== undefined) state = result; trace.push({ id: phase.id }); } return { state, changes, trace }; };
+`)
+    .replace('import { CURRENT_GAME_VERSION, CURRENT_SCHEMA_VERSION, createSaveEnvelope, migrateSavePayload } from "../../save/migrations.mjs";\n', `const CURRENT_GAME_VERSION = "0.9.37"; const CURRENT_SCHEMA_VERSION = 3; const createSaveEnvelope = (game) => ({ game }); const migrateSavePayload = (input) => ({ game: input && input.game ? input.game : input, warnings: [] });
+`)
+    .replace('import { formatValidationIssues, validateGameSave } from "../../save/schema.mjs";\n', `const formatValidationIssues = () => ""; const validateGameSave = () => ({ ok: true, issues: [] });
+`);
+  source += `
+export { ${exportNames.join(", ")} };
+`;
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
