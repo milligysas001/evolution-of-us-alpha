@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSeed, pickRandom, random as gameRandom, shuffleRandom, uidFromRng } from "../../engine/random.mjs";
 import { createSeededGame, runSeededTransition } from "../../engine/transition.mjs";
@@ -5147,12 +5147,22 @@ export default function GamePage() {
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop");
   const [settlementNameDraft, setSettlementNameDraft] = useState("");
   const [noticeOpen, setNoticeOpen] = useState(false);
+  const [eventIntroOpen, setEventIntroOpen] = useState(false);
+  const shownEventIntroRef = useRef<string>("");
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     if (!game?.pendingSettlementRename) return;
     setSettlementNameDraft(game.settlementName || defaultSettlementName(game.stage, game.houseName));
   }, [game?.pendingSettlementRename, game?.stage, game?.settlementName, game?.houseName]);
+
+  useEffect(() => {
+    if (!game || game.summaryModal || game.gameOver || game.selectedChoiceId) return;
+    const key = `${game.year}-${game.month}-${game.currentEventId}`;
+    if (shownEventIntroRef.current === key) return;
+    shownEventIntroRef.current = key;
+    setEventIntroOpen(true);
+  }, [game?.year, game?.month, game?.currentEventId, game?.selectedChoiceId, game?.summaryModal, game?.gameOver]);
 
   useEffect(() => {
     const syncDeviceMode = () => setDeviceMode(detectDeviceMode());
@@ -5457,27 +5467,32 @@ export default function GamePage() {
       <header className="topbar game-topbar">
         <div className="brand"><div className="brand-mark">⌛</div><span>EVOLUTION<br />OF US</span></div>
         <div className="topbar-core" aria-label="สถานะสำคัญของเมือง">
-          <span className="pill"><b>ปี {game.year}</b> · เดือน {game.month}</span>
-          <span className="pill good">{game.stage}</span>
+          <span className="pill time-pill">📅 <b>ปี {game.year}</b> · เดือน {game.month}</span>
+          <span className="pill stage-pill">🏕️ {game.stage}</span>
           <span className="pill settlement-pill">🏛️ {game.settlementName}</span>
-          <span className="pill">👥 {alivePeople(game).length} คน</span>
-          <span className="pill">แรงงาน {laborAssignmentLoad(game).toFixed(1)}/{workerCapacity(game).toFixed(1)}</span>
-          <span className={crisisLevel(game) === "ใกล้ล่มสลาย" || crisisLevel(game) === "วิกฤต" ? "pill danger-pill" : "pill good"}>วิกฤต {crisisLevel(game)}</span>
-          <span className="pill save-pill">{game.savedText}</span>
+          <span className="pill population-pill">👥 {alivePeople(game).length} คน</span>
+          <span className="pill labor-pill">💪 แรงงาน {laborAssignmentLoad(game).toFixed(1)}/{workerCapacity(game).toFixed(1)}</span>
+          <span className={crisisLevel(game) === "ใกล้ล่มสลาย" || crisisLevel(game) === "วิกฤต" ? "pill danger-pill" : "pill crisis-pill"}>🛡️ วิกฤต {crisisLevel(game)}</span>
+          <span className="pill save-pill">💾 {game.savedText}</span>
         </div>
         <div className="topbar-actions">
+          <button className={`top-decision-button ${!game.leaderActionSelected || !game.selectedChoiceId ? "required" : "ready"}`} onClick={() => setView("ตัดสินใจ")} aria-label="เปิดหน้าตัดสินใจเดือนนี้">
+            <span className="decision-button-icon">✦</span>
+            <span><b>ตัดสินใจเดือนนี้</b><small>{!game.leaderActionSelected || !game.selectedChoiceId ? "ยังเลือกไม่ครบ" : "พร้อมจบเดือน"}</small></span>
+            {(!game.leaderActionSelected || !game.selectedChoiceId) && <i className="decision-pulse" />}
+          </button>
           <button className="icon-btn notice-btn" aria-label="เปิดข่าวแจ้งเตือน" title="ข่าวแจ้งเตือน" onClick={() => setNoticeOpen(true)}>🔔{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length > 0 && <span>{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length}</span>}</button>
           <button className="icon-btn" aria-label="เปิดตั้งค่า" title="ตั้งค่า" onClick={() => setView("ตั้งค่า")}>⚙️</button>
         </div>
         <div className="topbar-details" aria-label="ข้อมูลประกอบของเมือง">
-          <span><b>อากาศ</b> {seasonalWeatherLabel(game)}</span>
-          <span><b>ระดับ</b> {difficultyInfo(game).icon} {difficultyInfo(game).title}</span>
-          <span><b>สำรวจ</b> {locationDiscoveryCount(game)}/8 · {locationData[bestExploreTarget(game)].title}</span>
-          <span><b>ผลผลิต</b> {laborTotal(game.labor).toFixed(1)}</span>
-          <span><b>ตระกูล</b> {game.houseName} · รุ่น {(normalizeDynastyState(game) as DynastyState).generation}</span>
-          <span className={game.threat >= 50 ? "detail-danger" : ""}><b>ภัยภายนอก</b> {pct(game.threat)}</span>
-          <span><b>คลังเมือง</b> 🪙 {fmt(game.resources.gold)}</span>
-          <span><b>รุ่น</b> v{GAME_VERSION} · {deviceLabel(deviceMode)}</span>
+          <span className="detail-weather"><b>🌤️ อากาศ</b> {seasonalWeatherLabel(game)}</span>
+          <span className="detail-difficulty"><b>{difficultyInfo(game).icon} ระดับ</b> {difficultyInfo(game).title}</span>
+          <span className="detail-explore"><b>🧭 สำรวจ</b> {locationDiscoveryCount(game)}/8 · {locationData[bestExploreTarget(game)].title}</span>
+          <span className="detail-output"><b>📈 ผลผลิต</b> {laborTotal(game.labor).toFixed(1)}</span>
+          <span className="detail-house"><b>👑 ตระกูล</b> {game.houseName} · รุ่น {(normalizeDynastyState(game) as DynastyState).generation}</span>
+          <span className={game.threat >= 50 ? "detail-danger" : "detail-threat"}><b>⚠️ ภัยภายนอก</b> {pct(game.threat)}</span>
+          <span className="detail-treasury"><b>🪙 คลังเมือง</b> {fmt(game.resources.gold)}</span>
+          <span><b>🧩 รุ่น</b> v{GAME_VERSION} · {deviceLabel(deviceMode)}</span>
         </div>
       </header>
 
@@ -5490,7 +5505,7 @@ export default function GamePage() {
 
         <section className="main">
           <nav className="view-tabs">
-            {visibleViews.map((v) => <button key={v} className={`${safeView === v ? "active" : ""} ${v === "ตัดสินใจ" ? "decision-tab-button" : ""}`} onClick={() => setView(v)}>{viewLabel(v)}{v === "ตัดสินใจ" && (!game.leaderActionSelected || !game.selectedChoiceId) ? <span className="tab-alert-dot" /> : null}</button>)}
+            {visibleViews.filter((v) => v !== "ตัดสินใจ").map((v) => <button key={v} className={safeView === v ? "active" : ""} onClick={() => setView(v)}>{viewLabel(v)}</button>)}
           </nav>
           {safeView === "เมือง" && <CityView game={game} />}
           {safeView === "ตัดสินใจ" && <EventPanel game={game} event={event} setFocus={(focus) => updateGame((g) => ({ ...g, leaderFocus: focus, leaderActionSelected: true }))} selectChoice={(id) => updateGame((g) => ({ ...g, selectedChoiceId: id }))} setMigrantSelection={setMigrantSelection} endTurn={endTurn} />}
@@ -5543,6 +5558,23 @@ export default function GamePage() {
             </label>
             <div className="settlement-suggestions">{settlementNameSuggestions(game).map((name) => <button className="soft-btn" key={name} onClick={() => setSettlementNameDraft(name)}>{name}</button>)}</div>
             <div className="flex settlement-name-actions"><button className="secondary" onClick={() => confirmSettlementName(defaultSettlementName(game.stage, game.houseName))}>ใช้ชื่อแนะนำ</button><button className="primary" onClick={() => confirmSettlementName()}>ยืนยันชื่อถิ่นฐาน</button></div>
+          </section>
+        </div>
+      )}
+
+      {eventIntroOpen && !game.selectedChoiceId && (
+        <div className="modal-backdrop event-intro-backdrop">
+          <section className="modal event-intro-modal">
+            <div className="event-intro-heading">
+              <span className="event-intro-icon">✦</span>
+              <div><small>เหตุการณ์สำคัญ · ปี {game.year} เดือน {game.month}</small><h2>{event.title}</h2></div>
+            </div>
+            <p>{event.text}</p>
+            <div className="event-intro-note">เหตุการณ์นี้ต้องได้รับคำตอบก่อนจบเดือน ผลของทางเลือกจะส่งต่อไปยังผู้คน ทรัพยากร และพงศาวดารของถิ่นฐาน</div>
+            <div className="flex event-intro-actions">
+              <button className="secondary" onClick={() => setEventIntroOpen(false)}>ย่อไว้ก่อน</button>
+              <button className="primary" onClick={() => { setEventIntroOpen(false); setView("ตัดสินใจ"); }}>อ่านและตัดสินใจ</button>
+            </div>
           </section>
         </div>
       )}

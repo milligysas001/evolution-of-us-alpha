@@ -31,7 +31,7 @@ test("survival difficulty raises dangerous-event pressure compared with story", 
 
 test("legacy save migrates difficulty and event history into schema 6", () => {
   const result = migrateSavePayload({ version: "0.9.37", leaderName: "Nora", houseName: "Mara", origin: "builder", year: 1, month: 1 });
-  assert.equal(CURRENT_GAME_VERSION, "0.9.41");
+  assert.equal(CURRENT_GAME_VERSION, "0.9.42");
   assert.equal(CURRENT_SCHEMA_VERSION, 6);
   assert.equal(result.game.difficulty, "normal");
   assert.deepEqual(result.game.eventHistory, []);

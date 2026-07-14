@@ -1,4 +1,4 @@
-# Evolution of Us — รุ่นทดสอบ v0.9.41
+# Evolution of Us — รุ่นทดสอบ v0.9.42
 
 ## Wide Layout & Living Chronicle
 
@@ -44,6 +44,6 @@ npm run dev
 ```powershell
 git status
 git add -A
-git commit -m "update v0.9.41 wide layout and living chronicle"
+git commit -m "update v0.9.42 wide layout and living chronicle"
 git push
 ```

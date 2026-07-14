@@ -8,19 +8,23 @@ const root = path.resolve(import.meta.dirname, "..");
 const page = fs.readFileSync(path.join(root, "app", "game", "page.tsx"), "utf8");
 const css = fs.readFileSync(path.join(root, "app", "globals.css"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-const patch = JSON.parse(fs.readFileSync(path.join(root, "data", "game", "v0941_wide_layout_living_chronicle.json"), "utf8"));
+const patch = JSON.parse(fs.readFileSync(path.join(root, "data", "game", "v0942_decision_focus_expressive_status.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.41");
+assert.equal(CURRENT_GAME_VERSION, "0.9.42");
 assert.equal(CURRENT_SCHEMA_VERSION, 6);
-assert.equal(pkg.version, "0.9.41");
+assert.equal(pkg.version, "0.9.42");
 assert.equal(pkg.name, "evolution-of-us-v0941");
-assert.equal(patch.version, "0.9.41");
+assert.equal(patch.version, "0.9.42");
 assert.equal(patch.schemaVersion, 6);
 
 // Layout and decision flow
 assert.ok(page.includes('type View = "เมือง" | "ตัดสินใจ"'));
 assert.ok(page.includes('safeView === "ตัดสินใจ" && <EventPanel'));
-assert.ok(page.includes('className={`${safeView === v ? "active" : ""} ${v === "ตัดสินใจ" ? "decision-tab-button" : ""}`}'));
+assert.ok(page.includes('className={`top-decision-button'));
+assert.ok(page.includes('visibleViews.filter((v) => v !== "ตัดสินใจ")'));
+assert.ok(page.includes('eventIntroOpen && !game.selectedChoiceId'));
+assert.ok(css.includes('.top-decision-button'));
+assert.ok(css.includes('.event-intro-modal'));
 assert.equal(page.includes('<aside className="event-panel">'), false);
 assert.equal(page.includes('setEventPopupOpen'), false);
 assert.equal(page.includes('<button onClick={endTurn}>จบเดือนนี้'), false);

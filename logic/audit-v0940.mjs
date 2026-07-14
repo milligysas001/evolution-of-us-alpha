@@ -9,9 +9,9 @@ const css = fs.readFileSync(path.join(root, "app", "globals.css"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const patch = JSON.parse(fs.readFileSync(path.join(root, "data", "game", "v0940_narrative_interface_polish.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.41");
+assert.equal(CURRENT_GAME_VERSION, "0.9.42");
 assert.equal(CURRENT_SCHEMA_VERSION, 6);
-assert.equal(pkg.version, "0.9.41");
+assert.equal(pkg.version, "0.9.42");
 assert.equal(pkg.name, "evolution-of-us-v0941");
 assert.equal(patch.version, "0.9.40");
 

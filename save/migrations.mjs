@@ -1,7 +1,7 @@
 import { createRngState, normalizeRngState } from "../engine/random.mjs";
 import { emptyDynastyState, emptyVictoryState, normalizeDynastyState, normalizeVictoryState } from "../logic/dynasty-endgame.mjs";
 
-export const CURRENT_GAME_VERSION = "0.9.41";
+export const CURRENT_GAME_VERSION = "0.9.42";
 export const CURRENT_SCHEMA_VERSION = 6;
 export const SAVE_FORMAT = "evolution-of-us-save";
 

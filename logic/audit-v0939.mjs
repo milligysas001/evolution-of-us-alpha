@@ -12,9 +12,9 @@ const settingsEnd = page.indexOf("function estimateBuildMonths", settingsStart);
 const settingsView = page.slice(settingsStart, settingsEnd);
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.41");
+assert.equal(CURRENT_GAME_VERSION, "0.9.42");
 assert.equal(CURRENT_SCHEMA_VERSION, 6);
-assert.equal(pkg.version, "0.9.41");
+assert.equal(pkg.version, "0.9.42");
 assert.equal(pkg.name, "evolution-of-us-v0941");
 
 for (const token of [

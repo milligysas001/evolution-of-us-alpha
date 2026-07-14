@@ -10,7 +10,3 @@ app_backup*/
 src_app_backup*/
 public_backup*/
 tsconfig.tsbuildinfo
-.next
-node_modules
-*.tsbuildinfo
-*backup*
