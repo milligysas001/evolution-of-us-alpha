@@ -1,0 +1,14 @@
+{
+  "version": "0.9.50",
+  "saveSchema": 7,
+  "title": "Core Integration & Final Alpha",
+  "checkpoints": [
+    "Monthly Flow และ Transaction Ledger",
+    "Event Integrity และ Validator",
+    "เศรษฐกิจและแรงงาน",
+    "สำรวจ สัตว์ เมือง และทหาร",
+    "ครอบครัว ทายาท และชัยชนะ",
+    "Balance Simulation และ Performance",
+    "UX/UI, Save Migration และ Final QA"
+  ]
+}

@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import { createSeed, pickRandom, random as gameRandom, shuffleRandom, uidFromRng } from "../../engine/random.mjs";
 import { createSeededGame, runSeededTransition } from "../../engine/transition.mjs";
 import { runMonthlyPipeline } from "../../engine/monthly-pipeline.mjs";
+import { MONTH_PHASES, beginMonthResolution, emptyMonthFlow, enterPlanningPhase, finishMonthResolution, monthKey, normalizeMonthFlow } from "../../engine/month-flow.mjs";
+import { appendStateDiffLedger, closeLedgerMonth, emptyLedger, entriesFromPipelineTrace, latestLedgerMonth, normalizeLedger } from "../../engine/ledger.mjs";
+import { validateEventCollection } from "../../engine/event-integrity.mjs";
+import { economySnapshot, validateLaborAssignments } from "../../engine/economy-labor.mjs";
+import { validateWorldSystems } from "../../engine/world-integrity.mjs";
 import { CURRENT_GAME_VERSION, CURRENT_SCHEMA_VERSION, createSaveEnvelope, migrateSavePayload } from "../../save/migrations.mjs";
+import { createManualSlotRecord, manualSlotGame, normalizeManualSlots, recoveryCandidates, rotateAutosaveBackups, saveCheckpointReason } from "../../save/save-manager.mjs";
+import { BUILD_DATE, BUILD_NAME, GAME_VERSION, PORTABLE_DATA_VERSION } from "../../config/version.mjs";
 import { formatValidationIssues, validateGameSave } from "../../save/schema.mjs";
 import { VICTORY_PATHS, emptyDynastyState, emptyVictoryState, evaluateVictory, heirCandidates, normalizeDynastyState, normalizeVictoryState, victoryProgress } from "../../logic/dynasty-endgame.mjs";
 
@@ -61,9 +68,13 @@ type NeighborAction = "envoy" | "gift" | "tradeTreaty" | "exchange" | "claim" | 
 type MilitaryStance = "ป้องกันเมือง" | "เฝ้าชายแดน" | "ฝึกกำลัง" | "เตรียมรบ";
 type MilitaryState = { soldiers: number; readiness: number; morale: number; equipment: number; experience: number; stance: MilitaryStance; lastReport: string; };
 type SaveSlotId = "slot-1" | "slot-2" | "slot-3";
-type SaveSlotRecord = { id: SaveSlotId; label: string; updatedAt: string; game: GameState; };
+type SaveSlotRecord = { id: SaveSlotId; label: string; updatedAt: string; envelope: unknown; game: GameState; corrupted?: boolean; };
 type RngState = { seed: string; state: number; calls: number };
 type EngineTraceEntry = { id: string; before: unknown; after: unknown; delta: unknown };
+type MonthPhase = "month_start" | "planning" | "decision" | "ready" | "resolving" | "report" | "completed";
+type MonthFlowState = { phase: MonthPhase; monthKey: string; activeResolutionId: string | null; resolvedMonthKeys: string[]; lastCompletedResolutionId: string | null; interruptedRecovery: boolean };
+type LedgerEntry = { id: string; monthKey: string; resolutionId: string | null; phase: string; system: string; kind: "resource" | "metric" | string; key: string; amount: number; reason: string; detail: string };
+type LedgerState = { currentMonthKey: string; current: LedgerEntry[]; history: Array<{ monthKey: string; resolutionId: string | null; entries: LedgerEntry[]; summary: { resources: Record<string, number>; metrics: Record<string, number>; count: number } }>; sequence: number };
 type EventHistoryEntry = { id: string; category: string; year: number; month: number; rare: boolean; };
 type MonthlyReport = {
   eventTitle: string;
@@ -75,6 +86,7 @@ type MonthlyReport = {
   resourceRows: Array<{ key: ResourceKey; label: string; icon: string; before: number; after: number; delta: number }>;
   metricRows: Array<{ key: MetricKey; label: string; before: number; after: number; delta: number }>;
   warnings: string[];
+  ledgerRows: Array<{ system: string; reason: string; changes: string[] }>;
 };
 type LeaderboardEntry = { id: string; houseName: string; leaderName: string; stage: Stage; year: number; month: number; population: number; score: number; updatedAt: string; generation?: number; victoryCount?: number; };
 type VictoryPathKey = "enduring" | "trade" | "peace" | "knowledge" | "legacy" | "guardian";
@@ -191,6 +203,10 @@ type GameState = {
   schemaVersion?: number;
   rng?: RngState;
   engineTrace?: EngineTraceEntry[];
+  monthFlow: MonthFlowState;
+  ledger: LedgerState;
+  eventRuntime: { cooldowns: Record<string, number>; occurrences: Record<string, number>; lastCategory: string; lastEventId: string };
+  integrationFlags: { ledgerEnabled: boolean; eventIntegrityChecked: boolean };
   leaderName: string;
   houseName: string;
   origin: Origin;
@@ -254,6 +270,7 @@ type GameState = {
   dynasty: DynastyState;
   victory: VictoryState;
   summaryModal: SummaryModal;
+  saveRuntime: { lastCheckpoint: string; lastSavedAt: string | null; recoveryCount: number };
   savedText: string;
 };
 
@@ -359,8 +376,6 @@ function originInfo(origin: Origin) {
 }
 
 const seasons: Season[] = ["ฤดูใบไม้ผลิ", "ฤดูใบไม้ผลิ", "ฤดูร้อน", "ฤดูร้อน", "ฤดูฝน", "ฤดูฝน", "ฤดูฝน", "ฤดูใบไม้ร่วง", "ฤดูใบไม้ร่วง", "ฤดูหนาว", "ฤดูหนาว", "ฤดูหนาว"];
-const GAME_VERSION = CURRENT_GAME_VERSION;
-
 const difficultyConfig: Record<Difficulty, {
   title: string;
   icon: string;
@@ -402,7 +417,7 @@ const difficultyConfig: Record<Difficulty, {
     scoreMultiplier: 1.25,
   },
   ironman: {
-    title: "ไอรอนแมน",
+    title: "ท้าทายสูงสุด",
     icon: "🛡️",
     description: "เสบียงจำกัดและความเสี่ยงสูงสุด เหมาะกับผู้เล่นที่เข้าใจระบบและต้องการวางแผนอย่างรัดกุม",
     foodReserveMonths: 3,
@@ -419,22 +434,23 @@ function normalizeDifficulty(value: unknown): Difficulty {
 function difficultyInfo(game: Pick<GameState, "difficulty">) {
   return difficultyConfig[normalizeDifficulty(game.difficulty)];
 }
-const BUILD_LABEL = "Wide Layout & Living Chronicle · ตัดสินใจในแท็บหลัก · ตั้งชื่อถิ่นฐาน · ทายาทชัดเจน · ชัยชนะอัตโนมัติ · ชื่อหลากหลาย";
-const BUILD_DATE = "2026-07-14";
+const BUILD_LABEL = BUILD_NAME;
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
 const tutorialKey = "eou-current-tutorial-seen";
 const themeKey = "eou-ui-theme";
 const saveSlotsKey = "eou-save-slots-v1";
+const saveSlotErrorsKey = "eou-save-slot-errors-v1";
 const activeSlotKey = "eou-active-save-slot-v1";
 const autosaveBackupKey = "eou-autosave-backup-v1";
+const autosaveRingKey = "eou-autosave-ring-v2";
 const leaderboardKey = "eou-local-leaderboard-v1";
 const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
-const portableDataVersion = "0.9.16";
+const portableDataVersion = PORTABLE_DATA_VERSION;
 const portableDataSummary = {
   version: portableDataVersion,
-  purpose: "Portable Data Foundation: data/game/*.json is the source-of-truth draft for future Godot porting.",
+  purpose: "Portable Data Reference: data/game/*.json เป็นตัวอย่างและข้อมูลอ้างอิงสำหรับการย้ายระบบ ส่วนข้อมูลที่เกมใช้จริงยังอยู่ใน Runtime TypeScript และถูกตรวจด้วย Manifest อัตโนมัติ",
   files: [
     "data/game/resources.json",
     "data/game/jobs.json",
@@ -456,7 +472,10 @@ const portableDataSummary = {
     "data/game/v0938_balance_ux.json",
     "data/game/v0939_dynasty_endgame.json",
     "data/game/v0940_narrative_interface_polish.json",
-    "data/game/v0941_wide_layout_living_chronicle.json"
+    "data/game/v0941_wide_layout_living_chronicle.json",
+    "data/game/v0950_core_integration_final_alpha.json",
+    "data/game/v0951_integrity_recovery_performance.json",
+    "data/game/runtime-manifest.json"
   ],
   godotNotes: "Godot can load these JSON files with FileAccess + JSON.parse_string and map ids to UI nodes/resources."
 };
@@ -469,24 +488,60 @@ function readFirstStorage(keys: string[]) {
   return null;
 }
 
-function safeGameForStorage(game: GameState): GameState {
-  return { ...game, version: GAME_VERSION, saveVersion: GAME_VERSION, schemaVersion: CURRENT_SCHEMA_VERSION, summaryModal: null, savedText: "บันทึกเรียบร้อย" };
+function safeGameForStorage(game: GameState, checkpoint = "autosave"): GameState {
+  const now = new Date().toISOString();
+  return {
+    ...game,
+    version: GAME_VERSION,
+    saveVersion: GAME_VERSION,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    monthFlow: normalizeMonthFlow(game) as MonthFlowState,
+    ledger: normalizeLedger(game) as LedgerState,
+    summaryModal: game.summaryModal ?? null,
+    saveRuntime: { ...(game.saveRuntime ?? { recoveryCount: 0 }), lastCheckpoint: checkpoint, lastSavedAt: now, recoveryCount: Number(game.saveRuntime?.recoveryCount || 0) },
+    savedText: "บันทึกเรียบร้อย",
+  };
 }
 function serializeSavedGame(game: GameState, metadata: Record<string, unknown> = {}) {
   return JSON.stringify(createSaveEnvelope(safeGameForStorage(game), metadata));
 }
 function readSaveSlots(): SaveSlotRecord[] {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(saveSlotsKey) ?? "[]") as SaveSlotRecord[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((slot) => {
-      if (!slot?.id || !slot?.game) return [];
-      try { return [{ ...slot, game: hydrateSavedGame(slot.game) }]; } catch { return []; }
+    const parsed = JSON.parse(window.localStorage.getItem(saveSlotsKey) ?? "[]") as unknown[];
+    const normalized = normalizeManualSlots(parsed);
+    if (normalized.invalid.length) window.localStorage.setItem(saveSlotErrorsKey, JSON.stringify(normalized.invalid.map((slot: any) => ({ id: slot.id, label: slot.label || slot.id, reason: "checksum-or-schema" }))));
+    else window.localStorage.removeItem(saveSlotErrorsKey);
+    return normalized.valid.flatMap((slot: any) => {
+      try {
+        return [{ ...slot, id: slot.id as SaveSlotId, game: hydrateSavedGame(slot.envelope) } as SaveSlotRecord];
+      } catch {
+        return [];
+      }
     });
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 function writeSaveSlots(slots: SaveSlotRecord[]) {
-  window.localStorage.setItem(saveSlotsKey, JSON.stringify(slots.slice(0, 3)));
+  const portable = slots.slice(0, 3).map(({ game: _game, ...slot }) => slot);
+  window.localStorage.setItem(saveSlotsKey, JSON.stringify(portable));
+  window.localStorage.removeItem(saveSlotErrorsKey);
+}
+function readSaveSlotErrorCount() {
+  try { const value = JSON.parse(window.localStorage.getItem(saveSlotErrorsKey) ?? "[]"); return Array.isArray(value) ? value.length : 0; } catch { return 0; }
+}
+function parseEnvelopeText(text: string | null): unknown | null {
+  if (!text) return null;
+  try { return JSON.parse(text); } catch { return null; }
+}
+function readAutosaveRing(): any[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(autosaveRingKey) ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+function writeAutosaveRing(items: any[]) {
+  window.localStorage.setItem(autosaveRingKey, JSON.stringify(items.slice(0, 5)));
 }
 function leaderboardEntryId(game: GameState) { return `${game.houseName.trim().toLowerCase()}::${game.rng?.seed ?? "local"}`; }
 function leaderboardScore(game: GameState) {
@@ -1506,6 +1561,10 @@ function normalizeAdvancedSystems(game: GameState): GameState {
     dynasty: normalizeDynastyState(game) as DynastyState,
     victory: normalizeVictoryState(game) as VictoryState,
     buildingCondition: normalizeBuildingCondition(game),
+    monthFlow: normalizeMonthFlow(game) as MonthFlowState,
+    ledger: normalizeLedger(game) as LedgerState,
+    eventRuntime: (game as any).eventRuntime && typeof (game as any).eventRuntime === "object" ? (game as any).eventRuntime : { cooldowns: {}, occurrences: {}, lastCategory: "", lastEventId: "" },
+    integrationFlags: (game as any).integrationFlags && typeof (game as any).integrationFlags === "object" ? (game as any).integrationFlags : { ledgerEnabled: true, eventIntegrityChecked: false },
     resources: { ...baseResources(game.origin), ...game.resources },
     researchDone: { ...emptyResearch(), ...game.researchDone },
     buildings: { ...emptyBuildings(), ...game.buildings },
@@ -1920,6 +1979,10 @@ function ensureGameState(game: GameState): GameState {
     saveVersion: GAME_VERSION,
     schemaVersion: CURRENT_SCHEMA_VERSION,
     rng: migratedRng,
+    monthFlow: normalizeMonthFlow(game) as MonthFlowState,
+    ledger: normalizeLedger(game) as LedgerState,
+    eventRuntime: (game as any).eventRuntime && typeof (game as any).eventRuntime === "object" ? (game as any).eventRuntime : { cooldowns: {}, occurrences: {}, lastCategory: "", lastEventId: "" },
+    integrationFlags: (game as any).integrationFlags && typeof (game as any).integrationFlags === "object" ? (game as any).integrationFlags : { ledgerEnabled: true, eventIntegrityChecked: false },
     resources,
     resourceHistory: normalizeResourceHistory((game as any).resourceHistory, temp),
     buildings,
@@ -1965,7 +2028,8 @@ function ensureGameState(game: GameState): GameState {
     neighbors: normalizeNeighbors((game as any).neighbors),
     military: normalizeMilitary((game as any).military),
     people: (game.people ?? []).map((person) => ({ ...person, xp: person.xp ?? {}, grief: person.grief ?? 0, closeKin: person.closeKin ?? [] })),
-    summaryModal: null,
+    summaryModal: game.summaryModal ?? null,
+    saveRuntime: (game as any).saveRuntime && typeof (game as any).saveRuntime === "object" ? (game as any).saveRuntime : { lastCheckpoint: "legacy-load", lastSavedAt: null, recoveryCount: 0 },
     savedText: game.savedText ?? "เปิดบันทึกเดิมแล้ว",
   };
 }
@@ -1979,6 +2043,7 @@ function hydrateSavedGame(input: unknown): GameState {
   return { ...hydrated, savedText: migrated.warnings.length ? `เปิดบันทึกแล้ว · ${migrated.warnings.join(" · ")}` : hydrated.savedText };
 }
 function parseSavedGameText(text: string): GameState {
+  if (text.length > 5_000_000) throw new Error("ไฟล์บันทึกมีขนาดเกิน 5 MB กรุณาตรวจว่าเป็นไฟล์ Evolution of Us ที่ถูกต้อง");
   return hydrateSavedGame(JSON.parse(text) as unknown);
 }
 
@@ -2816,6 +2881,10 @@ function buildMonthlyReport(before: GameState, after: GameState, event: GameEven
     resourceRows,
     metricRows,
     warnings: endMonthWarnings(after).map((item) => `${item.icon} ${item.title}: ${item.text}`).slice(0, 6),
+    ledgerRows: categorizeChanges([
+      ...resourceRows.filter((row) => row.delta !== 0).map((row) => `${row.icon} ${row.label} ${row.delta > 0 ? "+" : ""}${fmt(row.delta)}`),
+      ...metricRows.filter((row) => row.delta !== 0).map((row) => `${row.label} ${row.delta > 0 ? "+" : ""}${Math.round(row.delta)}`),
+    ]).map(([system, items]) => ({ system, reason: "ผลสุทธิประจำเดือน", changes: items })),
   };
 }
 
@@ -2831,13 +2900,14 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
   const startingMap = initialLocationsForTerrain(terrain);
   const base: GameState = {
     version: GAME_VERSION, leaderName: setup.leaderName, houseName: setup.houseName, origin: setup.origin, difficulty: normalizeDifficulty(setup.difficulty),
+    monthFlow: { ...emptyMonthFlow({ year: 1, month: 1 }), phase: MONTH_PHASES.PLANNING } as MonthFlowState, ledger: emptyLedger({ year: 1, month: 1 }) as LedgerState, eventRuntime: { cooldowns: {}, occurrences: {}, lastCategory: "", lastEventId: "" }, integrationFlags: { ledgerEnabled: true, eventIntegrityChecked: false },
     year: 1, month: 1, stage: "ค่ายพักแรม", settlementName: defaultSettlementName("ค่ายพักแรม", setup.houseName), pendingSettlementRename: false, lastNamedStage: "ค่ายพักแรม", settlementNameHistory: [], resources: startingResources(setup.origin, people, terrain, normalizeDifficulty(setup.difficulty)), resourceHistory: [], buildings: emptyBuildings(), researchDone: emptyResearch(),
     construction: null, pausedConstruction: [], activeResearch: null, pausedResearch: [], labor: emptyLabor(), laborAssignments: {}, terrain, notifications: [],
     leaderFocus: "workWithPeople", leaderActionSelected: false, selectedChoiceId: null, currentEventId: "first_night", pendingEvents: [], delayedEvents: [], recentEventIds: [], eventHistory: [],
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
     collapse: { hungerMonths: 0, noWorkerMonths: 0, trustCrisisMonths: 0, assaultCrisisMonths: 0 }, gameOver: null,
-    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: startingMap.locations, exploreTarget: startingMap.target, animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), guilds: emptyGuilds(), outposts: [], neighbors: [], military: emptyMilitaryState(), factions: emptyFactions(), leaderAge: people.find((p) => p.id === "leader")?.age ?? 28, heir: null, dynasty: emptyDynastyState({ leaderName: setup.leaderName, people }) as DynastyState, victory: emptyVictoryState() as VictoryState, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
+    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, saveRuntime: { lastCheckpoint: "new-game", lastSavedAt: null, recoveryCount: 0 }, locations: startingMap.locations, exploreTarget: startingMap.target, animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), guilds: emptyGuilds(), outposts: [], neighbors: [], military: emptyMilitaryState(), factions: emptyFactions(), leaderAge: people.find((p) => p.id === "leader")?.age ?? 28, heir: null, dynasty: emptyDynastyState({ leaderName: setup.leaderName, people }) as DynastyState, victory: emptyVictoryState() as VictoryState, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
   };
   return addNotice(addLog(base, "ค่ายแรกถูกตั้งขึ้น", `${setup.leaderName} แห่งตระกูล ${setup.houseName} พาคนสิบห้าชีวิตตั้งกองไฟแรกที่ “${terrainData[terrain].title}” — ${terrainData[terrain].text}`, "milestone", ["เริ่มเกม", "พื้นที่เริ่มต้น"]), { kind: "system", title: `พื้นที่เริ่มต้น: ${terrainData[terrain].title}`, text: terrainData[terrain].text });
   });
@@ -3255,7 +3325,7 @@ const events: GameEvent[] = [
     choices: [
       choice("make_pots", "🏺", "ทดลองทำภาชนะเก็บอาหาร", "ทดลอง", "เพิ่มความรู้และช่วยถนอมอาหาร", { resources: { knowledge: 7 }, metrics: { morale: 2 }, path: { knowledge: 2, survival: 1 } }, ["ดินเหนียวถูกนวดและปั้นเป็นถ้วยเบี้ยว ๆ ใบแรก มันไม่งามนักแต่ตั้งอยู่ได้", "ภาชนะใบแรกทำให้การเก็บของไม่ใช่แค่กองบนพื้นอีกต่อไป"]),
       choice("mud_bricks", "🧱", "ลองตากเป็นอิฐดินดิบ", "ก่อสร้าง", "ช่วยงานก่อสร้างในอนาคต", { resources: { stone: 4, knowledge: 4 }, metrics: { trust: 1 }, path: { survival: 1 } }, ["ก้อนดินถูกเรียงตากแดดเหมือนขนมแข็ง ๆ ของคนยากจน", "ถ้ามันทนฝนได้ ค่ายอาจมีผนังที่ไม่ใช่แค่ไม้และความหวัง"]),
-      choice("ignore_clay", "🪨", "ยังไม่มีเวลาทดลอง", "โฟกัส", "ไม่เสียแรงแต่พลาดความรู้", { metrics: { morale: 0 } }, ["ดินเหนียวถูกทิ้งไว้ริมตลิ่งเหมือนเดิม งานเดือนนี้มีมากพอแล้ว", "ไม่ใช่ทุกโอกาสต้องถูกหยิบทันที แต่บางอย่างอาจไม่รอจนเราว่าง"]),
+      choice("ignore_clay", "🪨", "ยังไม่มีเวลาทดลอง", "โฟกัส", "ไม่เสียแรงแต่พลาดความรู้", { metrics: { morale: 1 }, path: { survival: 1 } }, ["ดินเหนียวถูกทิ้งไว้ริมตลิ่งเหมือนเดิม งานเดือนนี้มีมากพอแล้ว", "การรักษาสมาธิกับงานจำเป็นช่วยให้ค่ายไม่เสียจังหวะ แม้โอกาสด้านงานช่างจะต้องรอไปก่อน"]),
     ],
   }
 
@@ -5068,6 +5138,8 @@ function resolveNeighborMonth(game: GameState, changes: string[]): GameState {
 }
 
 function advanceMonth(game: GameState): GameState {
+  const completedMonthKey = monthKey(game);
+  const resolutionId = game.monthFlow?.activeResolutionId || `resolve-${completedMonthKey}`;
   const event = getEvent(game.currentEventId);
   const selected = event.choices.find((c) => c.id === game.selectedChoiceId) ?? event.choices[0];
   const normalizedGame = normalizeAdvancedSystems(game);
@@ -5135,7 +5207,11 @@ function advanceMonth(game: GameState): GameState {
     kind: nextBase.gameOver || nextBase.casualties.length > game.casualties.length ? "death" : changes.some((c) => c.includes("สำเร็จ") || c.includes("เสร็จ")) ? "milestone" : "normal",
     report: buildMonthlyReport(game, nextBase, event, selected),
   };
-  return { ...nextBase, currentEventId: nextEventId, summaryModal: modal };
+  let resolved: GameState = { ...nextBase, currentEventId: nextEventId, summaryModal: modal };
+  const ledgerEntries = entriesFromPipelineTrace(pipeline.trace, { resolutionId });
+  resolved = closeLedgerMonth(resolved, completedMonthKey, ledgerEntries, { resolutionId }) as GameState;
+  resolved = finishMonthResolution(resolved, completedMonthKey, resolutionId) as GameState;
+  return resolved;
 }
 
 export default function GamePage() {
@@ -5149,7 +5225,9 @@ export default function GamePage() {
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [eventIntroOpen, setEventIntroOpen] = useState(false);
   const shownEventIntroRef = useRef<string>("");
+  const lastPersistedGameRef = useRef<GameState | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [storageWarning, setStorageWarning] = useState("");
 
   useEffect(() => {
     if (!game?.pendingSettlementRename) return;
@@ -5204,12 +5282,22 @@ export default function GamePage() {
 
     const saveText = readFirstStorage([saveKey, ...legacySaveKeys]);
     const backupText = window.localStorage.getItem(autosaveBackupKey);
-    for (const candidate of [{ text: saveText, source: "current" }, { text: backupText, source: "backup" }]) {
-      if (!candidate.text) continue;
+    const candidates = recoveryCandidates(parseEnvelopeText(saveText) as any, readAutosaveRing(), parseEnvelopeText(backupText) as any);
+    for (const candidate of candidates) {
+      if (!candidate.envelope) continue;
       try {
-        const migrated = parseSavedGameText(candidate.text);
-        const loaded = candidate.source === "backup" ? { ...migrated, savedText: "บันทึกล่าสุดเสียหาย จึงกู้บันทึกอัตโนมัติก่อนหน้าให้แล้ว" } : migrated;
-        window.localStorage.setItem(saveKey, serializeSavedGame(loaded, { source: candidate.source === "backup" ? "automatic-recovery" : "migration" }));
+        const migrated = hydrateSavedGame(candidate.envelope);
+        const recovered = candidate.source !== "current";
+        const loaded: GameState = {
+          ...migrated,
+          saveRuntime: {
+            ...(migrated.saveRuntime ?? { lastCheckpoint: "load", lastSavedAt: null, recoveryCount: 0 }),
+            recoveryCount: Number(migrated.saveRuntime?.recoveryCount || 0) + (recovered ? 1 : 0),
+          },
+          savedText: recovered ? "บันทึกล่าสุดเสียหาย จึงกู้ข้อมูลจากจุดสำรองที่ตรวจสอบแล้ว" : migrated.savedText,
+        };
+        window.localStorage.setItem(saveKey, serializeSavedGame(loaded, { source: recovered ? "automatic-recovery" : "migration", recoverySource: candidate.source }));
+        lastPersistedGameRef.current = loaded;
         setGame(loaded);
         return;
       } catch (error) {
@@ -5230,35 +5318,73 @@ export default function GamePage() {
   }, [game?.year, game?.month, game?.logs.length]);
 
   useEffect(() => {
-    if (!game) return;
+    if (!game || game.monthFlow?.phase === MONTH_PHASES.RESOLVING) return;
     const timeout = window.setTimeout(() => {
-      const previousText = window.localStorage.getItem(saveKey);
-      if (previousText) {
+      try {
+      const checkpoint = saveCheckpointReason(lastPersistedGameRef.current, game);
+      const previousPayload = parseEnvelopeText(window.localStorage.getItem(saveKey));
+      const importantCheckpoint = ["initial", "month-change", "monthly-report", "stage-change", "settlement-name", "heir-change", "victory"].includes(checkpoint);
+      if (importantCheckpoint && previousPayload) {
         try {
-          const previous = parseSavedGameText(previousText);
-          if (previous.year !== game.year || previous.month !== game.month) window.localStorage.setItem(autosaveBackupKey, previousText);
-        } catch {}
+          const nextRing = rotateAutosaveBackups(readAutosaveRing(), previousPayload);
+          writeAutosaveRing(nextRing);
+          window.localStorage.setItem(autosaveBackupKey, JSON.stringify(previousPayload));
+        } catch (error) {
+          console.warn("ไม่สามารถหมุนเวียนบันทึกสำรอง", error);
+        }
       }
-      const safe = safeGameForStorage(game);
-      window.localStorage.setItem(saveKey, serializeSavedGame(safe, { source: "autosave" }));
+
+      const safe = safeGameForStorage(game, checkpoint);
+      const envelope = createSaveEnvelope(safe, { source: "autosave", checkpoint });
+      window.localStorage.setItem(saveKey, JSON.stringify(envelope));
+
       const activeSlot = window.localStorage.getItem(activeSlotKey) as SaveSlotId | null;
-      if (activeSlot && (["slot-1", "slot-2", "slot-3"] as string[]).includes(activeSlot)) {
+      if (importantCheckpoint && activeSlot && (["slot-1", "slot-2", "slot-3"] as string[]).includes(activeSlot)) {
         const slots = readSaveSlots();
         const existing = slots.find((slot) => slot.id === activeSlot);
-        if (existing) writeSaveSlots([{ ...existing, updatedAt: new Date().toISOString(), game: safe }, ...slots.filter((slot) => slot.id !== activeSlot)].sort((a, b) => a.id.localeCompare(b.id)));
+        if (existing) {
+          const raw = createManualSlotRecord({ id: activeSlot, label: existing.label, game: safe, metadata: { source: "active-slot-autosave", checkpoint } });
+          const record = { ...raw, id: activeSlot, game: safe } as SaveSlotRecord;
+          writeSaveSlots([record, ...slots.filter((slot) => slot.id !== activeSlot)].sort((a, b) => a.id.localeCompare(b.id)));
+        }
       }
-      updateLocalLeaderboard(game);
-    }, 450);
+      if (importantCheckpoint) updateLocalLeaderboard(game);
+      lastPersistedGameRef.current = safe;
+      setStorageWarning("");
+      } catch (error) {
+        console.error("บันทึกอัตโนมัติไม่สำเร็จ", error);
+        setStorageWarning("บันทึกอัตโนมัติไม่สำเร็จ พื้นที่จัดเก็บของเบราว์เซอร์อาจเต็ม กรุณาดาวน์โหลดไฟล์บันทึกจากหน้าตั้งค่า");
+      }
+    }, 1600);
     return () => window.clearTimeout(timeout);
   }, [game]);
 
   const event = useMemo(() => game ? getEvent(game.currentEventId) : allEvents[0], [game]);
+  useEffect(() => {
+    if (!game || game.integrationFlags?.eventIntegrityChecked) return;
+    const report = validateEventCollection(allEvents);
+    setGame((current) => current ? { ...current, integrationFlags: { ...current.integrationFlags, eventIntegrityChecked: true }, savedText: report.ok ? "ตรวจความสอดคล้องเหตุการณ์แล้ว" : `พบปัญหาเหตุการณ์ ${report.stats.errors || 0} จุด` } : current);
+  }, [game?.integrationFlags?.eventIntegrityChecked]);
   const availableWorkers = game ? adultWorkers(game) : 0;
   const risk = game ? riskPreview(game) : { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 };
 
   if (!game) return <main className={`app device-${deviceMode} theme-${theme}`}><div className="panel pad">กำลังก่อไฟและเปิดบันทึกค่าย...</div></main>;
 
-  function updateGame(fn: (g: GameState) => GameState) { setGame((prev) => prev ? runSeededTransition(prev, fn) as GameState : prev); }
+  function updateGame(fn: (g: GameState) => GameState, ledgerReason?: string) {
+    setGame((prev) => {
+      if (!prev) return prev;
+      const next = runSeededTransition(prev, fn) as GameState;
+      const sameMonth = prev.year === next.year && prev.month === next.month;
+      const isMonthlyResolution = next.monthFlow?.phase === MONTH_PHASES.REPORT || prev.monthFlow?.phase === MONTH_PHASES.RESOLVING;
+      if (!sameMonth || isMonthlyResolution || next === prev) return next;
+      return appendStateDiffLedger(prev, next, {
+        system: "player-action",
+        phase: normalizeMonthFlow(prev).phase,
+        reason: ledgerReason || next.savedText || "การกระทำของผู้เล่น",
+        includeMetrics: true,
+      }) as GameState;
+    });
+  }
   function adjustLabor(key: LaborKey, amount: number) {
     updateGame((g) => {
       const current = g.labor[key] ?? 0;
@@ -5410,7 +5536,14 @@ export default function GamePage() {
     if (!g.leaderActionSelected) return { ...g, savedText: "ต้องเลือกการกระทำของผู้นำก่อนจบเดือน" };
     if (!g.selectedChoiceId) return { ...g, savedText: "ต้องเลือกวิธีตอบสนองเหตุการณ์ก่อนจบเดือน" };
     if (g.currentEventId === "migrant_group" && g.selectedChoiceId === "accept_selected_migrants" && selectedMigrantIds(g).length === 0) return { ...g, savedText: "ต้องติ๊กเลือกผู้มาใหม่อย่างน้อย 1 คน หรือเลือกวิธีรับแบบอื่น" };
-    return g.gameOver ? g : advanceMonth({ ...g, laborAssignments: normalizedAssignments, labor });
+    if (g.gameOver) return g;
+    const laborAudit = validateLaborAssignments({ ...g, laborAssignments: normalizedAssignments }, normalizedAssignments);
+    if (!laborAudit.ok) return { ...g, savedText: laborAudit.issues[0]?.message || "การจัดแรงงานไม่ถูกต้อง" };
+    const worldAudit = validateWorldSystems(g);
+    if (!worldAudit.ok) return { ...g, savedText: `ตรวจพบความไม่สอดคล้องของระบบ: ${worldAudit.issues[0]?.message || "โปรดตรวจข้อมูลเกม"}` };
+    const begun = beginMonthResolution({ ...g, laborAssignments: normalizedAssignments, labor }, { requireLeader: true, requireEvent: true });
+    if (!begun.ok) return { ...g, savedText: begun.reason || "ยังไม่พร้อมจบเดือน" };
+    return advanceMonth(begun.game as GameState);
   }); }
   function restartSameSetup() {
     if (!game) return;
@@ -5495,6 +5628,7 @@ export default function GamePage() {
           <span><b>🧩 รุ่น</b> v{GAME_VERSION} · {deviceLabel(deviceMode)}</span>
         </div>
       </header>
+      {storageWarning && <div className="storage-warning" role="alert"><b>⚠️ ปัญหาการบันทึก</b><span>{storageWarning}</span><button onClick={() => setView("ตั้งค่า")}>เปิดหน้าบันทึก</button></div>}
 
       <section className="shell">
         <aside className="sidebar">
@@ -5626,7 +5760,7 @@ export default function GamePage() {
               ))}
             </div>
             <div className="flex" style={{ justifyContent: "flex-end", marginTop: 18 }}>
-              <button className="primary" onClick={() => updateGame((g) => ({ ...g, summaryModal: null }))}>เข้าสู่เดือนถัดไป</button>
+              <button className="primary" onClick={() => updateGame((g) => enterPlanningPhase({ ...g, summaryModal: null }) as GameState)}>เข้าสู่เดือนถัดไป</button>
             </div>
           </section>
         </div>
@@ -5896,6 +6030,7 @@ function ResourceAcquisitionGuide({ game }: { game: GameState }) {
 }
 
 function ResourcesView({ game }: { game: GameState }) {
+  const economy = economySnapshot(game);
   const quality = qualityStatus(game);
   const history = resourceTrendPoints(game);
   const foodNeed = foodNeedFor(game);
@@ -5903,7 +6038,7 @@ function ResourcesView({ game }: { game: GameState }) {
   return (
     <div>
       <section className="dashboard-grid resource-kpi-grid">
-        <div className="panel kpi"><span className="muted">อาหาร / เดือนนี้</span><b>{fmt(game.resources.food)} <small className={resourceLedger(game)[0].net >= 0 ? "good-text" : "danger-text"}>{resourceLedger(game)[0].net >= 0 ? "+" : ""}{fmt(resourceLedger(game)[0].net)}</small></b><small>ต้องใช้ประมาณ {fmt(foodNeed)} ต่อเดือน</small></div>
+        <div className="panel kpi"><span className="muted">อาหาร / เดือนนี้</span><b>{fmt(game.resources.food)} <small className={resourceLedger(game)[0].net >= 0 ? "good-text" : "danger-text"}>{resourceLedger(game)[0].net >= 0 ? "+" : ""}{fmt(resourceLedger(game)[0].net)}</small></b><small>ต้องใช้ประมาณ {fmt(foodNeed)} ต่อเดือน · สำรอง {economy.foodMonths.toFixed(1)} เดือน</small></div>
         <div className="panel kpi"><span className="muted">น้ำ / เดือนนี้</span><b>{fmt(game.resources.water)} <small className={resourceLedger(game)[1].net >= 0 ? "good-text" : "danger-text"}>{resourceLedger(game)[1].net >= 0 ? "+" : ""}{fmt(resourceLedger(game)[1].net)}</small></b><small>คนและสัตว์ต้องใช้น้ำรวม {fmt(waterNeed)} ต่อเดือน</small></div>
         <div className="panel kpi"><span className="muted">ทรัพย์สินเมือง</span><b>🪙 {fmt(game.resources.gold)}</b><small>ทองมาจากการค้า/ขายส่วนเกิน ใช้ซื้อของฉุกเฉิน</small></div>
         <div className="panel kpi"><span className="muted">คุณภาพชีวิต</span><b>{pct(Math.round((quality.foodQuality + quality.waterQuality + quality.shelterQuality) / 3))}</b><small>อาหาร {pct(quality.foodQuality)} · น้ำ {pct(quality.waterQuality)} · ที่พัก {pct(quality.shelterQuality)}</small></div>
@@ -6261,6 +6396,9 @@ function LaborAssignmentPanel({ game, assignPersonLabor, assignManyPeople, apply
   const [skillFilter, setSkillFilter] = useState<SkillKey | "all" | "free" | "sick" | "injured" | "both" | "assigned" | "tired" | "resting">("all");
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
   const [bulkJob, setBulkJob] = useState<LaborKey | "">("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortMode, setSortMode] = useState<"priority" | "name" | "fatigue" | "health">("priority");
+  const [page, setPage] = useState(1);
   const jobs = unlockedLaborOptions(game);
   const assignments = normalizeLaborAssignments(game, game.laborAssignments ?? {});
   const labor = deriveLaborFromAssignments(game, assignments);
@@ -6302,7 +6440,7 @@ function LaborAssignmentPanel({ game, assignPersonLabor, assignManyPeople, apply
   ];
   const filters = allFilters.filter((filter) => filter.id === "all" || filter.count > 0);
   const activeFilter = filters.some((filter) => filter.id === skillFilter) ? skillFilter : "all";
-  const visibleWorkers = workers.filter((person) => {
+  const filteredWorkers = workers.filter((person) => {
     if (activeFilter === "all") return true;
     if (activeFilter === "free") return baseWorkFactor(person) > 0 && !assignedJobOf(game, person.id) && !personNeedsCare(person);
     if (activeFilter === "assigned") return Boolean(assignedJobOf(game, person.id));
@@ -6312,7 +6450,15 @@ function LaborAssignmentPanel({ game, assignPersonLabor, assignManyPeople, apply
     if (activeFilter === "tired") return personIsExhausted(person);
     if (activeFilter === "resting") return !assignedJobOf(game, person.id);
     return person.skill === activeFilter || (activeFilter === "child" && person.age <= 15) || (activeFilter === "elder" && person.age >= 60);
-  }).sort((a, b) => Number(personNeedsCare(b)) - Number(personNeedsCare(a)) || Number(personIsExhausted(b)) - Number(personIsExhausted(a)) || b.fatigue - a.fatigue);
+  });
+  const visibleWorkers = filteredWorkers
+    .filter((person) => !searchTerm.trim() || `${person.name} ${person.role} ${person.traits.join(" ")}`.toLocaleLowerCase("th").includes(searchTerm.trim().toLocaleLowerCase("th")))
+    .sort((a, b) => sortMode === "name" ? a.name.localeCompare(b.name, "th") : sortMode === "fatigue" ? b.fatigue - a.fatigue : sortMode === "health" ? a.health - b.health : Number(personNeedsCare(b)) - Number(personNeedsCare(a)) || Number(personIsExhausted(b)) - Number(personIsExhausted(a)) || b.fatigue - a.fatigue);
+  const pageSize = 40;
+  const totalPages = Math.max(1, Math.ceil(visibleWorkers.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageWorkers = visibleWorkers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  useEffect(() => setPage(1), [skillFilter, searchTerm, sortMode]);
   return (
     <section className="panel pad labor-named-panel" style={{ boxShadow: "none", margin: "12px 0" }}>
       <div className="split">
@@ -6325,8 +6471,18 @@ function LaborAssignmentPanel({ game, assignPersonLabor, assignManyPeople, apply
       <div className="filter-strip compact-filter">
         {filters.map((f) => <button key={f.id} className={activeFilter === f.id ? "active" : ""} onClick={() => setSkillFilter(f.id)}>{f.label} {f.count}</button>)}
       </div>
+      <div className="workforce-search-toolbar">
+        <input className="input workforce-search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="ค้นหาชื่อ บทบาท หรือคุณลักษณะ" aria-label="ค้นหารายชื่อคน" />
+        <select className="labor-select compact-select" value={sortMode} onChange={(event) => setSortMode(event.target.value as typeof sortMode)}>
+          <option value="priority">เรียงคนที่ควรดูแลก่อน</option>
+          <option value="name">เรียงตามชื่อ</option>
+          <option value="fatigue">เรียงความล้ามากก่อน</option>
+          <option value="health">เรียงสุขภาพต่ำก่อน</option>
+        </select>
+        <span className="badge blue">แสดง {pageWorkers.length} จาก {visibleWorkers.length} คน</span>
+      </div>
       <div className="bulk-labor-toolbar">
-        <label><input type="checkbox" checked={visibleWorkers.length > 0 && visibleWorkers.every((person) => selectedPeople.includes(person.id))} onChange={(event) => setSelectedPeople(event.target.checked ? visibleWorkers.map((person) => person.id) : [])} /> เลือกคนที่แสดงทั้งหมด</label>
+        <label><input type="checkbox" checked={pageWorkers.length > 0 && pageWorkers.every((person) => selectedPeople.includes(person.id))} onChange={(event) => setSelectedPeople(event.target.checked ? Array.from(new Set([...selectedPeople, ...pageWorkers.map((person) => person.id)])) : selectedPeople.filter((id) => !pageWorkers.some((person) => person.id === id)))} /> เลือกคนในหน้านี้</label>
         <span className="badge blue">เลือกแล้ว {selectedPeople.length} คน</span>
         <select className="labor-select compact-select" value={bulkJob} onChange={(event) => setBulkJob(event.target.value as LaborKey | "")}>
           <option value="">พัก / นำงานออก</option>
@@ -6335,7 +6491,7 @@ function LaborAssignmentPanel({ game, assignPersonLabor, assignManyPeople, apply
         <button className="primary" disabled={selectedPeople.length === 0} onClick={() => { assignManyPeople(selectedPeople, bulkJob); setSelectedPeople([]); }}>ใช้กับคนที่เลือก</button>
       </div>
       <div className="assignment-list">
-        {visibleWorkers.map((person) => {
+        {pageWorkers.map((person) => {
           const current = assignedJobOf(game, person.id) ?? "";
           const factor = baseWorkFactor(person);
           const currentJob = current ? laborMeta.find((j) => j.id === current) : null;
@@ -6371,6 +6527,7 @@ function LaborAssignmentPanel({ game, assignPersonLabor, assignManyPeople, apply
           );
         })}
       </div>
+      {totalPages > 1 && <div className="workforce-pagination"><button className="secondary" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>← ก่อนหน้า</button><span>หน้า {currentPage}/{totalPages}</span><button className="secondary" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>ถัดไป →</button></div>}
       <details className="details-box" style={{ marginTop: 12 }}>
         <summary>สรุปงานที่มีคนทำอยู่</summary>
         <div className="work-grid" style={{ marginTop: 12 }}>
@@ -6837,9 +6994,9 @@ function PoliciesView({ game, updatePolicies }: { game: GameState; updatePolicie
 function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, replaceGame }: { game: GameState; resetGame: () => void; showTutorialAgain: () => void; theme: "light" | "dark"; setTheme: (theme: "light" | "dark") => void; replaceGame: (game: GameState) => void }) {
   const [importText, setImportText] = useState("");
   const [importMessage, setImportMessage] = useState("");
-  const [devCode, setDevCode] = useState("");
-  const [devUnlocked, setDevUnlocked] = useState(false);
+  const developerToolsAvailable = process.env.NODE_ENV !== "production";
   const [saveSlots, setSaveSlots] = useState<SaveSlotRecord[]>(() => typeof window === "undefined" ? [] : readSaveSlots());
+  const [saveSlotErrorCount, setSaveSlotErrorCount] = useState(() => typeof window === "undefined" ? 0 : readSaveSlotErrorCount());
   const [slotLabels, setSlotLabels] = useState<Record<SaveSlotId, string>>({ "slot-1": "บันทึกที่ 1", "slot-2": "บันทึกที่ 2", "slot-3": "บันทึกที่ 3" });
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(() => typeof window === "undefined" ? [] : readLeaderboard());
   useEffect(() => {
@@ -6861,7 +7018,7 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, rep
       const loaded = parseSavedGameText(importText);
       const validation = validateGameSave(loaded, { strict: true });
       if (!validation.ok) throw new Error(formatValidationIssues(validation.issues));
-      window.localStorage.setItem(saveKey, serializeSavedGame({ ...loaded, summaryModal: null, savedText: "นำเข้าบันทึกแล้ว" }, { source: "manual-import" }));
+      window.localStorage.setItem(saveKey, serializeSavedGame({ ...loaded, savedText: "นำเข้าบันทึกแล้ว" }, { source: "manual-import" }));
       setImportMessage(`นำเข้าบันทึกสำเร็จ · รูปแบบข้อมูลรุ่น ${loaded.schemaVersion ?? CURRENT_SCHEMA_VERSION} · กำลังโหลดใหม่...`);
       window.setTimeout(() => window.location.reload(), 450);
     } catch (error) {
@@ -6869,21 +7026,40 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, rep
     }
   };
   const saveToSlot = (id: SaveSlotId) => {
-    const record: SaveSlotRecord = { id, label: slotLabels[id].trim() || `บันทึก ${id.slice(-1)}`, updatedAt: new Date().toISOString(), game: safeGameForStorage(game) };
-    const next = [record, ...saveSlots.filter((slot) => slot.id !== id)].sort((a, b) => a.id.localeCompare(b.id));
-    writeSaveSlots(next); window.localStorage.setItem(activeSlotKey, id); setSaveSlots(next); setImportMessage(`บันทึกลง ${record.label} แล้ว`);
+    try {
+      const safe = safeGameForStorage(game, `manual-${id}`);
+      const raw = createManualSlotRecord({ id, label: slotLabels[id].trim() || `บันทึก ${id.slice(-1)}`, game: safe });
+      const record = { ...raw, id, game: safe } as SaveSlotRecord;
+      const next = [record, ...saveSlots.filter((slot) => slot.id !== id)].sort((a, b) => a.id.localeCompare(b.id));
+      writeSaveSlots(next);
+      window.localStorage.setItem(activeSlotKey, id);
+      setSaveSlots(next);
+      setSaveSlotErrorCount(0);
+      setImportMessage(`บันทึกลง ${record.label} พร้อมรหัสตรวจความสมบูรณ์แล้ว`);
+    } catch (error) {
+      setImportMessage(`บันทึกช่องไม่ได้: ${error instanceof Error ? error.message : "ข้อมูลไม่ถูกต้อง"}`);
+    }
   };
   const loadSlot = (id: SaveSlotId) => {
     const slot = saveSlots.find((item) => item.id === id); if (!slot) return;
     try {
-      const loaded = hydrateSavedGame(slot.game);
+      const loaded = hydrateSavedGame(manualSlotGame(slot));
       window.localStorage.setItem(saveKey, serializeSavedGame(loaded, { source: `slot-${id}` }));
       window.localStorage.setItem(activeSlotKey, id);
       replaceGame({ ...loaded, savedText: `โหลด ${slot.label} แล้ว` });
     } catch (error) { setImportMessage(`โหลดช่องบันทึกไม่ได้: ${error instanceof Error ? error.message : "ข้อมูลเสียหาย"}`); }
   };
-  const deleteSlot = (id: SaveSlotId) => { const next = saveSlots.filter((slot) => slot.id !== id); writeSaveSlots(next); setSaveSlots(next); };
-  const restoreBackup = () => { const raw = window.localStorage.getItem(autosaveBackupKey); if (!raw) { setImportMessage("ยังไม่มีบันทึกสำรองก่อนหน้า"); return; } try { const loaded = parseSavedGameText(raw); window.localStorage.setItem(saveKey, serializeSavedGame(loaded, { source: "autosave-backup" })); replaceGame({ ...loaded, savedText: "กู้บันทึกอัตโนมัติก่อนหน้าแล้ว" }); } catch (error) { setImportMessage(`บันทึกสำรองเสียหาย: ${error instanceof Error ? error.message : "ไม่สามารถกู้ได้"}`); } };
+  const deleteSlot = (id: SaveSlotId) => { const next = saveSlots.filter((slot) => slot.id !== id); writeSaveSlots(next); setSaveSlots(next); setSaveSlotErrorCount(0); };
+  const restoreBackup = () => {
+    const ring = readAutosaveRing();
+    const candidate = ring.find((item) => item?.envelope)?.envelope ?? parseEnvelopeText(window.localStorage.getItem(autosaveBackupKey));
+    if (!candidate) { setImportMessage("ยังไม่มีบันทึกสำรองก่อนหน้า"); return; }
+    try {
+      const loaded = hydrateSavedGame(candidate);
+      window.localStorage.setItem(saveKey, serializeSavedGame(loaded, { source: "autosave-backup" }));
+      replaceGame({ ...loaded, saveRuntime: { ...loaded.saveRuntime, recoveryCount: loaded.saveRuntime.recoveryCount + 1 }, savedText: "กู้บันทึกอัตโนมัติก่อนหน้าแล้ว" });
+    } catch (error) { setImportMessage(`บันทึกสำรองเสียหาย: ${error instanceof Error ? error.message : "ไม่สามารถกู้ได้"}`); }
+  };
   const downloadSave = () => { const blob = new Blob([exportText], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `evolution-of-us-${game.houseName}-Y${game.year}M${game.month}-v${GAME_VERSION}.json`; a.click(); URL.revokeObjectURL(url); };
   const mailBody = encodeURIComponent(`ความคิดเห็น Evolution of Us รุ่นทดสอบ v${GAME_VERSION}\n\nวางรายงานตรวจระบบหรือความคิดเห็นตรงนี้:\n\n${compactDebug}`);
   return (
@@ -6898,8 +7074,10 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, rep
 
       <section className="panel pad save-system-panel" style={{ boxShadow: "none", marginTop: 14 }}>
         <div className="split"><div><h3 className="section-title">ระบบบันทึกสำหรับผู้เล่น</h3><p className="muted small">เกมบันทึกอัตโนมัติพร้อมการตรวจความสมบูรณ์และเลขรุ่นข้อมูล เก็บสำรองก่อนข้ามเดือน รองรับการย้ายบันทึกเก่า ผู้เล่นมีบันทึกด้วยตนเอง 3 ช่อง โหลดกลับ กู้บันทึก หรือดาวน์โหลดไฟล์ได้</p></div><span className="badge green">บันทึกอัตโนมัติเปิดอยู่</span></div>
+        {saveSlotErrorCount > 0 && <div className="storage-warning"><b>⚠️ พบช่องบันทึกเสียหาย {saveSlotErrorCount} ช่อง</b><span>ระบบไม่นำช่องที่ Checksum หรือโครงสร้างผิดมาโหลด กรุณาใช้บันทึกสำรองหรือไฟล์ที่ดาวน์โหลดไว้</span></div>}
         <div className="save-slot-grid">{(["slot-1","slot-2","slot-3"] as SaveSlotId[]).map((id) => { const slot = saveSlots.find((item) => item.id === id); return <article className="save-slot-card" key={id}><input className="input" value={slotLabels[id]} onChange={(e) => setSlotLabels((old) => ({ ...old, [id]: e.target.value }))} /><div className="save-slot-summary">{slot ? <><b>{slot.game.houseName} · {slot.game.stage}</b><small>ปี {slot.game.year} เดือน {slot.game.month} · ประชากร {alivePeople(slot.game).length}</small><small>บันทึกล่าสุด {new Date(slot.updatedAt).toLocaleString("th-TH")}</small></> : <span className="muted">ช่องว่าง</span>}</div><div className="flex"><button className="primary" onClick={() => saveToSlot(id)}>บันทึกทับ</button><button className="secondary" disabled={!slot} onClick={() => loadSlot(id)}>โหลด</button><button className="danger" disabled={!slot} onClick={() => deleteSlot(id)}>ลบ</button></div></article>; })}</div>
         <div className="flex" style={{ marginTop: 12 }}><button className="secondary" onClick={restoreBackup}>กู้บันทึกอัตโนมัติก่อนหน้า</button><button className="secondary" onClick={downloadSave}>ดาวน์โหลดไฟล์บันทึก</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอกข้อมูลบันทึก</button><button className="secondary" onClick={() => copyText(game.rng?.seed ?? "")}>คัดลอกรหัสสุ่มประจำเกม</button><span className="muted small">{importMessage}</span></div>
+        <details className="details-box" style={{ marginTop: 12 }}><summary>นำเข้าบันทึกจาก JSON</summary><p className="muted small">วางข้อมูลจากไฟล์บันทึก ระบบจะตรวจรูปแบบข้อมูล รหัสความสมบูรณ์ และย้ายบันทึกเก่าเป็นรุ่นปัจจุบันก่อนโหลด</p><textarea className="input" rows={6} placeholder="วางข้อมูลบันทึกที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>ตรวจและนำเข้าบันทึก</button><span className="muted small">{importMessage}</span></div></details>
       </section>
 
       <section className="panel pad leaderboard-panel" style={{ boxShadow: "none", marginTop: 14 }}>
@@ -6931,10 +7109,10 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, rep
         <a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Test%20Version%20Feedback&body=${mailBody}`}>ส่งความคิดเห็นทางอีเมล</a>
       </div>
 
-      <details className="details-box dev-tools-box" style={{ marginTop: 16 }}>
-        <summary>เครื่องมือพิเศษ</summary>
-        {!devUnlocked ? <div className="dev-lock"><p className="muted small">พื้นที่นี้เป็นส่วนเสริมสำหรับตรวจข้อมูลภายใน ใส่รหัสหากต้องการเปิดใช้งาน</p><div className="flex"><input className="input" placeholder="รหัสผู้พัฒนา" value={devCode} onChange={(e) => setDevCode(e.target.value)} /><button className="primary" onClick={() => setDevUnlocked(devCode.trim() === "248655")}>ปลดล็อก</button></div>{devCode && devCode.trim() !== "248655" && <small className="danger-text">รหัสไม่ถูกต้อง</small>}</div> : <div><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอกรายงานภายใน</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอกข้อมูลบันทึก</button><button className="secondary" onClick={() => copyText(game.rng?.seed ?? "")}>คัดลอกรหัสสุ่มประจำเกม</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอกชุดข้อมูลระบบ</button><button className="secondary" onClick={() => setDevUnlocked(false)}>ล็อกอีกครั้ง</button></div><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><details className="details-box" style={{ marginTop: 10 }}><summary>ส่งออก / นำเข้าข้อมูลบันทึก (JSON)</summary><textarea className="input" readOnly rows={8} value={exportText} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /><textarea className="input" rows={6} placeholder="วางข้อมูลบันทึกที่ต้องการนำเข้า" value={importText} onChange={(e) => setImportText(e.target.value)} style={{ marginTop: 10, fontFamily: "ui-monospace, Consolas, monospace" }} /><div className="flex" style={{ marginTop: 8 }}><button className="secondary" onClick={importSave}>นำเข้าข้อมูลบันทึก</button><span className="muted small">{importMessage}</span></div></details></div>}
-      </details>
+      {developerToolsAvailable && <details className="details-box dev-tools-box" style={{ marginTop: 16 }}>
+        <summary>เครื่องมือนักพัฒนา — แสดงเฉพาะโหมดพัฒนา</summary>
+        <div><div className="flex"><button className="secondary" onClick={() => copyText(compactDebug)}>คัดลอกรายงานภายใน</button><button className="secondary" onClick={() => copyText(exportText)}>คัดลอกข้อมูลบันทึก</button><button className="secondary" onClick={() => copyText(game.rng?.seed ?? "")}>คัดลอกรหัสสุ่มประจำเกม</button><button className="secondary" onClick={() => copyText(JSON.stringify(portableDataSummary, null, 2))}>คัดลอกชุดข้อมูลระบบ</button></div><textarea className="input" readOnly rows={8} value={compactDebug} style={{ marginTop: 8, fontFamily: "ui-monospace, Consolas, monospace" }} /></div>
+      </details>}
     </section>
   );
 }

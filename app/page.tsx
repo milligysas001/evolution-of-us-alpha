@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { GAME_VERSION } from "../config/version.mjs";
+import { manualSlotGame, normalizeManualSlots } from "../save/save-manager.mjs";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
 type Difficulty = "story" | "normal" | "survival" | "ironman";
@@ -13,11 +15,12 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "รุ่นทดสอบ v0.9.41";
+const VERSION = `รุ่นทดสอบ v${GAME_VERSION}`;
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
 const saveSlotsKey = "eou-save-slots-v1";
-type HomeSaveSlot = { id: string; label: string; updatedAt: string; game: { leaderName: string; houseName: string; origin: Origin; year: number; month: number; stage: string; people?: Array<{ alive?: boolean }> } };
+type HomeGameSummary = { leaderName: string; houseName: string; origin: Origin; difficulty?: Difficulty; year: number; month: number; stage: string; people?: Array<{ alive?: boolean }> };
+type HomeSaveSlot = { id: string; label: string; updatedAt: string; envelope: unknown; game: HomeGameSummary };
 const legacySetupKeys = ["eou-v0913-setup", "eou-v0912-setup", "eou-v0911-setup", "eou-v0910-setup", "eou-v099-setup", "eou-v098-setup", "eou-v097-setup"];
 const legacySaveKeys = ["eou-v0913-save", "eou-v0912-save", "eou-v0911-save", "eou-v0910-save", "eou-v099-save", "eou-v098-save", "eou-v097-save"];
 
@@ -33,7 +36,7 @@ const difficulties: Array<{ id: Difficulty; icon: string; title: string; text: s
   { id: "story", icon: "📖", title: "เน้นเรื่องราว", text: "เสบียงมากขึ้นและความเสี่ยงเบาลง เหมาะกับการเรียนรู้ระบบ", reserve: "อาหารประมาณ 9 เดือน" },
   { id: "normal", icon: "⚖️", title: "สมดุล", text: "ทรัพยากรและภัยตามมาตรฐาน เหมาะกับการเล่นรอบแรก", reserve: "อาหารประมาณ 6 เดือน" },
   { id: "survival", icon: "🔥", title: "เอาชีวิตรอด", text: "เสบียงน้อยลงและเหตุการณ์อันตรายรุนแรงขึ้น", reserve: "อาหารประมาณ 4 เดือน" },
-  { id: "ironman", icon: "🛡️", title: "ไอรอนแมน", text: "ความเสี่ยงสูงสุด เหมาะกับผู้เล่นที่ต้องการความท้าทาย", reserve: "อาหารประมาณ 3 เดือน" },
+  { id: "ironman", icon: "🛡️", title: "ท้าทายสูงสุด", text: "ความเสี่ยงสูงสุด แต่ยังใช้ระบบบันทึกตามปกติ เหมาะกับผู้เล่นที่เข้าใจเกมแล้ว", reserve: "อาหารประมาณ 3 เดือน" },
 ];
 
 function clearKeys(keys: string[]) {
@@ -60,8 +63,12 @@ export default function HomePage() {
   useEffect(() => {
     setCanContinue(hasSave());
     try {
-      const parsed = JSON.parse(window.localStorage.getItem(saveSlotsKey) ?? "[]") as HomeSaveSlot[];
-      setManualSlots(Array.isArray(parsed) ? parsed.filter((slot) => slot?.game) : []);
+      const parsed = JSON.parse(window.localStorage.getItem(saveSlotsKey) ?? "[]") as unknown[];
+      const normalized = normalizeManualSlots(parsed);
+      const slots = normalized.valid.flatMap((slot: any) => {
+        try { return [{ ...slot, game: manualSlotGame(slot) as HomeGameSummary } as HomeSaveSlot]; } catch { return []; }
+      });
+      setManualSlots(slots);
     } catch { setManualSlots([]); }
   }, []);
 
@@ -74,7 +81,7 @@ export default function HomePage() {
 
 
   function loadManualSlot(slot: HomeSaveSlot) {
-    window.localStorage.setItem(saveKey, JSON.stringify(slot.game));
+    window.localStorage.setItem(saveKey, JSON.stringify(slot.envelope));
     writeSetup({ leaderName: slot.game.leaderName, houseName: slot.game.houseName, origin: slot.game.origin, difficulty: (slot.game as any).difficulty ?? "normal" });
     window.location.href = "/game";
   }

@@ -1,9 +1,12 @@
 import { createRngState, normalizeRngState } from "../engine/random.mjs";
 import { emptyDynastyState, emptyVictoryState, normalizeDynastyState, normalizeVictoryState } from "../logic/dynasty-endgame.mjs";
+import { emptyMonthFlow, normalizeMonthFlow } from "../engine/month-flow.mjs";
+import { emptyLedger, normalizeLedger } from "../engine/ledger.mjs";
+import { GAME_VERSION, SAVE_SCHEMA_VERSION, SAVE_FORMAT } from "../config/version.mjs";
 
-export const CURRENT_GAME_VERSION = "0.9.42";
-export const CURRENT_SCHEMA_VERSION = 6;
-export const SAVE_FORMAT = "evolution-of-us-save";
+export const CURRENT_GAME_VERSION = GAME_VERSION;
+export const CURRENT_SCHEMA_VERSION = SAVE_SCHEMA_VERSION;
+export { SAVE_FORMAT };
 
 export function stableStringify(value) {
   return JSON.stringify(sortValue(value));
@@ -41,6 +44,11 @@ export function createSaveEnvelope(game, metadata = {}) {
       year: Number(cleanGame.year || 1),
       month: Number(cleanGame.month || 1),
       stage: String(cleanGame.stage || "ค่ายพักแรม"),
+      settlementName: String(cleanGame.settlementName || ""),
+      population: Array.isArray(cleanGame.people) ? cleanGame.people.filter((person) => person?.alive !== false).length : 0,
+      phase: String(cleanGame.monthFlow?.phase || "planning"),
+      hasMonthlyReport: Boolean(cleanGame.summaryModal),
+      resolutionId: cleanGame.monthFlow?.lastCompletedResolutionId || cleanGame.monthFlow?.activeResolutionId || null,
       ...metadata,
     },
     game: cleanGame,
@@ -118,8 +126,34 @@ export function migrateSavePayload(input) {
     game.schemaVersion = 6;
   }
 
+  if (fromSchema < 7) {
+    game.monthFlow = emptyMonthFlow(game);
+    game.ledger = emptyLedger(game);
+    game.eventRuntime = game.eventRuntime && typeof game.eventRuntime === "object" ? game.eventRuntime : { cooldowns: {}, occurrences: {}, lastCategory: "", lastEventId: "" };
+    game.integrationFlags = game.integrationFlags && typeof game.integrationFlags === "object" ? game.integrationFlags : { ledgerEnabled: true, eventIntegrityChecked: false };
+    game.schemaVersion = 7;
+  }
+
+
+  if (fromSchema < 8) {
+    // Schema 8 keeps the monthly report in the save so a refresh cannot strand the player in REPORT phase.
+    game.summaryModal = normalizeSummaryModal(game.summaryModal);
+    game.saveRuntime = game.saveRuntime && typeof game.saveRuntime === "object" ? game.saveRuntime : {
+      lastCheckpoint: "migration",
+      lastSavedAt: null,
+      recoveryCount: 0,
+    };
+    game.schemaVersion = 8;
+  }
+
   game.dynasty = normalizeDynastyState(game);
   game.victory = normalizeVictoryState(game);
+  game.monthFlow = normalizeMonthFlow(game);
+  game.ledger = normalizeLedger(game);
+  game.eventRuntime = game.eventRuntime && typeof game.eventRuntime === "object" ? game.eventRuntime : { cooldowns: {}, occurrences: {}, lastCategory: "", lastEventId: "" };
+  game.integrationFlags = game.integrationFlags && typeof game.integrationFlags === "object" ? game.integrationFlags : { ledgerEnabled: true, eventIntegrityChecked: false };
+  game.summaryModal = normalizeSummaryModal(game.summaryModal);
+  game.saveRuntime = game.saveRuntime && typeof game.saveRuntime === "object" ? game.saveRuntime : { lastCheckpoint: "normalization", lastSavedAt: null, recoveryCount: 0 };
 
   const fallbackSeed = `${game.houseName || "House"}-${game.leaderName || "Leader"}-${game.year || 1}-${game.month || 1}`;
   game.rng = normalizeRngState(game.rng || createRngState(fallbackSeed), fallbackSeed);
@@ -128,6 +162,29 @@ export function migrateSavePayload(input) {
   game.schemaVersion = CURRENT_SCHEMA_VERSION;
 
   return { game, fromVersion, fromSchema, warnings, checksumValid: envelopeCheck.ok };
+}
+
+function normalizeSummaryModal(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const report = value.report && typeof value.report === "object" ? {
+    eventTitle: String(value.report.eventTitle || ""),
+    choiceTitle: String(value.report.choiceTitle || ""),
+    leaderAction: String(value.report.leaderAction || ""),
+    populationBefore: Number(value.report.populationBefore || 0),
+    populationAfter: Number(value.report.populationAfter || 0),
+    deaths: Number(value.report.deaths || 0),
+    resourceRows: Array.isArray(value.report.resourceRows) ? value.report.resourceRows.slice(0, 64) : [],
+    metricRows: Array.isArray(value.report.metricRows) ? value.report.metricRows.slice(0, 32) : [],
+    warnings: Array.isArray(value.report.warnings) ? value.report.warnings.map(String).slice(0, 24) : [],
+    ledgerRows: Array.isArray(value.report.ledgerRows) ? value.report.ledgerRows.slice(0, 96) : [],
+  } : undefined;
+  return {
+    title: String(value.title || "รายงานจบเดือน"),
+    paragraphs: Array.isArray(value.paragraphs) ? value.paragraphs.map(String).slice(0, 12) : [],
+    changes: Array.isArray(value.changes) ? value.changes.map(String).slice(0, 240) : [],
+    kind: ["normal","good","bad","death","rare","milestone"].includes(value.kind) ? value.kind : "normal",
+    ...(report ? { report } : {}),
+  };
 }
 
 function structuredCloneSafe(value) {

@@ -1,49 +1,31 @@
-# Evolution of Us — รุ่นทดสอบ v0.9.42
+# Evolution of Us v0.9.51
 
-## Wide Layout & Living Chronicle
+**Integrity, Recovery & Performance Patch**
 
-รุ่นนี้ปรับหน้าหลักให้ใช้พื้นที่ได้เต็มขึ้น โดยยกเลิกแผงตัดสินใจด้านขวาและย้ายการอ่านเหตุการณ์ไปเป็นแท็บหลัก พร้อมปรับพงศาวดาร ระบบทายาท ชื่อบุคคล ชื่อถิ่นฐาน และเส้นทางชัยชนะอัตโนมัติ
+เกมบริหารชุมชนและตระกูลแบบรายเดือน พัฒนาจากค่ายพักแรมไปสู่อาณาจักร พร้อมระบบประชากร แรงงาน Event ก่อสร้าง วิจัย การสำรวจ สัตว์ การค้า เมืองข้างเคียง ทหาร ราชวงศ์ ชัยชนะ และพงศาวดาร
 
-### จุดสำคัญ
+## คำสั่งหลัก
 
-- หน้าหลักใช้โครงสร้าง 2 คอลัมน์: ข้อมูลเมืองด้านซ้ายและเนื้อหาหลักด้านขวา
-- แท็บ `✦ ตัดสินใจเดือนนี้` มีจุดเตือนจนกว่าจะเลือกการนำและคำตอบเหตุการณ์ครบ
-- ปุ่มจบเดือนในเมนูย่อจะพาไปหน้าตัดสินใจก่อน ไม่ข้ามเนื้อหา
-- พงศาวดารเก็บหนึ่งบทสรุปต่อเดือน และแยกเฉพาะจุดเปลี่ยนสำคัญ
-- ระบบทายาทแสดงผลการแต่งตั้งทันที พร้อมปุ่มยกเลิกและสถานะการปลดล็อก
-- เพิ่มคลังชื่อหลากหลายจากหลายวัฒนธรรม และหลีกเลี่ยงชื่อซ้ำในรอบเล่น
-- ให้ตั้งชื่อชุมชน หมู่บ้าน เมือง นครรัฐ และอาณาจักรเมื่อเปลี่ยนช่วง
-- เส้นทางชัยชนะ 6 แบบเป็นข้อมูลสำหรับอ่าน ระบบติดตามอัตโนมัติและปรับเกณฑ์ตามความยาก
-- Save Schema รุ่น 6 รองรับบันทึกจากรุ่นก่อนหน้า
-
-## ติดตั้ง
-
-แตก ZIP ไว้คนละโฟลเดอร์กับโครงการเดิม แล้วรัน PowerShell:
-
-```powershell
-cd "C:\Users\phass\Desktop\game\New folder (2)"
-
-powershell -ExecutionPolicy Bypass `
-  -File ".\apply-v0941-wide-layout-living-chronicle.ps1" `
-  -ProjectPath "C:\Users\phass\evolution-of-us"
-```
-
-ตัวติดตั้งจะสำรองโครงการเดิม ติดตั้งแพ็กเกจ และรันชุดตรวจทั้งหมดโดยอัตโนมัติ
-
-## เปิดเกม
-
-```powershell
-cd "C:\Users\phass\evolution-of-us"
+```bash
+npm ci
 npm run dev
+npm run verify
 ```
 
-เปิด `http://localhost:3000/game`
+`npm run verify` ตรวจ TypeScript, Runtime Manifest, JSON Reference, Unit/Integration Tests, Event Runtime, Balance Stress Model, Production Build และ Route Smoke Test
 
-## อัปขึ้น GitHub / Vercel
+## ข้อมูล Runtime กับ JSON
 
-```powershell
-git status
-git add -A
-git commit -m "update v0.9.42 wide layout and living chronicle"
-git push
-```
+- เกมใช้งานข้อมูลจาก `app/game/page.tsx`, `engine/` และ `save/`
+- `data/game/*.json` เป็นข้อมูลอ้างอิงสำหรับตรวจสอบและการย้ายระบบ
+- `data/game/runtime-manifest.json` แสดงจำนวนข้อมูลที่ Runtime ใช้จริง
+
+## บันทึกเกม
+
+- Save Schema: 8
+- Manual Save 3 ช่องพร้อม Checksum
+- Autosave และสำรองหมุนเวียน 5 จุด
+- รองรับ Migration จากบันทึกรุ่นก่อนหน้า
+- ดาวน์โหลดและนำเข้า JSON ได้จากหน้าตั้งค่า
+
+อ่านรายละเอียดที่ `docs/CHANGELOG_v0951.md`

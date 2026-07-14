@@ -1,0 +1,23 @@
+EVOLUTION OF US v0.9.51 — INTEGRITY & RECOVERY CHECK
+Date: 2026-07-14
+
+PASS TypeScript
+PASS Portable JSON + Runtime Manifest
+PASS Unit/Integration Tests 31/31
+PASS Save Schema 8 Migration
+PASS Monthly Report Save/Restore
+PASS Manual Save Envelope + Checksum
+PASS Rotating Autosave Backup x5
+PASS Monthly Flow / Duplicate Resolution Guard
+PASS Transaction Ledger Regression
+PASS Runtime Events 338/338
+PASS Runtime Choices 1017/1017
+PASS Event Errors 0 / Warnings 0
+PASS Buildings 31 / Research 41
+PASS Animal no-pair regression x120
+PASS 100-year sandbox / 1200 months
+PASS Production Build
+PASS HTTP 200: / and /game
+PASS Dependency vulnerabilities: 0
+
+BROWSER SCREENSHOT E2E: Not certified in this container because Chromium is restricted by the runtime environment. HTTP production smoke test passed.

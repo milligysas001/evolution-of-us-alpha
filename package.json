@@ -1,20 +1,21 @@
 {
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run typecheck && next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "check:data": "node logic/validate-data-v0938.mjs",
-    "audit:legacy": "node logic/audit-v0936.cjs",
-    "audit:stabilization": "node logic/audit-v0937.mjs",
-    "audit:systems": "npm run audit:legacy && npm run audit:stabilization && npm run audit:balance && npm run audit:dynasty",
-    "check": "node logic/run-checks-v0941.mjs",
-    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.42 decision focus and expressive status\" && git push",
-    "audit:balance": "node logic/audit-v0938.mjs",
-    "audit:dynasty": "node logic/audit-v0939.mjs",
-    "audit:narrative": "node logic/audit-v0940.mjs",
-    "audit:wide-layout": "node logic/audit-v0941.mjs"
+    "audit:systems": "npm run audit:v0951 && npm run audit:runtime",
+    "check": "npm run verify",
+    "deploy:push": "npm run verify && git add -A && git commit -m \"update v0.9.51 integrity recovery performance\" && git push",
+    "manifest:runtime": "node logic/generate-runtime-manifest.mjs",
+    "audit:v0951": "node logic/audit-v0951.mjs",
+    "simulate:core": "node -e \"import('./engine/headless-core-runner.mjs').then(({runHeadlessCoreSimulation})=>console.log(JSON.stringify(runHeadlessCoreSimulation({runs:200,months:120,strategy:'balanced'}),null,2)))\"",
+    "verify": "npm run typecheck && npm run manifest:runtime && npm run check:data && npm test && npm run audit:systems && npm run simulate:balance && npm run build && npm run e2e:smoke",
+    "e2e:smoke": "node logic/e2e-smoke.mjs",
+    "simulate:balance": "node logic/run-balance-matrix.mjs",
+    "audit:runtime": "node logic/audit-runtime-v0951.cjs"
   },
   "dependencies": {
     "@types/node": "26.1.1",
@@ -33,7 +34,7 @@
       "postcss": "8.5.19"
     }
   },
-  "name": "evolution-of-us-v0941",
-  "version": "0.9.42",
+  "name": "evolution-of-us-v0951",
+  "version": "0.9.51",
   "private": true
 }

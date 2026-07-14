@@ -1,0 +1,24 @@
+import fs from "node:fs";
+import path from "node:path";
+import assert from "node:assert/strict";
+import { runLightweightBalanceSimulation } from "../engine/balance-simulation.mjs";
+import { CURRENT_GAME_VERSION, CURRENT_SCHEMA_VERSION, migrateSavePayload } from "../save/migrations.mjs";
+
+const root = process.cwd();
+const page = fs.readFileSync(path.join(root, "app/game/page.tsx"), "utf8");
+const requiredImports = ["month-flow.mjs", "ledger.mjs", "event-integrity.mjs", "economy-labor.mjs", "world-integrity.mjs"];
+for (const item of requiredImports) assert.ok(page.includes(item), `missing integration import ${item}`);
+for (const marker of ["beginMonthResolution", "closeLedgerMonth", "finishMonthResolution", "validateLaborAssignments", "validateWorldSystems"]) assert.ok(page.includes(marker), `missing flow marker ${marker}`);
+assert.equal(CURRENT_GAME_VERSION, "0.9.51");
+assert.equal(CURRENT_SCHEMA_VERSION, 8);
+const migrated = migrateSavePayload({ version: "0.9.42", leaderName: "Nora", houseName: "Vaelen", origin: "builder", year: 2, month: 4, stage: "ค่ายพักแรม", people: [] });
+assert.equal(migrated.game.schemaVersion, 8);
+assert.ok(migrated.game.monthFlow);
+assert.ok(migrated.game.ledger);
+const sims = ["story", "normal", "survival", "ironman"].map((difficulty) => runLightweightBalanceSimulation({ difficulty, runs: 1000, seed: "v0950-final" }));
+assert.ok(sims[0].survivalRate >= sims[1].survivalRate);
+assert.ok(sims[1].survivalRate >= sims[2].survivalRate);
+assert.ok(sims[2].survivalRate >= sims[3].survivalRate);
+const modules = ["month-flow.mjs", "ledger.mjs", "event-integrity.mjs", "economy-labor.mjs", "world-integrity.mjs", "balance-simulation.mjs"];
+for (const file of modules) assert.ok(fs.existsSync(path.join(root, "engine", file)), `missing engine/${file}`);
+console.log(JSON.stringify({ ok: true, version: CURRENT_GAME_VERSION, schema: CURRENT_SCHEMA_VERSION, simulations: sims.map(({ difficulty, survivalRate }) => ({ difficulty, survivalRate })) }, null, 2));

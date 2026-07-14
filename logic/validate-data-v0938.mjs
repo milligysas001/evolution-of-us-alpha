@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { validateContentCollection } from "../save/schema.mjs";
+import { GAME_VERSION, SAVE_SCHEMA_VERSION } from "../config/version.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const dataDir = path.join(root, "data", "game");
@@ -44,8 +45,21 @@ for (const event of parsed.get("events.sample.json") ?? []) {
   }
 }
 
+const runtimeManifest = parsed.get("runtime-manifest.json");
+if (!runtimeManifest || runtimeManifest.gameVersion !== GAME_VERSION || Number(runtimeManifest.saveSchemaVersion) !== SAVE_SCHEMA_VERSION) {
+  problems.push("runtime-manifest.json ไม่ตรงกับเวอร์ชันเกมปัจจุบัน กรุณารัน npm run manifest:runtime");
+} else {
+  if (Number(runtimeManifest.counts?.buildings || 0) < (parsed.get("buildings.json") ?? []).length) problems.push("จำนวนสิ่งก่อสร้าง Runtime น้อยกว่าข้อมูลอ้างอิง");
+  if (Number(runtimeManifest.counts?.research || 0) < (parsed.get("research.json") ?? []).length) problems.push("จำนวนงานวิจัย Runtime น้อยกว่าข้อมูลอ้างอิง");
+}
 if (problems.length) {
   console.error(problems.join("\n"));
   process.exit(1);
 }
-console.log(JSON.stringify({ status: "PASS", jsonFiles: files.length, resources: resources.length, buildings: (parsed.get("buildings.json") ?? []).length, research: (parsed.get("research.json") ?? []).length, eventSamples: (parsed.get("events.sample.json") ?? []).length }, null, 2));
+console.log(JSON.stringify({
+  status: "PASS",
+  jsonFiles: files.length,
+  role: "Portable JSON เป็นข้อมูลอ้างอิง ส่วน Runtime Manifest เป็นจำนวนที่เกมใช้จริง",
+  portableReference: { resources: resources.length, buildings: (parsed.get("buildings.json") ?? []).length, research: (parsed.get("research.json") ?? []).length, eventSamples: (parsed.get("events.sample.json") ?? []).length },
+  runtime: runtimeManifest?.counts ?? null,
+}, null, 2));

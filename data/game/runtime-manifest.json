@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-07-14T11:04:24.633Z",
+  "gameVersion": "0.9.51",
+  "saveSchemaVersion": 8,
+  "runtimeSource": "app/game/page.tsx + engine/*.mjs",
+  "portableJsonRole": "reference-and-porting-draft",
+  "counts": {
+    "buildings": 31,
+    "research": 41,
+    "staticChoiceFactories": 249,
+    "runtimeEventsLastRegression": 338,
+    "runtimeChoicesLastRegression": 1017,
+    "eventWeightNodes": 123
+  },
+  "note": "ไฟล์ JSON ใน data/game เป็นข้อมูลอ้างอิง ไม่ใช่แหล่งข้อมูล Runtime เพียงชุดเดียว จนกว่าการย้ายข้อมูลออกจาก React จะเสร็จสมบูรณ์"
+}

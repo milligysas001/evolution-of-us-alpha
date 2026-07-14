@@ -1,3 +1,4 @@
+import { SAVE_SCHEMA_VERSION } from "../config/version.mjs";
 const VALID_ORIGINS = new Set(["builder", "hunter", "healer", "keeper", "mediator"]);
 const VALID_DIFFICULTIES = new Set(["story", "normal", "survival", "ironman"]);
 const VALID_STAGES = new Set(["ค่ายพักแรม", "ชุมชนแรกเริ่ม", "หมู่บ้านถาวร", "เมืองเล็ก", "เมืองการค้า", "นครรัฐ", "อาณาจักร"]);
@@ -20,6 +21,7 @@ export function validateGameSave(value, options = {}) {
   integerRange(value.year, 1, 100000, "year", issues);
   integerRange(value.month, 1, 12, "month", issues);
   integerRange(value.schemaVersion ?? 0, 0, 999, "schemaVersion", issues, strict ? "error" : "warning");
+  if (strict && Number(value.schemaVersion) !== SAVE_SCHEMA_VERSION) issues.push(issue("schemaVersion", `ต้องเป็นรูปแบบข้อมูลรุ่น ${SAVE_SCHEMA_VERSION}`, "error"));
 
   validateNumberRecord(value.resources, RESOURCE_KEYS, "resources", issues, { min: 0, max: 1e12, requireAll: strict });
   validateNumberRecord(value.metrics, METRIC_KEYS, "metrics", issues, { min: 0, max: 100, requireAll: true });
@@ -55,7 +57,7 @@ export function validateGameSave(value, options = {}) {
     integerRange(value.rng.calls, 0, Number.MAX_SAFE_INTEGER, "rng.calls", issues);
   }
 
-  for (const key of ["buildings","researchDone","labor","flags","locations","buildingCondition","dynasty","victory"]) {
+  for (const key of ["buildings","researchDone","labor","flags","locations","buildingCondition","dynasty","victory","monthFlow","ledger","eventRuntime","integrationFlags"]) {
     if (!value[key] || typeof value[key] !== "object" || Array.isArray(value[key])) issues.push(issue(key, `${key} ต้องเป็น object`, strict ? "error" : "warning"));
   }
   if (value.dynasty && typeof value.dynasty === "object") {
@@ -65,6 +67,23 @@ export function validateGameSave(value, options = {}) {
   }
   if (value.victory && typeof value.victory === "object") {
     if (!Array.isArray(value.victory.completedPaths)) issues.push(issue("victory.completedPaths", "รายการชัยชนะต้องเป็น array", strict ? "error" : "warning"));
+  }
+
+  if (value.monthFlow && typeof value.monthFlow === "object") {
+    const phases = new Set(["month_start","planning","decision","ready","resolving","report","completed"]);
+    if (!phases.has(value.monthFlow.phase)) issues.push(issue("monthFlow.phase", "สถานะรอบเดือนไม่ถูกต้อง", strict ? "error" : "warning"));
+    if (!Array.isArray(value.monthFlow.resolvedMonthKeys)) issues.push(issue("monthFlow.resolvedMonthKeys", "ประวัติรอบเดือนต้องเป็น array", strict ? "error" : "warning"));
+  }
+  if (value.ledger && typeof value.ledger === "object") {
+    if (!Array.isArray(value.ledger.current)) issues.push(issue("ledger.current", "รายการบัญชีเดือนปัจจุบันต้องเป็น array", strict ? "error" : "warning"));
+    if (!Array.isArray(value.ledger.history)) issues.push(issue("ledger.history", "ประวัติบัญชีรายเดือนต้องเป็น array", strict ? "error" : "warning"));
+  }
+  if (value.monthFlow?.phase === "report" && (!value.summaryModal || typeof value.summaryModal !== "object")) {
+    issues.push(issue("summaryModal", "สถานะรายงานต้องมีข้อมูลรายงานจบเดือน", strict ? "error" : "warning"));
+  }
+  if (value.summaryModal != null && typeof value.summaryModal !== "object") issues.push(issue("summaryModal", "รายงานจบเดือนต้องเป็น object หรือ null", "error"));
+  if (!value.saveRuntime || typeof value.saveRuntime !== "object" || Array.isArray(value.saveRuntime)) {
+    issues.push(issue("saveRuntime", "ข้อมูลกู้คืนบันทึกต้องเป็น object", strict ? "error" : "warning"));
   }
   for (const key of ["logs","casualties","memories","rumors","notifications","pendingEvents","delayedEvents","recentEventIds","eventHistory","neighbors","outposts"]) {
     if (!Array.isArray(value[key])) issues.push(issue(key, `${key} ต้องเป็น array`, strict ? "error" : "warning"));

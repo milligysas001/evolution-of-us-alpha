@@ -1,0 +1,35 @@
+{
+  "version": "0.9.51",
+  "saveSchemaVersion": 8,
+  "title": "Integrity, Recovery & Performance Patch",
+  "releasedAt": "2026-07-14",
+  "sourceOfTruth": {
+    "runtime": "app/game/page.tsx + engine/*.mjs + save/*.mjs",
+    "portableJson": "ข้อมูลอ้างอิงสำหรับตรวจและย้ายระบบ",
+    "manifest": "data/game/runtime-manifest.json"
+  },
+  "changes": [
+    "เก็บรายงานจบเดือนไว้ในบันทึกและกู้ Flow รายงานได้",
+    "Manual Save ใช้ Save Envelope และ Checksum แบบเดียวกับ Autosave",
+    "เก็บ Autosave สำรองหมุนเวียนสูงสุด 5 จุด",
+    "ระบบ Month Phase สรุป Planning, Decision, Ready, Resolving และ Report จากสถานะจริง",
+    "เก็บความเปลี่ยนแปลงทรัพยากรและค่าสภาพเมืองผ่าน Transaction Ledger",
+    "ตรวจ Event Runtime 338 เหตุการณ์และ 1017 ตัวเลือก",
+    "เพิ่ม Runtime Manifest แยกจำนวนข้อมูลอ้างอิงและข้อมูลที่เกมใช้งานจริง",
+    "เพิ่มการค้นหา เรียง และแบ่งหน้ารายชื่อแรงงาน 40 คนต่อหน้า",
+    "ลดความถี่ Autosave และหยุดบันทึกระหว่างกำลังคำนวณจบเดือน",
+    "ซ่อนเครื่องมือนักพัฒนาใน Production และนำรหัสที่ฝังใน Client ออก",
+    "เพิ่ม Headless Core Stress Simulation และ Production Route Smoke Test"
+  ],
+  "runtimeCounts": {
+    "buildings": 31,
+    "research": 41,
+    "events": 338,
+    "choices": 1017
+  },
+  "manualTests": [
+    "ตรวจหน้า Desktop, Tablet และ Mobile บน Chrome จริงหลังติดตั้ง",
+    "ทดลอง Save ระหว่างหน้ารายงานแล้วปิดและเปิดเกมใหม่",
+    "ทดลองบันทึกช่อง 1-3 ดาวน์โหลด นำเข้า และกู้ข้อมูลสำรอง"
+  ]
+}

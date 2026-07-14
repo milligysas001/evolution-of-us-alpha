@@ -44,9 +44,9 @@ function gameFixture() {
   };
 }
 
-test("legacy saves migrate dynasty, victory, and settlement naming into schema 6", () => {
+test("legacy saves migrate dynasty, victory, and settlement naming into current schema", () => {
   const result = migrateSavePayload({ version: "0.9.38", schemaVersion: 4, leaderName: "Elowen", houseName: "Vaelen", people: [{ id: "leader", name: "Elowen", alive: true, kin: "ตระกูล Vaelen" }] });
-  assert.equal(result.game.schemaVersion, 6);
+  assert.equal(result.game.schemaVersion, 8);
   assert.equal(result.game.dynasty.generation, 1);
   assert.deepEqual(result.game.victory.completedPaths, []);
   assert.equal(result.game.people[0].houseName, "Vaelen");
