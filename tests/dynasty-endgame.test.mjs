@@ -13,8 +13,8 @@ import { migrateSavePayload } from "../save/migrations.mjs";
 
 function gameFixture() {
   return {
-    version: "0.9.39",
-    saveVersion: "0.9.39",
+    version: "0.9.40",
+    saveVersion: "0.9.40",
     schemaVersion: 5,
     leaderName: "Elowen",
     houseName: "Vaelen",

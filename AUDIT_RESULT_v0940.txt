@@ -1,0 +1,25 @@
+Evolution of Us v0.9.40 — Narrative & Interface Polish
+ตรวจวันที่ 14 กรกฎาคม 2026
+
+PASS TypeScript
+PASS JSON/Data Schema — 41 files
+PASS Unit Tests — 21/21
+PASS Legacy Regression Audit
+PASS Stabilization Audit
+PASS Balance & UX Audit
+PASS Dynasty & Endgame Audit
+PASS Narrative & Interface Audit
+PASS Save Migration — Schema 5
+PASS Production Build
+PASS HTTP / and /game — 200
+PASS Dependency Audit — 0 vulnerabilities
+PASS Decision-step warnings removed from monthly report
+PASS Leader/event choices remain required before ending month
+PASS Workforce helper text removed
+PASS Bulk labor select text visibility fixed
+PASS Two-level top status bar
+PASS Full endgame chronicle
+PASS Context-aware generated event choices
+PASS Chronicle retention — 6,000 logs / 1,000 memories
+
+ALL CHECKS PASSED — Evolution of Us v0.9.40

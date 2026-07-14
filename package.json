@@ -9,10 +9,11 @@
     "audit:legacy": "node logic/audit-v0936.cjs",
     "audit:stabilization": "node logic/audit-v0937.mjs",
     "audit:systems": "npm run audit:legacy && npm run audit:stabilization && npm run audit:balance && npm run audit:dynasty",
-    "check": "node logic/run-checks-v0939.mjs",
-    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.39 dynasty and endgame\" && git push",
+    "check": "node logic/run-checks-v0940.mjs",
+    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.40 narrative and interface polish\" && git push",
     "audit:balance": "node logic/audit-v0938.mjs",
-    "audit:dynasty": "node logic/audit-v0939.mjs"
+    "audit:dynasty": "node logic/audit-v0939.mjs",
+    "audit:narrative": "node logic/audit-v0940.mjs"
   },
   "dependencies": {
     "@types/node": "26.1.1",
@@ -31,7 +32,7 @@
       "postcss": "8.5.19"
     }
   },
-  "name": "evolution-of-us-v0939",
-  "version": "0.9.39",
+  "name": "evolution-of-us-v0940",
+  "version": "0.9.40",
   "private": true
 }

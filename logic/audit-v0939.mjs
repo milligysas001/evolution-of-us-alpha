@@ -12,10 +12,10 @@ const settingsEnd = page.indexOf("function estimateBuildMonths", settingsStart);
 const settingsView = page.slice(settingsStart, settingsEnd);
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.39");
+assert.equal(CURRENT_GAME_VERSION, "0.9.40");
 assert.equal(CURRENT_SCHEMA_VERSION, 5);
-assert.equal(pkg.version, "0.9.39");
-assert.equal(pkg.name, "evolution-of-us-v0939");
+assert.equal(pkg.version, "0.9.40");
+assert.equal(pkg.name, "evolution-of-us-v0940");
 
 for (const token of [
   'type DynastyState =',

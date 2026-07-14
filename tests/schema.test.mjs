@@ -6,7 +6,7 @@ import { createRngState } from "../engine/random.mjs";
 function validGame() {
   const resources = Object.fromEntries(["food","wood","stone","tools","herbs","hides","water","waterReserve","knowledge","fuel","ore","gold","feed","ironOre","coal","timber","bricks","textiles","salt","spices","influence","steel","luxuries","warhorses","manpower","siegeMaterials"].map((key) => [key, 0]));
   return {
-    version: "0.9.39", saveVersion: "0.9.39", schemaVersion: 5,
+    version: "0.9.40", saveVersion: "0.9.40", schemaVersion: 5,
     leaderName: "Nora", houseName: "Vaelen", origin: "builder", difficulty: "normal", year: 1, month: 1, stage: "ค่ายพักแรม",
     resources,
     metrics: { morale: 50, security: 50, trust: 50, health: 50, cohesion: 50, fairness: 50 },

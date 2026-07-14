@@ -415,7 +415,7 @@ function normalizeDifficulty(value: unknown): Difficulty {
 function difficultyInfo(game: Pick<GameState, "difficulty">) {
   return difficultyConfig[normalizeDifficulty(game.difficulty)];
 }
-const BUILD_LABEL = "ราชวงศ์และปลายเกม · ครอบครัว · ทายาท · การสืบทอด · เส้นทางชัยชนะ · พงศาวดารตอนจบ · ปรับ UX/UI ทุกหมวด";
+const BUILD_LABEL = "Narrative & Interface Polish · แถบสถานะใหม่ · พงศาวดารฉบับเต็ม · ทางเลือกเหตุการณ์ตามบริบท · ปรับข้อความและพื้นที่จัดแรงงาน";
 const BUILD_DATE = "2026-07-14";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -450,7 +450,8 @@ const portableDataSummary = {
     "data/game/v0936_save_leaderboard_neighbors_military.json",
     "data/game/v0937_stabilization.json",
     "data/game/v0938_balance_ux.json",
-    "data/game/v0939_dynasty_endgame.json"
+    "data/game/v0939_dynasty_endgame.json",
+    "data/game/v0940_narrative_interface_polish.json"
   ],
   godotNotes: "Godot can load these JSON files with FileAccess + JSON.parse_string and map ids to UI nodes/resources."
 };
@@ -1905,11 +1906,11 @@ function normalizeLabor(game: GameState): Labor {
 }
 function addLog(game: GameState, title: string, text: string, kind: LogKind = "normal", tags: string[] = []): GameState {
   const log: LogEntry = { id: uid("log"), year: game.year, month: game.month, title, text, kind, tags };
-  return { ...game, logs: [log, ...game.logs].slice(0, 240) };
+  return { ...game, logs: [log, ...game.logs].slice(0, 6000) };
 }
 function addMemory(game: GameState, mem: Omit<Memory, "id" | "year" | "month">): GameState {
   const memory: Memory = { id: uid("mem"), year: game.year, month: game.month, ...mem };
-  return { ...game, memories: [memory, ...game.memories].slice(0, 80) };
+  return { ...game, memories: [memory, ...game.memories].slice(0, 1000) };
 }
 function changeResources(resources: Resources, delta?: Partial<Resources>): Resources {
   const r = { ...resources };
@@ -2203,8 +2204,6 @@ function endMonthWarnings(game: GameState): WarningItem[] {
   if (woundedCount(game) > 0 && game.labor.care + game.labor.herbs <= 0) warnings.push({ icon: "🌿", title: "มีคนป่วยหรือบาดเจ็บแต่ไม่มีคนดูแล", text: "แผลติดเชื้อและโรคอาจเปลี่ยนเป็นการสูญเสียจริง", severity: "warn" });
   if (risk.accident >= 60) warnings.push({ icon: "⚠️", title: "ความเสี่ยงอุบัติเหตุสูง", text: "งานหนัก เครื่องมือพัง หรือแรงงานล้าอาจทำให้มีคนบาดเจ็บ", severity: "warn" });
   if (animalCount(game) > 0 && animalNeed(game) > (game.researchDone.fodderPrep ? game.resources.feed + game.labor.feed * 4 : game.resources.food)) warnings.push({ icon: "🐐", title: "สัตว์เลี้ยงอาจไม่มีอาหารพอ", text: `ต้องใช้ ${fmt(animalNeed(game))} หน่วย จาก${animalFoodSource(game)} หากไม่พอสัตว์อาจหิว หนี หรือตาย`, severity: "warn" });
-  if (!game.leaderActionSelected) warnings.push({ icon: "👑", title: "ยังไม่ได้เลือกการกระทำผู้นำ", text: "ต้องเลือกก่อนจบเดือน เพราะผู้นำคือคำตอบหลักของสถานการณ์เดือนนี้", severity: "danger" });
-  if (!game.selectedChoiceId) warnings.push({ icon: "✦", title: "ยังไม่ได้ตอบเหตุการณ์", text: "ต้องเลือกวิธีตอบสนองเหตุการณ์ก่อนคำนวณผลลัพธ์", severity: "danger" });
   return warnings.slice(0, 6);
 }
 
@@ -3366,11 +3365,135 @@ type ExtraEventSeed = {
   rare?: boolean;
 };
 
+type ContextualChoiceCopy = {
+  careful: { icon: string; title: string; tone: string; story: string[] };
+  practical: { icon: string; title: string; tone: string; story: string[] };
+  community: { icon: string; title: string; tone: string; story: string[] };
+};
+
+const metricChoiceLabels: Record<MetricKey, string> = {
+  morale: "กำลังใจ", security: "ความปลอดภัย", trust: "ความไว้ใจ",
+  health: "สุขภาพ", cohesion: "ความสามัคคี", fairness: "ความเป็นธรรม",
+};
+const riskChoiceLabels: Record<keyof Risks, string> = {
+  food: "ความเสี่ยงอาหาร", shelter: "ความเสี่ยงที่พัก", disease: "ความเสี่ยงโรค",
+  beast: "ความเสี่ยงสัตว์ป่า", conflict: "ความขัดแย้ง", weather: "ความเสี่ยงอากาศ", accident: "ความเสี่ยงอุบัติเหตุ",
+};
+
+function signedEffect(label: string, value: number) {
+  return `${label} ${value > 0 ? "+" : ""}${Math.round(value)}`;
+}
+function describeChoiceOutcome(delta: Delta) {
+  const effects: string[] = [];
+  (Object.entries(delta.resources ?? {}) as Array<[ResourceKey, number]>).forEach(([key, value]) => {
+    if (value) effects.push(signedEffect(resourceShortLabel(key), value));
+  });
+  (Object.entries(delta.metrics ?? {}) as Array<[MetricKey, number]>).forEach(([key, value]) => {
+    if (value) effects.push(signedEffect(metricChoiceLabels[key], value));
+  });
+  (Object.entries(delta.risk ?? {}) as Array<[keyof Risks, number]>).forEach(([key, value]) => {
+    if (value) effects.push(`${riskChoiceLabels[key]} ${value > 0 ? "เพิ่ม" : "ลด"} ${Math.abs(Math.round(value))}`);
+  });
+  if (delta.threat) effects.push(`ภัยภายนอก ${delta.threat > 0 ? "+" : ""}${Math.round(delta.threat)}`);
+  if (delta.population) effects.push(`ประชากร ${delta.population > 0 ? "+" : ""}${Math.round(delta.population)}`);
+  if (delta.wounded) effects.push(`ผู้บาดเจ็บ ${delta.wounded > 0 ? "+" : ""}${Math.round(delta.wounded)}`);
+  if (delta.casualtyChance) effects.push(`เสี่ยงสูญเสีย ${Math.round(delta.casualtyChance)}%`);
+  return effects.length ? effects.slice(0, 4).join(" · ") : "เน้นแก้สถานการณ์โดยไม่เปลี่ยนทรัพยากรทันที";
+}
+
+function contextualChoiceCopy(seed: ExtraEventSeed): ContextualChoiceCopy {
+  const context = `${seed.category} ${seed.title}`;
+  if (/มือแตก|บาดเจ็บ|แผล/.test(context) && /คนในค่าย|ครอบครัว|มิตรภาพ|ช่าง/.test(context)) {
+    return {
+      careful: { icon: "🩹", title: "พักมือและดูแลบาดแผลก่อน", tone: "ป้องกันอาการหนัก", story: ["ช่างที่บาดเจ็บถูกพาออกจากงานหนัก ล้างแผล และให้เวลาพูดถึงสิ่งที่เกิดขึ้น", "การหยุดพักไม่ทำให้งานเสร็จเร็วขึ้น แต่ช่วยให้มิตรภาพครั้งนี้ไม่ต้องแลกด้วยแผลที่หนักกว่าเดิม"] },
+      practical: { icon: "🧰", title: "สลับงานให้ทั้งคู่ช่วยกันในงานเบา", tone: "รักษางานและคน", story: ["หัวหน้างานย้ายทั้งคู่ไปทำงานที่ใช้แรงน้อยกว่า และให้คนอื่นรับช่วงงานหนักชั่วคราว", "งานสำคัญยังเดินต่อ ขณะที่คนเจ็บไม่ถูกบังคับให้พิสูจน์ตัวเองด้วยการฝืนร่างกาย"] },
+      community: { icon: "🤝", title: "ให้ชุมชนแบ่งเบางานของทั้งคู่", tone: "ร่วมดูแล", story: ["คนในค่ายผลัดกันรับงานบางส่วนและเตรียมอาหารให้ผู้บาดเจ็บ", "มิตรภาพระหว่างสองคนจึงกลายเป็นความรู้สึกว่าทั้งชุมชนพร้อมช่วยกันเมื่อใครสักคนอ่อนแรง"] },
+    };
+  }
+  if (/คนในค่าย|ครอบครัว|มิตรภาพ|เด็ก|ผู้เฒ่า|ครัวเรือน/.test(context)) {
+    return {
+      careful: { icon: "🩹", title: "พักคนที่เกี่ยวข้องและรับฟังให้ครบ", tone: "ดูแลคน", story: ["ผู้นำให้คนที่เกี่ยวข้องพักจากงานก่อน แล้วฟังว่าเรื่องนี้เกิดขึ้นอย่างไรโดยไม่รีบตัดสิน", "เวลาเล็กน้อยที่ใช้รับฟัง ทำให้ปัญหาไม่กลายเป็นบาดแผลเงียบในครอบครัว"] },
+      practical: { icon: "🧰", title: "ปรับหน้าที่เพื่อแก้ปัญหาทันที", tone: "แก้ปัญหาหน้างาน", story: ["หัวหน้างานสลับหน้าที่และจัดคนช่วยกัน เพื่อให้เรื่องนี้ไม่ขัดขวางชีวิตประจำวันของค่าย", "งานเดินต่อได้เร็วขึ้น แต่คนที่รับภาระแทนย่อมเหนื่อยมากขึ้น"] },
+      community: { icon: "🤝", title: "เปิดวงคุยให้ชุมชนร่วมช่วยเหลือ", tone: "ร่วมรับผิดชอบ", story: ["เรื่องนี้ถูกนำมาคุยหลังมื้อค่ำ ทุกคนเสนอวิธีช่วยโดยไม่ทำให้ผู้เกี่ยวข้องรู้สึกว่าตนเป็นภาระ", "คำตอบอาจไม่ได้เร็วที่สุด แต่ทำให้คนในค่ายรู้ว่าปัญหาของหนึ่งคนไม่จำเป็นต้องถูกแบกเพียงลำพัง"] },
+    };
+  }
+  if (/อาหาร|คลัง|เสบียง|เก็บเกี่ยว/.test(context)) {
+    return {
+      careful: { icon: "🔎", title: `ตรวจและแยกเสบียงจากเหตุ “${seed.title}”`, tone: "รักษาของที่ยังใช้ได้", story: ["ผู้ดูแลคลังเปิดถุงและภาชนะทีละใบ แยกของที่เสี่ยงออกจากเสบียงดี", "งานช้าลงเล็กน้อย แต่ป้องกันไม่ให้ความเสียหายเล็ก ๆ ลามไปทั้งคลัง"] },
+      practical: { icon: "🍲", title: `นำเสบียงที่ยังดีมาใช้ก่อน`, tone: "ลดการสูญเสียทันที", story: ["ของที่ยังใช้ได้ถูกนำมาปรุงหรือแจกจ่ายก่อน ส่วนที่เสียถูกกำจัดออกจากคลัง", "วิธีนี้แก้ปัญหาเร็ว แต่ต้องใช้แรงคนและยอมรับว่าบางส่วนกู้คืนไม่ได้"] },
+      community: { icon: "📋", title: `ตั้งเวรตรวจและแบ่งเสบียงร่วมกัน`, tone: "ป้องกันปัญหาซ้ำ", story: ["ครัวเรือนช่วยกันตรวจคลังและตกลงวิธีแบ่งของที่เหลืออย่างเปิดเผย", "ทุกคนเห็นจำนวนจริงตรงกัน ความระแวงจึงลดลงแม้เสบียงไม่ได้เพิ่มขึ้นทันที"] },
+    };
+  }
+  if (/น้ำ|ลำธาร|บึง|ฝน/.test(context)) {
+    return {
+      careful: { icon: "🫗", title: `ตรวจแหล่งน้ำและภาชนะก่อนใช้`, tone: "ป้องกันโรค", story: ["คนตักน้ำตรวจกลิ่น สี และรอยรั่วก่อนนำน้ำเข้าค่าย", "การตรวจช้า ๆ ช่วยหลีกเลี่ยงโรคและการสูญเสียน้ำที่อาจหนักกว่าเดิม"] },
+      practical: { icon: "🪣", title: `ซ่อมและขนน้ำทดแทนทันที`, tone: "แก้การขาดน้ำ", story: ["คนที่แข็งแรงถูกส่งไปซ่อมภาชนะและขนน้ำรอบใหม่โดยไม่รอ", "ค่ายได้น้ำเร็วขึ้น แต่แรงงานชุดนั้นต้องรับความล้าและความเสี่ยงจากเส้นทาง"] },
+      community: { icon: "💧", title: `แบ่งเวรดูแลน้ำของทุกครัวเรือน`, tone: "ร่วมรักษาน้ำ", story: ["แต่ละครัวเรือนส่งคนมาช่วยตรวจภาชนะและกำหนดส่วนใช้น้ำร่วมกัน", "การแบ่งหน้าที่ลดการโต้เถียงและทำให้ทุกคนเห็นว่าน้ำเป็นทรัพย์สินร่วมของค่าย"] },
+    };
+  }
+  if (/สัตว์|คอก|แพะ|ไก่|วัว|หมู|สุนัข/.test(context)) {
+    return {
+      careful: { icon: "🩺", title: `ตรวจสัตว์และแยกตัวที่มีปัญหา`, tone: "ดูแลสุขภาพฝูง", story: ["คนเลี้ยงสัตว์ตรวจแผล อาหาร น้ำ และพื้นคอกทีละจุด ก่อนแยกตัวที่เสี่ยงออกจากฝูง", "การดูแลอย่างสงบช่วยลดโรคและป้องกันไม่ให้สัตว์แตกตื่น"] },
+      practical: { icon: "🧹", title: `แก้คอก อาหาร หรือน้ำทันที`, tone: "แก้ปัญหาในคอก", story: ["คนงานถูกเรียกมาซ่อมรั้ว เปลี่ยนฟาง และเติมสิ่งที่ฝูงขาดทันที", "ปัญหาเบาลงเร็ว แต่ต้องใช้แรงและทรัพยากรที่อาจถูกเตรียมไว้สำหรับงานอื่น"] },
+      community: { icon: "🐾", title: `ให้คนเลี้ยงและครัวเรือนร่วมวางแผน`, tone: "แบ่งภาระเลี้ยงสัตว์", story: ["คนเลี้ยงสัตว์อธิบายปัญหาให้ครัวเรือนฟัง แล้วแบ่งเวรดูแลตามความพร้อม", "ฝูงสัตว์ได้รับการดูแลต่อเนื่อง และคนในค่ายเข้าใจต้นทุนของอาหารในอนาคตมากขึ้น"] },
+    };
+  }
+  if (/สำรวจ|พื้นที่|ถ้ำ|ป่า|เส้นทาง|ร่องรอย/.test(context)) {
+    return {
+      careful: { icon: "🧭", title: `ตรวจร่องรอยของ “${seed.title}” อย่างระมัดระวัง`, tone: "สำรวจก่อนเสี่ยง", story: ["ทีมสำรวจทำเครื่องหมายทางกลับและตรวจพื้นที่จากระยะปลอดภัยก่อนเข้าใกล้", "สิ่งที่พบอาจน้อยกว่า แต่ทุกคนกลับมาพร้อมข้อมูลที่เชื่อถือได้มากขึ้น"] },
+      practical: { icon: "🎒", title: `เก็บสิ่งที่ใช้ได้แล้วกลับค่าย`, tone: "เอาผลลัพธ์กลับมาเร็ว", story: ["คนสำรวจเลือกของที่ขนได้และถอนตัวก่อนแสงหมด", "ค่ายได้ประโยชน์ทันที แต่บางร่องรอยยังไม่ได้รับการตรวจอย่างละเอียด"] },
+      community: { icon: "🗺️", title: `บันทึกเส้นทางและให้ทีมร่วมตัดสินใจ`, tone: "สร้างความรู้ร่วม", story: ["แผนที่ชั่วคราวถูกกางต่อหน้าทีม ทุกคนบอกสิ่งที่เห็นและตกลงว่าจะกลับไปทางใด", "ความรู้ไม่ได้อยู่กับคนคนเดียว และการสำรวจครั้งต่อไปจึงปลอดภัยขึ้น"] },
+    };
+  }
+  if (/ก่อสร้าง|ช่าง|เครื่องมือ|โครง|ไม้|หิน/.test(context)) {
+    return {
+      careful: { icon: "🪚", title: `หยุดตรวจงานและเครื่องมือจากเหตุ “${seed.title}”`, tone: "ป้องกันอุบัติเหตุ", story: ["ช่างหยุดงานชั่วคราวเพื่อตรวจเครื่องมือ จุดรับแรง และมือของคนทำงาน", "เวลาที่เสียไปเล็กน้อยช่วยป้องกันอุบัติเหตุที่อาจหยุดงานนานกว่ามาก"] },
+      practical: { icon: "🛠️", title: `จัดช่างและวัสดุแก้จุดเสียทันที`, tone: "ให้งานเดินต่อ", story: ["ช่างที่พร้อมถูกย้ายมาซ่อมจุดสำคัญก่อน แล้วจึงกลับไปทำงานหลัก", "โครงการเดินต่อได้ แต่การเร่งมือทำให้ความล้าสะสมมากขึ้น"] },
+      community: { icon: "🏗️", title: `แบ่งงานซ่อมให้หลายกลุ่มช่วยกัน`, tone: "ลดภาระช่างหลัก", story: ["คนในค่ายรับงานง่าย ๆ ไปทำ ส่วนช่างหลักดูเฉพาะจุดที่ต้องใช้ความชำนาญ", "การแบ่งงานช่วยสร้างความไว้ใจและทำให้คนทั่วไปเข้าใจเหตุผลของความปลอดภัย"] },
+    };
+  }
+  if (/โรค|ป่วย|บาดเจ็บ|แผล|สมุนไพร|สุขภาพ/.test(context)) {
+    return {
+      careful: { icon: "🌿", title: `พักผู้ป่วยและประเมินอาการให้ครบ`, tone: "รักษาอย่างปลอดภัย", story: ["ผู้ดูแลตรวจไข้ แผล น้ำ และการพักก่อนใช้สมุนไพรเท่าที่จำเป็น", "การรักษาไม่เร่งเกินไปช่วยลดโอกาสใช้ทรัพยากรผิดและป้องกันอาการทรุด"] },
+      practical: { icon: "🩹", title: `รักษาอาการเร่งด่วนและจัดคนทดแทน`, tone: "คุมอาการทันที", story: ["ผู้ดูแลเริ่มรักษาอาการที่อันตรายก่อน ขณะหัวหน้างานหาคนมารับหน้าที่แทน", "ชีวิตประจำวันเดินต่อได้ แต่ทั้งผู้ดูแลและคนทดแทนต้องทำงานหนักขึ้น"] },
+      community: { icon: "🤲", title: `ให้ครัวเรือนผลัดเวรดูแลผู้ป่วย`, tone: "แบ่งภาระการดูแล", story: ["แต่ละครัวเรือนรับเวรต้มอาหาร เช็ดตัว และเฝ้าอาการตามความสามารถ", "ผู้ป่วยไม่ถูกทิ้งไว้ลำพัง และคนดูแลหลักได้มีเวลาพักเพื่อไม่ให้ล้มตามกัน"] },
+    };
+  }
+  return {
+    careful: { icon: seed.icon, title: `ตรวจสอบ “${seed.title}” ก่อนตัดสินใจ`, tone: "รอบคอบ", story: ["ผู้นำให้คนหยุดดูสาเหตุและผลกระทบก่อนใช้ทรัพยากรหรือส่งใครเข้าไปเสี่ยง", "ผลลัพธ์อาจไม่เร็วที่สุด แต่ช่วยลดความเสียหายที่เกิดจากการตัดสินใจโดยไม่มีข้อมูล"] },
+    practical: { icon: "🧰", title: `แก้ “${seed.title}” ด้วยกำลังคนทันที`, tone: "ลงมือแก้", story: ["คนที่พร้อมถูกเรียกมาจัดการเรื่องนี้ตามวิธีที่ตรงที่สุด", "ปัญหาเบาลงเร็ว แต่แรงงานและทรัพยากรที่ใช้ย่อมกระทบงานอื่นของเดือน"] },
+    community: { icon: "🤝", title: `หารือเรื่อง “${seed.title}” กับชุมชน`, tone: "ร่วมตัดสินใจ", story: ["ข้อมูลถูกเล่าต่อหน้าคนในค่ายและเปิดให้ผู้ได้รับผลกระทบเสนอทางออก", "ข้อสรุปอาจใช้เวลา แต่ช่วยลดความระแวงและทำให้ทุกคนยอมรับผลร่วมกัน"] },
+  };
+}
+
 function extraEvent(seed: ExtraEventSeed): GameEvent {
   const resourceDelta = seed.resources ?? {};
   const metricDelta = seed.metrics ?? {};
   const riskDelta = seed.risk ?? {};
   const pathDelta = seed.path ?? {};
+  const carefulDelta: Delta = {
+    resources: scaleResources(resourceDelta, 0.6),
+    metrics: changeLike(metricDelta, 0.8),
+    risk: invertRisk(riskDelta, 0.5),
+    path: pathDelta,
+    threat: seed.threat ?? 0,
+  };
+  const practicalDelta: Delta = {
+    resources: resourceDelta,
+    metrics: { ...metricDelta, morale: (metricDelta.morale ?? 0) + 1 },
+    risk: { ...riskDelta, accident: (riskDelta.accident ?? 0) + 3 },
+    path: { ...pathDelta, survival: (pathDelta.survival ?? 0) + 1 },
+    threat: seed.threat ?? 0,
+  };
+  const communityDelta: Delta = {
+    resources: scaleResources(resourceDelta, 0.35),
+    metrics: { trust: 3, cohesion: 3, fairness: 2, ...(metricDelta ?? {}) },
+    risk: { conflict: -5 },
+    path: { family: 1, ...(pathDelta ?? {}) },
+    threat: seed.threat ? Math.round(seed.threat * 0.4) : 0,
+  };
+  const copy = contextualChoiceCopy(seed);
+  const chain = seed.chainTo ? { addPending: seed.chainTo } : {};
   return {
     id: seed.id,
     title: seed.title,
@@ -3380,36 +3503,9 @@ function extraEvent(seed: ExtraEventSeed): GameEvent {
     condition: seed.condition,
     weight: seed.weight ?? (() => 5),
     choices: [
-      choice(`${seed.id}_careful`, seed.icon, "รับมืออย่างระมัดระวัง", "รอบคอบ", "ลดความเสี่ยง แต่ใช้เวลาและทรัพยากรบางส่วน", {
-        resources: scaleResources(resourceDelta, 0.6),
-        metrics: changeLike(metricDelta, 0.8),
-        risk: invertRisk(riskDelta, 0.5),
-        path: pathDelta,
-        threat: seed.threat ?? 0,
-      }, [
-        "ผู้นำไม่ได้รีบเอาชนะเหตุการณ์ตรงหน้า แต่ให้คนในค่ายหยุดมองรายละเอียดที่มักถูกละเลย",
-        "ผลลัพธ์อาจไม่หวือหวา ทว่าความเสียหายที่ไม่เกิดขึ้นก็เป็นชัยชนะชนิดหนึ่ง",
-      ], seed.chainTo ? { addPending: seed.chainTo } : {}),
-      choice(`${seed.id}_practical`, "🧰", "ใช้แรงงานแก้ปัญหาทันที", "ปฏิบัติ", "ได้ผลเร็ว แต่เพิ่มความล้าและอุบัติเหตุเล็กน้อย", {
-        resources: resourceDelta,
-        metrics: { ...metricDelta, morale: (metricDelta.morale ?? 0) + 1 },
-        risk: { ...riskDelta, accident: (riskDelta.accident ?? 0) + 3 },
-        path: { ...pathDelta, survival: (pathDelta.survival ?? 0) + 1 },
-        threat: seed.threat ?? 0,
-      }, [
-        "คนที่ยังมีกำลังถูกเรียกออกมา งานจึงเดินหน้าโดยไม่รอให้ความกลัวตั้งราก",
-        "แต่ทุกก้าวที่เร่งขึ้น ทิ้งรอยเหนื่อยไว้บนไหล่ของคนทำงานเสมอ",
-      ], seed.chainTo ? { addPending: seed.chainTo } : {}),
-      choice(`${seed.id}_community`, "🤝", "ให้ชุมชนร่วมตัดสินใจ", "ร่วมมือ", "เพิ่มความไว้ใจและลดความขัดแย้ง แต่อาจไม่แก้ทรัพยากรทันที", {
-        resources: scaleResources(resourceDelta, 0.35),
-        metrics: { trust: 3, cohesion: 3, fairness: 2, ...(metricDelta ?? {}) },
-        risk: { conflict: -5 },
-        path: { family: 1, ...(pathDelta ?? {}) },
-        threat: seed.threat ? Math.round(seed.threat * 0.4) : 0,
-      }, [
-        "เรื่องนี้ถูกเล่าต่อหน้าคนทั้งค่าย ไม่ใช่ในเงาของที่พักผู้นำ",
-        "บางคนยังไม่เห็นด้วย แต่การได้พูดทำให้ความไม่เห็นด้วยไม่กลายเป็นพิษเงียบ",
-      ], seed.chainTo ? { addPending: seed.chainTo } : {}),
+      choice(`${seed.id}_careful`, copy.careful.icon, copy.careful.title, copy.careful.tone, describeChoiceOutcome(carefulDelta), carefulDelta, copy.careful.story, chain),
+      choice(`${seed.id}_practical`, copy.practical.icon, copy.practical.title, copy.practical.tone, describeChoiceOutcome(practicalDelta), practicalDelta, copy.practical.story, chain),
+      choice(`${seed.id}_community`, copy.community.icon, copy.community.title, copy.community.tone, describeChoiceOutcome(communityDelta), communityDelta, copy.community.story, chain),
     ],
   };
 }
@@ -5239,25 +5335,30 @@ export default function GamePage() {
 
   return (
     <main className={`app device-${deviceMode} theme-${theme}`}>
-      <header className="topbar">
+      <header className="topbar game-topbar">
         <div className="brand"><div className="brand-mark">⌛</div><span>EVOLUTION<br />OF US</span></div>
-        <div className="top-stats">
-          <span className="pill">ปี {game.year} · เดือน {game.month}</span>
-          <span className={normalizeWeatherState(game.weather).kind === "ปกติ" ? "pill" : "pill warn"}>{seasonalWeatherLabel(game)}</span>
-          <span className="pill good">ระยะ: {game.stage}</span><span className="pill">{difficultyInfo(game).icon} {difficultyInfo(game).title}</span>
-          <span className="pill">แผนที่ {locationDiscoveryCount(game)}/8 · เป้าหมาย {locationData[bestExploreTarget(game)].title}</span>
-          <span className="pill">ประชากร {alivePeople(game).length}</span>
-          <span className="pill">ใช้คน {laborAssignmentLoad(game).toFixed(1)}/{workerCapacity(game).toFixed(1)} · ผลผลิต {laborTotal(game.labor).toFixed(1)}</span>
-          <span className="pill">ตระกูล {game.houseName} · รุ่นที่ {(normalizeDynastyState(game) as DynastyState).generation}</span>
-          <span className="pill warn">ภัยภายนอก {pct(game.threat)}</span>
-          <span className="pill gold-pill">คลังเมือง 🪙 {fmt(game.resources.gold)}</span>
-          <span className={crisisLevel(game) === "ใกล้ล่มสลาย" || crisisLevel(game) === "วิกฤต" ? "pill danger-pill" : "pill good"}>วิกฤต: {crisisLevel(game)}</span>
-          <span className="pill">รุ่นทดสอบ v{GAME_VERSION}</span>
-          <span className="pill">มุมมอง: {deviceLabel(deviceMode)}</span>
-          <span className="pill good">{game.savedText}</span>
+        <div className="topbar-core" aria-label="สถานะสำคัญของเมือง">
+          <span className="pill"><b>ปี {game.year}</b> · เดือน {game.month}</span>
+          <span className="pill good">{game.stage}</span>
+          <span className="pill">👥 {alivePeople(game).length} คน</span>
+          <span className="pill">แรงงาน {laborAssignmentLoad(game).toFixed(1)}/{workerCapacity(game).toFixed(1)}</span>
+          <span className={crisisLevel(game) === "ใกล้ล่มสลาย" || crisisLevel(game) === "วิกฤต" ? "pill danger-pill" : "pill good"}>วิกฤต {crisisLevel(game)}</span>
+          <span className="pill save-pill">{game.savedText}</span>
         </div>
-        <button className="icon-btn notice-btn" onClick={() => setNoticeOpen(true)}>🔔{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length > 0 && <span>{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length}</span>}</button>
-        <button className="icon-btn" onClick={() => setView("ตั้งค่า")}>⚙️</button>
+        <div className="topbar-actions">
+          <button className="icon-btn notice-btn" aria-label="เปิดข่าวแจ้งเตือน" title="ข่าวแจ้งเตือน" onClick={() => setNoticeOpen(true)}>🔔{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length > 0 && <span>{(game.notifications ?? []).filter((n) => !n.read && isImportantNotice(n)).length}</span>}</button>
+          <button className="icon-btn" aria-label="เปิดตั้งค่า" title="ตั้งค่า" onClick={() => setView("ตั้งค่า")}>⚙️</button>
+        </div>
+        <div className="topbar-details" aria-label="ข้อมูลประกอบของเมือง">
+          <span><b>อากาศ</b> {seasonalWeatherLabel(game)}</span>
+          <span><b>ระดับ</b> {difficultyInfo(game).icon} {difficultyInfo(game).title}</span>
+          <span><b>พื้นที่</b> {locationDiscoveryCount(game)}/8 · {locationData[bestExploreTarget(game)].title}</span>
+          <span><b>ผลผลิต</b> {laborTotal(game.labor).toFixed(1)}</span>
+          <span><b>ตระกูล</b> {game.houseName} · รุ่น {(normalizeDynastyState(game) as DynastyState).generation}</span>
+          <span className={game.threat >= 50 ? "detail-danger" : ""}><b>ภัยภายนอก</b> {pct(game.threat)}</span>
+          <span><b>คลังเมือง</b> 🪙 {fmt(game.resources.gold)}</span>
+          <span><b>รุ่น</b> v{GAME_VERSION} · {deviceLabel(deviceMode)}</span>
+        </div>
       </header>
 
       <section className="shell">
@@ -5414,22 +5515,33 @@ function TutorialModal({ step, setStep, close }: { step: number; setStep: (value
 }
 
 function GameOverScreen({ game, restartSameSetup, resetGame }: { game: GameState; restartSameSetup: () => void; resetGame: () => void }) {
+  const [chronicleOpen, setChronicleOpen] = useState(true);
   const over = game.gameOver;
   if (!over) return null;
-  const deathPreview = game.casualties.slice(0, 5);
-  const lastLogs = game.logs.slice(0, 8);
+  const dynasty = normalizeDynastyState(game) as DynastyState;
+  const victory = normalizeVictoryState(game) as VictoryState;
+  const chronologicalLogs = [...game.logs].sort((a, b) => (a.year * 12 + a.month) - (b.year * 12 + b.month));
+  const groupedLogs = chronologicalLogs.reduce<Record<string, LogEntry[]>>((groups, log) => {
+    const key = `ปี ${log.year}`;
+    groups[key] = [...(groups[key] ?? []), log];
+    return groups;
+  }, {});
+  const houseMembers = game.people
+    .filter((person) => person.houseName === game.houseName || String(person.kin).includes(game.houseName))
+    .sort((a, b) => Number(b.alive) - Number(a.alive) || b.age - a.age);
   return (
     <main className="app game-over-page">
-      <header className="topbar">
+      <header className="topbar game-over-topbar">
         <div className="brand"><div className="brand-mark">⌛</div><span>EVOLUTION<br />OF US</span></div>
-        <div className="top-stats">
+        <div className="topbar-core">
           <span className="pill danger-pill">ชุมชนล่มสลาย</span>
           <span className="pill">ตระกูล {game.houseName}</span>
           <span className="pill">อยู่รอด {over.survivedText}</span>
           <span className="pill warn">สาเหตุ: {over.cause}</span>
         </div>
       </header>
-      <section className="game-over-shell">
+
+      <section className="game-over-shell full-chronicle-layout">
         <article className="panel pad game-over-card">
           <div className="kicker">พงศาวดารปิดฉาก</div>
           <h1>{over.title}</h1>
@@ -5437,18 +5549,68 @@ function GameOverScreen({ game, restartSameSetup, resetGame }: { game: GameState
           <div className="result-grid" style={{ marginTop: 18 }}>
             {over.finalStats.map((stat, i) => <div className="result-box" key={`${stat.label}-${i}`}><b>{stat.label}</b><p>{stat.value}</p></div>)}
           </div>
-          <div className="flex" style={{ marginTop: 18, justifyContent: "flex-end" }}>
+          <div className="endgame-summary-grid">
+            <div className="result-box"><b>รุ่นของตระกูล</b><p>{dynasty.generation} รุ่น</p></div>
+            <div className="result-box"><b>การสืบทอดผู้นำ</b><p>{dynasty.successionHistory.length} ครั้ง</p></div>
+            <div className="result-box"><b>เหตุการณ์ที่บันทึก</b><p>{game.logs.length} รายการ</p></div>
+            <div className="result-box"><b>ผู้จากไป</b><p>{game.casualties.length} คน</p></div>
+          </div>
+          <div className="flex endgame-actions">
+            <button className="secondary" onClick={() => setChronicleOpen((value) => !value)}>{chronicleOpen ? "ย่อพงศาวดารฉบับเต็ม" : "อ่านพงศาวดารฉบับเต็ม"}</button>
             <button className="secondary" onClick={resetGame}>กลับหน้าแรก</button>
             <button className="primary" onClick={restartSameSetup}>เริ่มเกมใหม่จากชื่อเดิม</button>
           </div>
         </article>
-        <aside className="panel pad">
-          <h3 className="section-title">บันทึกผู้จากไปแบบย่อ</h3>
-          {deathPreview.length ? deathPreview.map((c, i) => <div className="compact-death" key={`${c.id}-${i}`}><b>{c.name}</b><small>อายุ {c.age} · ปี {c.year} เดือน {c.month}</small><p>{c.cause}</p></div>) : <div className="empty">ไม่มีรายชื่อผู้จากไป</div>}
-          {game.casualties.length > 5 && <details className="details-box"><summary>ดูรายชื่อทั้งหมดอีก {game.casualties.length - 5} คน</summary>{game.casualties.slice(5).map((c, i) => <p key={`${c.id}-more-${i}`}>• {c.name} — {c.cause}</p>)}</details>}
-          <h3 className="section-title" style={{ marginTop: 18 }}>พงศาวดารก่อนล่มสลาย</h3>
-          <div className="timeline compact">{lastLogs.map((l, i) => <div className={`log ${l.kind}`} key={`${l.id}-${i}`}><b>{l.title}</b><small>ปี {l.year} เดือน {l.month}</small><p>{l.text}</p></div>)}</div>
+
+        <aside className="panel pad endgame-index">
+          <h3 className="section-title">สารบัญชีวิตของตระกูล</h3>
+          <div className="timeline compact">
+            <div className="log"><b>ผู้ก่อตั้ง</b><p>{dynasty.founderName || game.leaderName}</p></div>
+            <div className="log"><b>ผู้นำคนสุดท้าย</b><p>{game.leaderName}</p></div>
+            <div className="log"><b>สมาชิกตระกูลที่บันทึกไว้</b><p>{houseMembers.length} คน</p></div>
+            <div className="log"><b>เส้นทางชัยชนะที่บรรลุ</b><p>{victory.completedPaths.length ? victory.completedPaths.map((path) => VICTORY_PATHS[path].title).join(" · ") : "ยังไม่มี"}</p></div>
+          </div>
+          {dynasty.successionHistory.length > 0 && <details className="details-box" open><summary>ประวัติผู้นำทั้งหมด</summary>{dynasty.successionHistory.map((record, index) => <p key={`${record.year}-${record.month}-${index}`}><b>รุ่นที่ {record.generation}: {record.toName}</b><br />ปี {record.year} เดือน {record.month} · รับตำแหน่งต่อจาก {record.fromName}<br /><span className="muted">{record.reason}</span></p>)}</details>}
         </aside>
+
+        {chronicleOpen && <section className="panel pad endgame-full-chronicle">
+          <div className="split wrap-safe">
+            <div><span className="kicker">COMPLETE CHRONICLE</span><h2 className="title">พงศาวดารฉบับเต็มของตระกูล {game.houseName}</h2><p className="muted">รวบรวมเหตุการณ์ ความทรงจำ ผู้นำ สมาชิกตระกูล และผู้จากไปทั้งหมดที่ยังอยู่ในบันทึกของรอบเล่นนี้</p></div>
+            <div className="dynasty-summary"><span className="badge">ปี {game.year} เดือน {game.month}</span><span className="badge">บันทึก {chronologicalLogs.length}</span><span className="badge red">ผู้จากไป {game.casualties.length}</span></div>
+          </div>
+
+          {victory.ending && <section className="ending-chronicle compact-ending">
+            <div className="ending-hero"><span className="kicker">บทสรุปที่เคยบรรลุ</span><h2>{victory.ending.title}</h2><p>{victory.ending.subtitle}</p></div>
+            <div className="ending-story">{victory.ending.paragraphs.map((paragraph, index) => <p key={`ending-${index}`}>{paragraph}</p>)}</div>
+          </section>}
+
+          <div className="two-col endgame-record-columns">
+            <div>
+              <h3 className="section-title">สมาชิกตระกูลและครัวเรือน</h3>
+              <div className="family-strip-list">
+                {houseMembers.map((person) => <div className="family-strip" key={`end-house-${person.id}`}><div><b>{person.name}</b><small>{person.familyRole ?? "สมาชิกตระกูล"} · อายุ {person.age} · {person.role}</small><small>{person.alive ? `สุขภาพ ${person.health}% · กำลังใจ ${person.morale}%` : "เสียชีวิตแล้ว"}</small></div><span className={person.alive ? "badge green" : "badge red"}>{person.alive ? "ยังมีชีวิต" : "ผู้จากไป"}</span></div>)}
+                {!houseMembers.length && <div className="empty">ไม่มีข้อมูลสมาชิกตระกูล</div>}
+              </div>
+            </div>
+            <div>
+              <h3 className="section-title">รายชื่อผู้จากไปทั้งหมด</h3>
+              <div className="casualty-scroll">
+                {game.casualties.length ? game.casualties.map((casualty, index) => <article className="compact-death" key={`${casualty.id}-${index}`}><b>{casualty.name}</b><small>อายุ {casualty.age} · ปี {casualty.year} เดือน {casualty.month}</small><p>{casualty.cause}</p>{casualty.story && <p className="muted small">{casualty.story}</p>}</article>) : <div className="empty">ไม่มีรายชื่อผู้จากไป</div>}
+              </div>
+            </div>
+          </div>
+
+          <h3 className="section-title" style={{ marginTop: 18 }}>ความทรงจำทั้งหมด</h3>
+          <div className="memory-grid endgame-memory-grid">
+            {game.memories.length ? [...game.memories].reverse().map((memory, index) => <article className="memory-card" key={`${memory.id}-${index}`}><span className="badge">{memory.kind}</span><h3>{memory.title}</h3><small>ปี {memory.year} เดือน {memory.month}</small><p>{memory.text}</p><p className="muted small">ผลที่หลงเหลือ: {memory.effect}</p></article>) : <div className="empty">ไม่มีความทรงจำที่ถูกบันทึกไว้</div>}
+          </div>
+
+          <h3 className="section-title" style={{ marginTop: 18 }}>ลำดับเหตุการณ์ตั้งแต่ต้นจนจบ</h3>
+          <div className="endgame-year-groups">
+            {Object.entries(groupedLogs).map(([yearLabel, logs]) => <section className="chronicle-year" key={yearLabel}><h3>{yearLabel}</h3><div className="timeline chronicle-timeline">{logs.map((log, index) => <article className={`log ${log.kind}`} key={`${log.id}-${index}`}><div className="split wrap-safe"><b>{log.title}</b><small>เดือน {log.month}</small></div><p style={{ whiteSpace: "pre-line" }}>{log.text}</p>{log.tags.length > 0 && <div className="deltas">{log.tags.map((tag, tagIndex) => <span className="badge" key={`${log.id}-${tag}-${tagIndex}`}>{tag}</span>)}</div>}</article>)}</div></section>)}
+            {!chronologicalLogs.length && <div className="empty">ไม่มีบันทึกเหตุการณ์</div>}
+          </div>
+        </section>}
       </section>
     </main>
   );
@@ -6044,7 +6206,7 @@ function LaborAssignmentPanel({ game, assignPersonLabor, assignManyPeople, apply
                   {currentJob && <span className="badge green">ทำอยู่: {currentJob.icon} {currentJob.title}</span>}
                   {!currentJob && <span className="badge blue">พักฟื้น {restRate}/เดือน</span>}
                 </div>
-                <small className="muted">สุขภาพ {person.health}% · ล้า {person.fatigue}% · {!currentJob ? restRecoveryLabel(game, person) : "คำนวณผลจริงตามความถนัด"}</small>
+                <small className="muted">สุขภาพ {person.health}% · ล้า {person.fatigue}%{!currentJob ? ` · ${restRecoveryLabel(game, person)}` : ""}</small>
                 <select value={current} onChange={(e) => assignPersonLabor(person.id, e.target.value as LaborKey | "")} className="labor-select compact-select" disabled={cannotWork}>
                   <option value="">{cannotWork ? "ต้องพัก/ดูแลก่อน" : "พัก / ไม่ลงงาน"}</option>
                   {jobs.map((job) => <option key={job.id} value={job.id}>{job.icon} {job.title} · {Math.round(baseWorkFactor(person) * personJobBonus(person, job.id) * 100)}%</option>)}
