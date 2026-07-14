@@ -39,6 +39,8 @@ export function validateGameSave(value, options = {}) {
         if (ids.has(person.id)) issues.push(issue(`${path}.id`, `ID ซ้ำ: ${person.id}`, "error"));
         ids.add(person.id);
       }
+      if (person.parentIds != null && !Array.isArray(person.parentIds)) issues.push(issue(`${path}.parentIds`, "parentIds ต้องเป็น array", strict ? "error" : "warning"));
+      if (person.childrenIds != null && !Array.isArray(person.childrenIds)) issues.push(issue(`${path}.childrenIds`, "childrenIds ต้องเป็น array", strict ? "error" : "warning"));
     });
   }
 
@@ -50,8 +52,16 @@ export function validateGameSave(value, options = {}) {
     integerRange(value.rng.calls, 0, Number.MAX_SAFE_INTEGER, "rng.calls", issues);
   }
 
-  for (const key of ["buildings","researchDone","labor","flags","locations","buildingCondition"]) {
+  for (const key of ["buildings","researchDone","labor","flags","locations","buildingCondition","dynasty","victory"]) {
     if (!value[key] || typeof value[key] !== "object" || Array.isArray(value[key])) issues.push(issue(key, `${key} ต้องเป็น object`, strict ? "error" : "warning"));
+  }
+  if (value.dynasty && typeof value.dynasty === "object") {
+    integerRange(value.dynasty.generation, 1, 1000, "dynasty.generation", issues, strict ? "error" : "warning");
+    requiredString(value.dynasty, "currentLeaderId", issues, "dynasty");
+    if (!Array.isArray(value.dynasty.successionHistory)) issues.push(issue("dynasty.successionHistory", "ประวัติการสืบทอดต้องเป็น array", strict ? "error" : "warning"));
+  }
+  if (value.victory && typeof value.victory === "object") {
+    if (!Array.isArray(value.victory.completedPaths)) issues.push(issue("victory.completedPaths", "รายการชัยชนะต้องเป็น array", strict ? "error" : "warning"));
   }
   for (const key of ["logs","casualties","memories","rumors","notifications","pendingEvents","delayedEvents","recentEventIds","eventHistory","neighbors","outposts"]) {
     if (!Array.isArray(value[key])) issues.push(issue(key, `${key} ต้องเป็น array`, strict ? "error" : "warning"));

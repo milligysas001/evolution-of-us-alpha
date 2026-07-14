@@ -7,6 +7,7 @@ import { createSeededGame, runSeededTransition } from "../../engine/transition.m
 import { runMonthlyPipeline } from "../../engine/monthly-pipeline.mjs";
 import { CURRENT_GAME_VERSION, CURRENT_SCHEMA_VERSION, createSaveEnvelope, migrateSavePayload } from "../../save/migrations.mjs";
 import { formatValidationIssues, validateGameSave } from "../../save/schema.mjs";
+import { VICTORY_PATHS, chooseVictoryPath, emptyDynastyState, emptyVictoryState, evaluateVictory, heirCandidates, normalizeDynastyState, normalizeVictoryState, victoryProgress } from "../../logic/dynasty-endgame.mjs";
 
 type Origin = "builder" | "hunter" | "healer" | "keeper" | "mediator";
 type Difficulty = "story" | "normal" | "survival" | "ironman";
@@ -75,7 +76,12 @@ type MonthlyReport = {
   metricRows: Array<{ key: MetricKey; label: string; before: number; after: number; delta: number }>;
   warnings: string[];
 };
-type LeaderboardEntry = { id: string; houseName: string; leaderName: string; stage: Stage; year: number; month: number; population: number; score: number; updatedAt: string; };
+type LeaderboardEntry = { id: string; houseName: string; leaderName: string; stage: Stage; year: number; month: number; population: number; score: number; updatedAt: string; generation?: number; victoryCount?: number; };
+type VictoryPathKey = "enduring" | "trade" | "peace" | "knowledge" | "legacy" | "guardian";
+type SuccessionRecord = { year: number; month: number; fromName: string; toName: string; reason: string; generation: number; };
+type DynastyState = { founderName: string; generation: number; currentLeaderId: string; designatedHeirId: string | null; successionHistory: SuccessionRecord[]; familyMilestones: string[]; lastSuccession: string; };
+type VictoryEnding = { path: VictoryPathKey; title: string; subtitle: string; achievedYear: number; achievedMonth: number; leaderName: string; population: number; stage: Stage; paragraphs: string[]; highlights: Array<{ title: string; year: number; month: number; text: string }>; fallen: Array<{ name: string; age: number; cause: string }>; };
+type VictoryState = { chosenPath: VictoryPathKey | null; completedPaths: VictoryPathKey[]; achievedAt: { year: number; month: number; path: VictoryPathKey } | null; ending: VictoryEnding | null; lastEvaluation: Record<string, { current: number; complete: boolean; details: string[] }>; };
 
 type Resources = Record<ResourceKey, number>;
 type ResourceHistoryYear = { year: number; stocks: Resources; produced: Partial<Resources>; used: Partial<Resources>; net: Partial<Resources>; population: number; quality: { food: number; water: number; shelter: number; }; };
@@ -113,6 +119,11 @@ type Person = {
   grief?: number;
   closeKin?: string[];
   cause?: string;
+  houseName?: string;
+  parentIds?: string[];
+  spouseId?: string | null;
+  childrenIds?: string[];
+  familyRole?: "ผู้ก่อตั้ง" | "ผู้นำตระกูล" | "คู่ครอง" | "ทายาท" | "สมาชิกตระกูล" | "ชาวเมือง";
 };
 
 type Casualty = {
@@ -236,6 +247,8 @@ type GameState = {
   factions: FactionState;
   leaderAge: number;
   heir: Person | null;
+  dynasty: DynastyState;
+  victory: VictoryState;
   summaryModal: SummaryModal;
   savedText: string;
 };
@@ -402,7 +415,7 @@ function normalizeDifficulty(value: unknown): Difficulty {
 function difficultyInfo(game: Pick<GameState, "difficulty">) {
   return difficultyConfig[normalizeDifficulty(game.difficulty)];
 }
-const BUILD_LABEL = "สมดุลและประสบการณ์ใช้งาน · ระดับความยาก · รายงานรายเดือน · แรงงาน · จังหวะเหตุการณ์ · การสำรวจ";
+const BUILD_LABEL = "ราชวงศ์และปลายเกม · ครอบครัว · ทายาท · การสืบทอด · เส้นทางชัยชนะ · พงศาวดารตอนจบ · ปรับ UX/UI ทุกหมวด";
 const BUILD_DATE = "2026-07-14";
 const saveKey = "eou-current-save";
 const setupKey = "eou-current-setup";
@@ -435,7 +448,9 @@ const portableDataSummary = {
     "data/game/travel_risks.json",
     "data/game/outposts.json",
     "data/game/v0936_save_leaderboard_neighbors_military.json",
-    "data/game/v0937_stabilization.json"
+    "data/game/v0937_stabilization.json",
+    "data/game/v0938_balance_ux.json",
+    "data/game/v0939_dynasty_endgame.json"
   ],
   godotNotes: "Godot can load these JSON files with FileAccess + JSON.parse_string and map ids to UI nodes/resources."
 };
@@ -467,9 +482,12 @@ function readSaveSlots(): SaveSlotRecord[] {
 function writeSaveSlots(slots: SaveSlotRecord[]) {
   window.localStorage.setItem(saveSlotsKey, JSON.stringify(slots.slice(0, 3)));
 }
+function leaderboardEntryId(game: GameState) { return `${game.houseName.trim().toLowerCase()}::${game.rng?.seed ?? "local"}`; }
 function leaderboardScore(game: GameState) {
   const metricAverage = Object.values(game.metrics).reduce((sum, value) => sum + value, 0) / Math.max(1, Object.values(game.metrics).length);
-  const base = stageRank(game.stage) * 1_000_000_000 + game.year * 1_000_000 + game.month * 10_000 + alivePeople(game).length * 100 + Math.round(metricAverage);
+  const dynasty = normalizeDynastyState(game) as DynastyState;
+  const victory = normalizeVictoryState(game) as VictoryState;
+  const base = victory.completedPaths.length * 5_000_000_000 + stageRank(game.stage) * 1_000_000_000 + dynasty.generation * 10_000_000 + game.year * 1_000_000 + game.month * 10_000 + alivePeople(game).length * 100 + Math.round(metricAverage);
   return Math.round(base * difficultyInfo(game).scoreMultiplier);
 }
 function readLeaderboard(): LeaderboardEntry[] {
@@ -479,8 +497,8 @@ function readLeaderboard(): LeaderboardEntry[] {
   } catch { return []; }
 }
 function updateLocalLeaderboard(game: GameState) {
-  const id = `${game.houseName.trim().toLowerCase()}::${game.leaderName.trim().toLowerCase()}`;
-  const entry: LeaderboardEntry = { id, houseName: game.houseName, leaderName: game.leaderName, stage: game.stage, year: game.year, month: game.month, population: alivePeople(game).length, score: leaderboardScore(game), updatedAt: new Date().toISOString() };
+  const id = leaderboardEntryId(game);
+  const entry: LeaderboardEntry = { id, houseName: game.houseName, leaderName: game.leaderName, stage: game.stage, year: game.year, month: game.month, population: alivePeople(game).length, score: leaderboardScore(game), updatedAt: new Date().toISOString(), generation: (normalizeDynastyState(game) as DynastyState).generation, victoryCount: (normalizeVictoryState(game) as VictoryState).completedPaths.length };
   const current = readLeaderboard();
   const previous = current.find((item) => item.id === id);
   const next = [previous && previous.score > entry.score ? previous : entry, ...current.filter((item) => item.id !== id)].sort((a, b) => b.score - a.score || b.population - a.population).slice(0, 30);
@@ -1011,7 +1029,16 @@ function initialPeople(leaderName: string, houseName: string, origin: Origin): P
   for (let i = 0; i < 2; i++) {
     people.push({ id: uid("child"), name: nextName(), age: 4 + Math.floor(gameRandom() * 9), kin: i === 0 ? `ตระกูล ${houseName}` : "ชาวบ้าน", role: "เด็ก", skill: "child", health: 58 + Math.floor(gameRandom() * 20), morale: 62 + Math.floor(gameRandom() * 12), fatigue: 0, injured: false, alive: true, traits: [childTraits[i]] });
   }
-  return shuffle(people.filter((p) => p.id !== "leader")).slice(0, 14).concat(people.find((p) => p.id === "leader")!).sort((a, b) => Number(b.id === "leader") - Number(a.id === "leader"));
+  const ordered = shuffle(people.filter((p) => p.id !== "leader")).slice(0, 14).concat(people.find((p) => p.id === "leader")!).sort((a, b) => Number(b.id === "leader") - Number(a.id === "leader"));
+  const leader = ordered.find((p) => p.id === "leader")!;
+  const spouse = ordered.find((p) => p.id !== "leader" && p.age >= 20 && p.age <= 45 && p.skill !== "elder" && p.skill !== "child");
+  const familyChildren = ordered.filter((p) => p.skill === "child").slice(0, 1);
+  return ordered.map((person) => {
+    if (person.id === leader.id) return { ...person, houseName, kin: `ตระกูล ${houseName}`, spouseId: spouse?.id ?? null, childrenIds: familyChildren.map((child) => child.id), familyRole: "ผู้ก่อตั้ง" as const, closeKin: [spouse?.id, ...familyChildren.map((child) => child.id)].filter(Boolean) as string[] };
+    if (spouse && person.id === spouse.id) return { ...person, houseName, kin: `ตระกูล ${houseName}`, spouseId: leader.id, childrenIds: familyChildren.map((child) => child.id), familyRole: "คู่ครอง" as const, closeKin: [leader.id, ...familyChildren.map((child) => child.id)] };
+    if (familyChildren.some((child) => child.id === person.id)) return { ...person, houseName, kin: `ตระกูล ${houseName}`, parentIds: [leader.id, ...(spouse ? [spouse.id] : [])], familyRole: "สมาชิกตระกูล" as const, closeKin: [leader.id, ...(spouse ? [spouse.id] : [])] };
+    return { ...person, houseName: person.houseName ?? "", parentIds: person.parentIds ?? [], spouseId: person.spouseId ?? null, childrenIds: person.childrenIds ?? [], familyRole: "ชาวเมือง" as const };
+  });
 }
 function adultWorkers(game: GameState) {
   return Math.round(workerCapacity(game) * 10) / 10;
@@ -1393,11 +1420,13 @@ function normalizeAdvancedSystems(game: GameState): GameState {
     factions: normalizeFactions((game as any).factions),
     leaderAge: Math.max(18, Math.round((game as any).leaderAge ?? game.people?.find((p) => p.id === "leader")?.age ?? 28)),
     heir: ((game as any).heir ?? null) as Person | null,
+    dynasty: normalizeDynastyState(game) as DynastyState,
+    victory: normalizeVictoryState(game) as VictoryState,
     buildingCondition: normalizeBuildingCondition(game),
     resources: { ...baseResources(game.origin), ...game.resources },
     researchDone: { ...emptyResearch(), ...game.researchDone },
     buildings: { ...emptyBuildings(), ...game.buildings },
-    people: game.people.map((p) => ({ ...p, sick: p.sick ?? (causeLooksSickness(p.cause) || (!p.injured && p.health < 45)), xp: p.xp ?? {}, grief: p.grief ?? 0, closeKin: p.closeKin ?? [] })),
+    people: game.people.map((p) => ({ ...p, sick: p.sick ?? (causeLooksSickness(p.cause) || (!p.injured && p.health < 45)), xp: p.xp ?? {}, grief: p.grief ?? 0, closeKin: p.closeKin ?? [], parentIds: p.parentIds ?? [], spouseId: p.spouseId ?? null, childrenIds: p.childrenIds ?? [], houseName: p.houseName ?? (String(p.kin ?? "").includes(game.houseName) ? game.houseName : ""), familyRole: p.familyRole ?? (p.id === "leader" ? "ผู้ก่อตั้ง" : String(p.kin ?? "").includes(game.houseName) ? "สมาชิกตระกูล" : "ชาวเมือง") })),
   };
 }
 function seasonalWeatherLabel(game: GameState) {
@@ -2700,7 +2729,7 @@ function createInitialGame(setup: { leaderName: string; houseName: string; origi
     metrics, people, casualties: [], logs: [], memories: [], rumors: [], leaderTraits: ["ผู้ก่อตั้ง"], milestones: [], flags: {}, threat: 0,
     pathScores: { survival: 0, family: 0, knowledge: 0, trade: 0, fortress: 0, faith: 0 },
     collapse: { hungerMonths: 0, noWorkerMonths: 0, trustCrisisMonths: 0, assaultCrisisMonths: 0 }, gameOver: null,
-    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: startingMap.locations, exploreTarget: startingMap.target, animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), guilds: emptyGuilds(), outposts: [], neighbors: [], military: emptyMilitaryState(), factions: emptyFactions(), leaderAge: people.find((p) => p.id === "leader")?.age ?? 28, heir: null, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
+    lastRisk: { food: 0, shelter: 0, disease: 0, beast: 0, conflict: 0, weather: 0, accident: 0 }, locations: startingMap.locations, exploreTarget: startingMap.target, animalState: emptyAnimalState(), animalAction: "keep", weather: emptyWeatherState(), policies: emptyPolicies(), buildingCondition: {}, crisis: emptyCrisis(), guilds: emptyGuilds(), outposts: [], neighbors: [], military: emptyMilitaryState(), factions: emptyFactions(), leaderAge: people.find((p) => p.id === "leader")?.age ?? 28, heir: null, dynasty: emptyDynastyState({ leaderName: setup.leaderName, people }) as DynastyState, victory: emptyVictoryState() as VictoryState, summaryModal: null, savedText: "ยังไม่เคยบันทึก",
   };
   return addNotice(addLog(base, "ค่ายแรกถูกตั้งขึ้น", `${setup.leaderName} แห่งตระกูล ${setup.houseName} พาคนสิบห้าชีวิตตั้งกองไฟแรกที่ “${terrainData[terrain].title}” — ${terrainData[terrain].text}`, "milestone", ["เริ่มเกม", "พื้นที่เริ่มต้น"]), { kind: "system", title: `พื้นที่เริ่มต้น: ${terrainData[terrain].title}`, text: terrainData[terrain].text });
   });
@@ -4069,8 +4098,14 @@ function addAnnualSettlers(game: GameState, changes: string[]): GameState {
 function addChild(game: GameState): GameState {
   const names = ["Mira", "Lina", "Ren", "Toma", "Sana", "Eli", "Pim", "Noa", "Keta"];
   const name = names[Math.floor(gameRandom() * names.length)] + ` ${game.year}`;
-  const child: Person = { id: uid("child"), name, age: 0, kin: `ตระกูล ${game.houseName}`, role: "เด็กแรกเกิด", skill: "child", health: 62 + Math.floor(gameRandom() * 15), morale: 70, fatigue: 0, injured: false, alive: true, traits: ["เกิดในค่าย"] };
-  return { ...game, people: [...game.people, child] };
+  const couples = alivePeople(game).filter((person) => person.spouseId && person.age >= 18 && person.age <= 45 && person.health > 45);
+  const firstParent = couples[0] ?? currentLeaderPerson(game) ?? alivePeople(game).find((person) => person.age >= 18 && person.age <= 45);
+  const secondParent = firstParent?.spouseId ? game.people.find((person) => person.id === firstParent.spouseId && person.alive) : undefined;
+  const parentIds = [firstParent?.id, secondParent?.id].filter(Boolean) as string[];
+  const isDynastyChild = parentIds.includes((normalizeDynastyState(game) as DynastyState).currentLeaderId) || parentIds.some((id) => game.people.find((person) => person.id === id)?.houseName === game.houseName);
+  const child: Person = { id: uid("child"), name, age: 0, kin: isDynastyChild ? `ตระกูล ${game.houseName}` : "ครอบครัวชาวเมือง", houseName: isDynastyChild ? game.houseName : "", parentIds, spouseId: null, childrenIds: [], familyRole: isDynastyChild ? "สมาชิกตระกูล" : "ชาวเมือง", closeKin: parentIds, role: "เด็กแรกเกิด", skill: "child", health: 62 + Math.floor(gameRandom() * 15), morale: 70, fatigue: 0, injured: false, alive: true, traits: ["เกิดในค่าย"] };
+  const people = game.people.map((person) => parentIds.includes(person.id) ? { ...person, childrenIds: Array.from(new Set([...(person.childrenIds ?? []), child.id])), closeKin: Array.from(new Set([...(person.closeKin ?? []), child.id])) } : person);
+  return { ...game, people: [...people, child] };
 }
 function woundSomeone(game: GameState, cause: string): GameState {
   const illness = causeLooksSickness(cause);
@@ -4652,6 +4687,66 @@ function applyRealismRisks(game: GameState, changes: string[]): GameState {
   }
   return g;
 }
+function currentLeaderPerson(game: GameState): Person | null {
+  const dynasty = normalizeDynastyState(game) as DynastyState;
+  return alivePeople(game).find((person) => person.id === dynasty.currentLeaderId) ?? alivePeople(game).find((person) => person.id === "leader") ?? null;
+}
+function designateHeir(game: GameState, personId: string | null): GameState {
+  const dynasty = normalizeDynastyState(game) as DynastyState;
+  if (!personId) return { ...game, heir: null, dynasty: { ...dynasty, designatedHeirId: null }, savedText: "ยกเลิกการแต่งตั้งทายาทแล้ว" };
+  const candidate = heirCandidates({ ...game, dynasty }).find((item: any) => item.person.id === personId)?.person as Person | undefined;
+  if (!candidate) return { ...game, savedText: "บุคคลนี้ยังไม่พร้อมเป็นทายาท" };
+  if (!game.researchDone.familyRecords && stageRank(game.stage) < stageRank("หมู่บ้านถาวร")) return { ...game, savedText: "ต้องมีทะเบียนครอบครัวหรือพัฒนาเป็นหมู่บ้านถาวรก่อน จึงแต่งตั้งทายาทได้" };
+  const people = game.people.map((person) => person.id === candidate.id ? { ...person, familyRole: "ทายาท" as const, houseName: game.houseName, kin: `ตระกูล ${game.houseName}` } : person.familyRole === "ทายาท" ? { ...person, familyRole: String(person.kin).includes(game.houseName) ? "สมาชิกตระกูล" as const : "ชาวเมือง" as const } : person);
+  return addLog({ ...game, people, heir: candidate, dynasty: { ...dynasty, designatedHeirId: candidate.id }, savedText: `แต่งตั้ง ${candidate.name} เป็นทายาทแล้ว` }, "แต่งตั้งทายาท", `${candidate.name} ถูกบันทึกเป็นผู้สืบทอดของตระกูล ${game.houseName} การแต่งตั้งนี้ช่วยลดความสับสนเมื่อผู้นำรุ่นปัจจุบันจากไป แต่ความไว้วางใจของผู้คนยังขึ้นอยู่กับการกระทำของทายาทเอง`, "milestone", ["ตระกูล", "ทายาท"]);
+}
+function resolveDynasticSuccession(game: GameState, changes: string[], forceReason?: string): GameState {
+  let g = normalizeAdvancedSystems(game);
+  const dynasty = normalizeDynastyState(g) as DynastyState;
+  const leaderAny = g.people.find((person) => person.id === dynasty.currentLeaderId) ?? g.people.find((person) => person.id === "leader");
+  const retirementReady = !!leaderAny?.alive && leaderAny.age >= 74 && g.researchDone.dynasticSuccession;
+  if (leaderAny?.alive && !retirementReady && !forceReason) return { ...g, leaderAge: leaderAny.age, dynasty };
+  const reason = forceReason ?? (leaderAny?.alive ? "สละตำแหน่งเมื่อชราภาพ" : "ผู้นำรุ่นก่อนเสียชีวิต");
+  const candidates = heirCandidates({ ...g, dynasty }) as Array<{ person: Person; blood: boolean; score: number }>;
+  const designated = candidates.find((item) => item.person.id === dynasty.designatedHeirId);
+  const chosen = designated ?? candidates[0];
+  if (!chosen) {
+    changes.push("ไม่มีผู้ใหญ่พร้อมรับตำแหน่งผู้นำ ชุมชนเข้าสู่ภาวะสภาชั่วคราว");
+    return { ...g, dynasty: { ...dynasty, currentLeaderId: dynasty.currentLeaderId || leaderAny?.id || "leader", designatedHeirId: null, lastSuccession: "ไม่มีผู้สืบทอดที่พร้อม" }, metrics: changeMetrics(g.metrics, { trust: -12, security: -8, cohesion: -8 }), heir: null };
+  }
+  const successor = chosen.person;
+  const generation = dynasty.generation + 1;
+  const record: SuccessionRecord = { year: g.year, month: g.month, fromName: leaderAny?.name ?? g.leaderName, toName: successor.name, reason, generation };
+  const people = g.people.map((person) => person.id === successor.id ? { ...person, role: `ผู้นำรุ่นที่ ${generation}`, familyRole: "ผู้นำตระกูล" as const, houseName: g.houseName, kin: `ตระกูล ${g.houseName}`, morale: clamp(person.morale + 8) } : person);
+  g = {
+    ...g,
+    people,
+    leaderName: successor.name,
+    leaderAge: successor.age,
+    heir: null,
+    dynasty: { ...dynasty, generation, currentLeaderId: successor.id, designatedHeirId: null, successionHistory: [record, ...dynasty.successionHistory].slice(0, 24), lastSuccession: `${successor.name} รับตำแหน่งต่อจาก ${record.fromName} เพราะ${reason}` },
+    metrics: changeMetrics(g.metrics, { trust: designated ? 5 : -3, cohesion: designated ? 5 : -2, morale: 3 }),
+  };
+  g = addLog(g, `การสืบทอดผู้นำรุ่นที่ ${generation}`, `${successor.name} รับหน้าที่นำตระกูล ${g.houseName} ต่อจาก ${record.fromName} ด้วยเหตุ${reason}${designated ? " การแต่งตั้งทายาทล่วงหน้าทำให้การเปลี่ยนผ่านสงบ" : " ไม่มีการแต่งตั้งที่ชัดเจน ผู้คนจึงต้องยอมรับผู้นำใหม่จากความพร้อมและความไว้วางใจ"}`, "milestone", ["ตระกูล", "การสืบทอด"]);
+  g = addNotice(g, { kind: "system", title: `ผู้นำรุ่นที่ ${generation}: ${successor.name}`, text: `${successor.name} รับตำแหน่งต่อจาก ${record.fromName} พงศาวดารของตระกูลเดินเข้าสู่รุ่นใหม่` });
+  changes.push(`สืบทอดผู้นำ: ${record.fromName} → ${successor.name} (รุ่นที่ ${generation})`);
+  return g;
+}
+function updateFamilyRecords(game: GameState, changes: string[]): GameState {
+  let g = game;
+  const alive = alivePeople(g);
+  const adults = alive.filter((person) => person.age >= 18 && person.age <= 48 && !person.spouseId && person.health > 45);
+  if (g.researchDone.familyRecords && adults.length >= 2 && gameRandom() < 0.18) {
+    const first = adults[0];
+    const second = adults.find((person) => person.id !== first.id);
+    if (second) {
+      g = { ...g, people: g.people.map((person) => person.id === first.id ? { ...person, spouseId: second.id, closeKin: Array.from(new Set([...(person.closeKin ?? []), second.id])) } : person.id === second.id ? { ...person, spouseId: first.id, closeKin: Array.from(new Set([...(person.closeKin ?? []), first.id])) } : person) };
+      changes.push(`${first.name} และ ${second.name} ตั้งครัวเรือนร่วมกัน`);
+      g = addLog(g, "ครอบครัวใหม่ในเมือง", `${first.name} และ ${second.name} ตัดสินใจสร้างครัวเรือนร่วมกัน ความสัมพันธ์นี้ไม่ได้เพิ่มเพียงจำนวนครอบครัว แต่สร้างเครือข่ายการดูแลที่จะมีผลต่อเด็ก ผู้เฒ่า และการสืบทอดในอนาคต`, "good", ["ครอบครัว"]);
+    }
+  }
+  return g;
+}
 function ageYear(game: GameState, changes: string[]): GameState {
   let g = game;
   const people = g.people.map((p) => {
@@ -4669,6 +4764,8 @@ function ageYear(game: GameState, changes: string[]): GameState {
     if (gameRandom() * 100 < Math.max(5, p.age - 66) && p.alive) g = killSpecific(g, p.id, "ชราภาพและร่างกายถึงขีดจำกัด");
   });
   g = addAnnualSettlers(g, changes);
+  g = updateFamilyRecords(g, changes);
+  g = resolveDynasticSuccession(g, changes);
   const fertileAdults = alivePeople(g).filter((p) => p.age >= 18 && p.age <= 42 && !p.injured && p.health > 45);
   const birthChance = Math.max(0, 4 + Math.min(8, fertileAdults.length) + Math.floor((g.metrics.morale + g.metrics.health + g.metrics.cohesion - 150) / 18));
   if (fertileAdults.length >= 2 && alivePeople(g).length < shelterCapacity(g) + 6 && gameRandom() * 100 < birthChance) {
@@ -4771,6 +4868,7 @@ function advanceMonth(game: GameState): GameState {
     { id: "military", run: (state: GameState, changes: string[]) => resolveMilitaryMonth(state, changes) },
     { id: "neighbors", run: (state: GameState, changes: string[]) => resolveNeighborMonth(state, changes) },
     { id: "risks-health", run: (state: GameState, changes: string[]) => applyRealismRisks(state, changes) },
+    { id: "dynasty-succession", run: (state: GameState, changes: string[]) => resolveDynasticSuccession(state, changes) },
     { id: "skills", run: (state: GameState, changes: string[]) => applySkillMastery(state, changes) },
     { id: "grief-recovery", run: (state: GameState, changes: string[]) => processGriefRecovery(state, changes) },
     { id: "delayed-events", run: (state: GameState) => resolveDelayed(state) },
@@ -4795,6 +4893,16 @@ function advanceMonth(game: GameState): GameState {
   const eventHistory: EventHistoryEntry[] = [{ id: event.id, category: broadEventCategory(event.category), year: game.year, month: game.month, rare: !!event.rare }, ...(g.eventHistory ?? [])].slice(0, 36);
   let nextBase: GameState = { ...g, year: nextYear, month: nextMonth, engineTrace: pipeline.trace as EngineTraceEntry[], recentEventIds: recent, eventHistory, pendingEvents: g.pendingEvents.filter((id) => id !== event.id), currentEventId: "", selectedChoiceId: null, leaderFocus: "workWithPeople", leaderActionSelected: false, savedText: "กำลังจดบันทึก..." };
   nextBase = updateCollapseAndGameOver(nextBase);
+  const completedBefore = new Set((normalizeVictoryState(nextBase) as VictoryState).completedPaths);
+  nextBase = evaluateVictory(nextBase) as GameState;
+  const victoryAfter = normalizeVictoryState(nextBase) as VictoryState;
+  const newlyCompleted = victoryAfter.completedPaths.find((path) => !completedBefore.has(path));
+  if (newlyCompleted) {
+    const meta = VICTORY_PATHS[newlyCompleted as VictoryPathKey];
+    changes.push(`บรรลุเส้นทางชัยชนะ: ${meta.title}`);
+    nextBase = addLog(nextBase, `ชัยชนะ — ${meta.title}`, `ตระกูล ${nextBase.houseName} บรรลุเป้าหมาย “${meta.title}” ในปี ${nextBase.year} เดือน ${nextBase.month} ผู้เล่นสามารถเปิดพงศาวดารตอนจบและเล่นต่อเพื่อพิชิตเส้นทางอื่นได้`, "milestone", ["ชัยชนะ", "พงศาวดารตอนจบ"]);
+    nextBase = addNotice(nextBase, { kind: "system", title: `บรรลุ ${meta.title}`, text: "พงศาวดารตอนจบพร้อมอ่านแล้วในแท็บพงศาวดาร เกมยังเล่นต่อได้เพื่อสร้างบทสรุปแบบอื่น" });
+  }
   const nextEventId = nextBase.gameOver ? event.id : pickEvent(nextBase);
   if (!nextBase.gameOver) {
     const nextEvent = getEvent(nextEventId);
@@ -5140,7 +5248,7 @@ export default function GamePage() {
           <span className="pill">แผนที่ {locationDiscoveryCount(game)}/8 · เป้าหมาย {locationData[bestExploreTarget(game)].title}</span>
           <span className="pill">ประชากร {alivePeople(game).length}</span>
           <span className="pill">ใช้คน {laborAssignmentLoad(game).toFixed(1)}/{workerCapacity(game).toFixed(1)} · ผลผลิต {laborTotal(game.labor).toFixed(1)}</span>
-          <span className="pill">ตระกูล {game.houseName}</span>
+          <span className="pill">ตระกูล {game.houseName} · รุ่นที่ {(normalizeDynastyState(game) as DynastyState).generation}</span>
           <span className="pill warn">ภัยภายนอก {pct(game.threat)}</span>
           <span className="pill gold-pill">คลังเมือง 🪙 {fmt(game.resources.gold)}</span>
           <span className={crisisLevel(game) === "ใกล้ล่มสลาย" || crisisLevel(game) === "วิกฤต" ? "pill danger-pill" : "pill good"}>วิกฤต: {crisisLevel(game)}</span>
@@ -5181,7 +5289,7 @@ export default function GamePage() {
           {safeView === "การค้า" && <TradeView game={game} applyTrade={(offerId) => updateGame((g) => applyTradeOffer(g, offerId))} />}
           {safeView === "เมืองข้างเคียง" && <NeighborCitiesView game={game} interact={interactNeighborCity} />}
           {safeView === "การทหาร" && <MilitaryView game={game} act={militaryAction} />}
-          {safeView === "พงศาวดาร" && <ChronicleView game={game} />}
+          {safeView === "พงศาวดาร" && <ChronicleView game={game} appointHeir={(personId) => updateGame((g) => designateHeir(g, personId))} selectVictoryPath={(path) => updateGame((g) => ({ ...(chooseVictoryPath(g, path) as GameState), savedText: `เลือกเส้นทางชัยชนะ: ${VICTORY_PATHS[path].title}` }))} />}
           {safeView === "ตั้งค่า" && <SettingsView game={game} resetGame={resetGame} showTutorialAgain={showTutorialAgain} theme={theme} setTheme={setTheme} replaceGame={(next) => setGame(normalizeAdvancedSystems(next))} />}
         </section>
 
@@ -6328,27 +6436,53 @@ function AnimalsView({ game, setAnimalAction }: { game: GameState; setAnimalActi
   );
 }
 
-function ChronicleView({ game }: { game: GameState }) {
+function ChronicleView({ game, appointHeir, selectVictoryPath }: { game: GameState; appointHeir: (personId: string | null) => void; selectVictoryPath: (path: VictoryPathKey) => void }) {
   const previewDeaths = game.casualties.slice(0, 5);
+  const dynasty = normalizeDynastyState(game) as DynastyState;
+  const victory = normalizeVictoryState(game) as VictoryState;
+  const progress = victoryProgress(game) as Record<VictoryPathKey, { current: number; complete: boolean; details: string[] }>;
+  const leader = currentLeaderPerson(game);
+  const candidates = (heirCandidates(game) as Array<{ person: Person; blood: boolean; score: number }>).slice(0, 8);
+  const houseMembers = alivePeople(game).filter((person) => person.houseName === game.houseName || String(person.kin).includes(game.houseName));
+  const pathKeys: VictoryPathKey[] = ["enduring", "trade", "peace", "knowledge", "legacy", "guardian"];
   return (
-    <section className="panel pad">
-      <h2 className="title">พงศาวดารของถิ่นฐาน</h2>
-      <p className="muted">บันทึกไม่ได้มีไว้สวยงามอย่างเดียว บางความทรงจำจะกลายเป็นแรงผลัก บางความทรงจำจะกลายเป็นแผลที่คนรุ่นต่อไปต้องแบกรับ</p>
-      <div className="two-col">
-        <div>
-          <h3 className="section-title">ความทรงจำสำคัญ</h3>
-          <div className="memory-grid">
-            {game.memories.length ? game.memories.map((m, i) => <article key={`${m.id}-${i}`} className="memory-card"><span className="badge green">{m.kind}</span><h3>{m.title}</h3><p className="muted small">ปี {m.year} เดือน {m.month}</p><p>{m.text}</p><small className="muted">ผล: {m.effect}</small></article>) : <div className="empty">ยังไม่มีความทรงจำสำคัญ</div>}
-          </div>
-        </div>
-        <div>
-          <h3 className="section-title">ผู้จากไปแบบย่อ</h3>
-          {previewDeaths.length ? previewDeaths.map((c, i) => <div key={`${c.id}-${i}`} className="compact-death"><b>{c.name}</b><small>ปี {c.year} เดือน {c.month} · อายุ {c.age}</small><p>{c.cause}</p></div>) : <div className="empty">ยังไม่มีผู้เสียชีวิต</div>}
-          {game.casualties.length > 5 && <details className="details-box"><summary>ดูรายชื่อทั้งหมดอีก {game.casualties.length - 5} คน</summary>{game.casualties.slice(5).map((c, i) => <p key={`${c.id}-more-${i}`}>• {c.name} — {c.cause}</p>)}</details>}
-        </div>
+    <section className="panel pad chronicle-page">
+      <div className="split wrap-safe"><div><span className="kicker">Dynasty & Endgame</span><h2 className="title">พงศาวดารตระกูล {game.houseName}</h2><p className="muted">ติดตามครอบครัว การสืบทอดผู้นำ เส้นทางชัยชนะ และเรื่องราวที่คนรุ่นหลังจะได้รับต่อไป</p></div><div className="dynasty-summary"><span className="badge green">ผู้นำรุ่นที่ {dynasty.generation}</span><span className="badge">สมาชิกตระกูล {houseMembers.length} คน</span><span className="badge gold-pill">ชัยชนะ {victory.completedPaths.length}/6</span></div></div>
+
+      <div className="dynasty-grid">
+        <article className="panel pad compact-panel" style={{ boxShadow: "none" }}>
+          <div className="split wrap-safe"><div><h3 className="section-title">ผู้นำและสายสืบทอด</h3><p className="muted small">การแต่งตั้งล่วงหน้าช่วยลดความขัดแย้ง เมื่อผู้นำเสียชีวิตหรือสละตำแหน่ง ระบบจะพิจารณาทายาทที่แต่งตั้งก่อน</p></div><span className="badge green">{leader?.name ?? game.leaderName} · อายุ {leader?.age ?? game.leaderAge}</span></div>
+          <div className="leader-lineage-card"><div className="avatar">{(leader?.name ?? game.leaderName).slice(0, 1)}</div><div><b>{leader?.name ?? game.leaderName}</b><small>{leader?.role ?? "ผู้นำ"} · {leader?.kin ?? `ตระกูล ${game.houseName}`}</small><small>สุขภาพ {pct(leader?.health ?? 0)} · กำลังใจ {pct(leader?.morale ?? 0)}</small></div></div>
+          <label className="label compact-label">ทายาทที่แต่งตั้ง
+            <select className="select" value={dynasty.designatedHeirId ?? ""} onChange={(event) => appointHeir(event.target.value || null)}>
+              <option value="">ยังไม่แต่งตั้ง</option>
+              {candidates.map(({ person, blood, score }) => <option key={person.id} value={person.id}>{person.name} · อายุ {person.age} · {blood ? "สายตระกูล" : "ผู้เหมาะสม"} · ความพร้อม {score}</option>)}
+            </select>
+          </label>
+          <div className="heir-candidate-grid">{candidates.slice(0, 4).map(({ person, blood, score }) => <button key={person.id} className={dynasty.designatedHeirId === person.id ? "heir-card active-step" : "heir-card"} onClick={() => appointHeir(person.id)}><b>{person.name}</b><small>{person.age} ปี · {person.skill} · ความพร้อม {score}</small><span>{blood ? "สายตระกูล" : "ผู้มีความสามารถ"}</span></button>)}</div>
+          <p className="muted small dynasty-note">ล่าสุด: {dynasty.lastSuccession}</p>
+        </article>
+
+        <article className="panel pad compact-panel" style={{ boxShadow: "none" }}>
+          <h3 className="section-title">สมาชิกตระกูลที่ยังมีชีวิต</h3>
+          <div className="family-strip-list">{houseMembers.slice(0, 10).map((person) => <div className="family-strip" key={person.id}><div><b>{person.name}</b><small>{person.familyRole ?? "สมาชิกตระกูล"} · อายุ {person.age} · {person.role}</small></div><span className={person.id === dynasty.currentLeaderId ? "badge green" : person.id === dynasty.designatedHeirId ? "badge gold-pill" : "badge"}>{person.id === dynasty.currentLeaderId ? "ผู้นำ" : person.id === dynasty.designatedHeirId ? "ทายาท" : person.spouseId ? "มีครัวเรือน" : "สมาชิก"}</span></div>)}{!houseMembers.length && <div className="empty compact-empty">ยังไม่มีข้อมูลสมาชิกตระกูล</div>}</div>
+          {dynasty.successionHistory.length > 0 && <details className="details-box"><summary>ประวัติการสืบทอด {dynasty.successionHistory.length} ครั้ง</summary>{dynasty.successionHistory.map((record, index) => <p key={`${record.year}-${record.month}-${index}`}>• ปี {record.year} เดือน {record.month}: {record.fromName} → {record.toName} · รุ่นที่ {record.generation} · {record.reason}</p>)}</details>}
+        </article>
+      </div>
+
+      <section className="victory-section">
+        <div className="split wrap-safe"><div><h3 className="section-title">เส้นทางชัยชนะ</h3><p className="muted small">เลือกเป้าหมายหลักได้ครั้งละหนึ่งเส้นทาง เปลี่ยนเป้าหมายได้โดยไม่เสียความคืบหน้า เมื่อครบเงื่อนไขจะสร้างพงศาวดารตอนจบและยังเล่นต่อได้</p></div>{victory.chosenPath && <span className="badge gold-pill">กำลังมุ่งสู่: {VICTORY_PATHS[victory.chosenPath].title}</span>}</div>
+        <div className="victory-grid">{pathKeys.map((key) => { const meta = VICTORY_PATHS[key]; const item = progress[key]; const completed = victory.completedPaths.includes(key); const active = victory.chosenPath === key; return <button className={`victory-card ${active ? "selected" : ""} ${completed ? "completed" : ""}`} key={key} onClick={() => selectVictoryPath(key)}><div className="victory-card-head"><span>{meta.icon}</span><div><b>{meta.title}</b><small>{completed ? "บรรลุแล้ว" : active ? "เป้าหมายปัจจุบัน" : "เลือกเป็นเป้าหมาย"}</small></div><strong>{item.current}%</strong></div><p>{meta.description}</p><div className="bar"><div className={completed ? "fill" : item.current < 35 ? "fill danger" : item.current < 70 ? "fill warn" : "fill"} style={{ width: `${item.current}%` }} /></div><div className="victory-details">{item.details.map((detail) => <small key={detail}>• {detail}</small>)}</div></button>; })}</div>
+      </section>
+
+      {victory.ending && <section className="ending-chronicle"><div className="ending-hero"><span className="kicker">ENDING CHRONICLE</span><h2>{victory.ending.title}</h2><p>{victory.ending.subtitle}</p><div className="deltas"><span className="badge green">ปี {victory.ending.achievedYear} เดือน {victory.ending.achievedMonth}</span><span className="badge">{victory.ending.stage}</span><span className="badge">ประชากร {victory.ending.population}</span></div></div><div className="ending-story">{victory.ending.paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>{victory.ending.highlights.length > 0 && <details className="details-box"><summary>เหตุการณ์สำคัญที่หล่อหลอมตอนจบ</summary>{victory.ending.highlights.slice(0, 8).map((item, index) => <p key={`${item.title}-${index}`}><b>ปี {item.year} เดือน {item.month} · {item.title}</b><br />{item.text}</p>)}</details>}</section>}
+
+      <div className="two-col chronicle-columns">
+        <div><h3 className="section-title">ความทรงจำสำคัญ</h3><div className="memory-grid">{game.memories.length ? game.memories.map((m, i) => <article key={`${m.id}-${i}`} className="memory-card"><span className="badge green">{m.kind}</span><h3>{m.title}</h3><p className="muted small">ปี {m.year} เดือน {m.month}</p><p>{m.text}</p><small className="muted">ผล: {m.effect}</small></article>) : <div className="empty">ยังไม่มีความทรงจำสำคัญ</div>}</div></div>
+        <div><h3 className="section-title">ผู้จากไปแบบย่อ</h3>{previewDeaths.length ? previewDeaths.map((c, i) => <div key={`${c.id}-${i}`} className="compact-death"><b>{c.name}</b><small>ปี {c.year} เดือน {c.month} · อายุ {c.age}</small><p>{c.cause}</p></div>) : <div className="empty">ยังไม่มีผู้เสียชีวิต</div>}{game.casualties.length > 5 && <details className="details-box"><summary>ดูรายชื่อทั้งหมดอีก {game.casualties.length - 5} คน</summary>{game.casualties.slice(5).map((c, i) => <p key={`${c.id}-more-${i}`}>• {c.name} — {c.cause}</p>)}</details>}</div>
       </div>
       <h3 className="section-title" style={{ marginTop: 18 }}>บันทึกล่าสุด</h3>
-      <div className="timeline">{game.logs.map((l, i) => <div key={`${l.id}-${i}`} className={`log ${l.kind}`}><div className="split"><b>{l.title}</b><small>ปี {l.year} เดือน {l.month}</small></div><p style={{ whiteSpace: "pre-line" }}>{l.text}</p><div className="deltas">{l.tags.map((t, ti) => <span className="badge" key={`${l.id}-${t}-${ti}`}>{t}</span>)}</div></div>)}</div>
+      <div className="timeline chronicle-timeline">{game.logs.map((l, i) => <div key={`${l.id}-${i}`} className={`log ${l.kind}`}><div className="split wrap-safe"><b>{l.title}</b><small>ปี {l.year} เดือน {l.month}</small></div><p style={{ whiteSpace: "pre-line" }}>{l.text}</p><div className="deltas">{l.tags.map((t, ti) => <span className="badge" key={`${l.id}-${t}-${ti}`}>{t}</span>)}</div></div>)}</div>
     </section>
   );
 }
@@ -6448,8 +6582,8 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, rep
       </section>
 
       <section className="panel pad leaderboard-panel" style={{ boxShadow: "none", marginTop: 14 }}>
-        <div className="split"><div><h3 className="section-title">ตารางอันดับตระกูล (Leader Board)</h3><p className="muted small">จัดอันดับจากยุคที่ไปถึง ระยะเวลาที่อยู่รอด จำนวนประชากร และสภาพเมือง รายการนี้เก็บในอุปกรณ์เดียวกัน เหมาะสำหรับแข่งขันหลายรอบหรือหลายผู้เล่นบนเครื่องเดียวกัน</p></div><span className="badge gold-pill">{leaderboard.some((entry) => entry.id === `${game.houseName.trim().toLowerCase()}::${game.leaderName.trim().toLowerCase()}`) ? `อันดับปัจจุบัน #${leaderboard.findIndex((entry) => entry.id === `${game.houseName.trim().toLowerCase()}::${game.leaderName.trim().toLowerCase()}`) + 1}` : "ยังไม่จัดอันดับ"}</span></div>
-        <div className="leaderboard-table-wrap"><table className="report-table leaderboard-table"><thead><tr><th>อันดับ</th><th>ตระกูล</th><th>ขนาดเมือง</th><th>เวลาที่ทำได้</th><th>ประชากร</th></tr></thead><tbody>{leaderboard.slice(0, 12).map((entry, index) => <tr key={entry.id}><td>{index + 1}</td><td><b>{entry.houseName}</b><small>{entry.leaderName}</small></td><td>{entry.stage}</td><td>{timeReachedText(entry.year, entry.month)}</td><td>{fmt(entry.population)} คน</td></tr>)}{!leaderboard.length && <tr><td colSpan={5}>ยังไม่มีอันดับ ระบบจะเพิ่มตระกูลปัจจุบันเมื่อบันทึกอัตโนมัติครั้งถัดไป</td></tr>}</tbody></table></div>
+        <div className="split"><div><h3 className="section-title">ตารางอันดับตระกูล (Leader Board)</h3><p className="muted small">จัดอันดับจากยุคที่ไปถึง ระยะเวลาที่อยู่รอด จำนวนประชากร และสภาพเมือง รายการนี้เก็บในอุปกรณ์เดียวกัน เหมาะสำหรับแข่งขันหลายรอบหรือหลายผู้เล่นบนเครื่องเดียวกัน</p></div><span className="badge gold-pill">{leaderboard.some((entry) => entry.id === leaderboardEntryId(game)) ? `อันดับปัจจุบัน #${leaderboard.findIndex((entry) => entry.id === leaderboardEntryId(game)) + 1}` : "ยังไม่จัดอันดับ"}</span></div>
+        <div className="leaderboard-table-wrap"><table className="report-table leaderboard-table"><thead><tr><th>อันดับ</th><th>ตระกูล</th><th>ขนาดเมือง</th><th>เวลาที่ทำได้</th><th>ประชากร</th></tr></thead><tbody>{leaderboard.slice(0, 12).map((entry, index) => <tr key={entry.id}><td>{index + 1}</td><td><b>{entry.houseName}</b><small>{entry.leaderName} · รุ่นที่ {entry.generation ?? 1}{entry.victoryCount ? ` · ชัยชนะ ${entry.victoryCount}` : ""}</small></td><td>{entry.stage}</td><td>{timeReachedText(entry.year, entry.month)}</td><td>{fmt(entry.population)} คน</td></tr>)}{!leaderboard.length && <tr><td colSpan={5}>ยังไม่มีอันดับ ระบบจะเพิ่มตระกูลปัจจุบันเมื่อบันทึกอัตโนมัติครั้งถัดไป</td></tr>}</tbody></table></div>
         <div className="flex" style={{ marginTop: 10 }}><button className="secondary" onClick={() => { updateLocalLeaderboard(game); setLeaderboard(readLeaderboard()); }}>อัปเดตอันดับตอนนี้</button><button className="danger" onClick={() => { window.localStorage.removeItem(leaderboardKey); setLeaderboard([]); }}>ล้างตารางอันดับบนอุปกรณ์นี้</button></div>
       </section>
 
@@ -6470,17 +6604,10 @@ function SettingsView({ game, resetGame, showTutorialAgain, theme, setTheme, rep
         </div>
       </div>
 
-      <div className="two-col" style={{ marginTop: 14 }}>
-        <div className="panel pad" style={{ boxShadow: "none" }}>
-          <h3>ผู้มาตั้งถิ่นฐานประจำปี</h3>
-          <p className="muted">ทุกสิ้นปีระบบจะประเมินผู้เดินทางตามที่พัก เสบียง ระดับชุมชน และความน่าอยู่ อาจไม่มีผู้มาใหม่เลย หรือรับได้ตามขีดจำกัดจริง แยกจากเหตุการณ์ผู้อพยพที่ยังให้ผู้เล่นตัดสินใจเอง</p>
-          <table className="report-table"><tbody><tr><td>ช่วงจำนวน</td><td>0–8 คน/ปี ตามยุคและความจุจริง</td></tr><tr><td>ผลที่ตามมา</td><td>เพิ่มแรงงานและครอบครัว แต่เพิ่มภาระอาหาร น้ำ และที่พัก</td></tr><tr><td>บันทึก</td><td>ขึ้นในพงศาวดารและกระดิ่งระบบ</td></tr></tbody></table>
-        </div>
-        <div className="panel pad" style={{ boxShadow: "none" }}>
-          <h3>ความคิดเห็นจากผู้เล่น</h3>
-          <p className="muted">หากต้องการส่งความเห็น สามารถกดอีเมลได้ทันที ส่วนเครื่องมือภายในจะถูกซ่อนไว้เพื่อไม่ให้รบกวนการเล่นปกติ</p>
-          <a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Test%20Version%20Feedback&body=${mailBody}`}>ส่งความคิดเห็นทางอีเมล</a>
-        </div>
+      <div className="panel pad compact-panel" style={{ boxShadow: "none", marginTop: 14 }}>
+        <h3>ความคิดเห็นจากผู้เล่น</h3>
+        <p className="muted">ส่งความคิดเห็นหรือรายงานปัญหาได้ทันที เครื่องมือภายในยังถูกซ่อนไว้เพื่อไม่ให้รบกวนการเล่นปกติ</p>
+        <a className="secondary link-btn" href={`mailto:milligysas@gmail.com?subject=Evolution%20of%20Us%20Test%20Version%20Feedback&body=${mailBody}`}>ส่งความคิดเห็นทางอีเมล</a>
       </div>
 
       <details className="details-box dev-tools-box" style={{ marginTop: 16 }}>
@@ -6505,9 +6632,10 @@ function estimateResearchMonths(game: GameState): number | null {
 }
 function keyVillagers(game: GameState): Person[] {
   const alive = alivePeople(game);
-  const leader = alive.find((p) => p.id === "leader");
+  const leaderId = (normalizeDynastyState(game) as DynastyState).currentLeaderId;
+  const leader = alive.find((p) => p.id === leaderId) ?? alive.find((p) => p.id === "leader");
   const picked = alive
-    .filter((p) => p.id !== "leader" && p.age >= 16)
+    .filter((p) => p.id !== leader?.id && p.age >= 16)
     .sort((a, b) => (b.skill === "healer" ? 2 : 0) + (b.skill === "hunter" ? 2 : 0) + b.health - ((a.skill === "healer" ? 2 : 0) + (a.skill === "hunter" ? 2 : 0) + a.health))
     .slice(0, 4);
   return leader ? [leader, ...picked] : picked;

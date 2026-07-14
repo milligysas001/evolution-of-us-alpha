@@ -41,6 +41,16 @@ const runSeededTransition = (game, transition) => transition(game);
     .replace('import { CURRENT_GAME_VERSION, CURRENT_SCHEMA_VERSION, createSaveEnvelope, migrateSavePayload } from "../../save/migrations.mjs";\n', `const CURRENT_GAME_VERSION = "0.9.38"; const CURRENT_SCHEMA_VERSION = 4; const createSaveEnvelope = (game) => ({ game }); const migrateSavePayload = (input) => ({ game: input && input.game ? input.game : input, warnings: [] });
 `)
     .replace('import { formatValidationIssues, validateGameSave } from "../../save/schema.mjs";\n', `const formatValidationIssues = () => ""; const validateGameSave = () => ({ ok: true, issues: [] });
+`)
+    .replace('import { VICTORY_PATHS, chooseVictoryPath, emptyDynastyState, emptyVictoryState, evaluateVictory, heirCandidates, normalizeDynastyState, normalizeVictoryState, victoryProgress } from "../../logic/dynasty-endgame.mjs";\n', `const VICTORY_PATHS = { enduring: { title: "นครแห่งความอยู่รอด" }, trade: { title: "ศูนย์กลางการค้า" }, peace: { title: "สหพันธ์แห่งสันติ" }, knowledge: { title: "นครแห่งความรู้" }, legacy: { title: "ตระกูลยืนยาว" }, guardian: { title: "อาณาจักรผู้พิทักษ์" } };
+const emptyDynastyState = (g = {}) => ({ founderName: g.leaderName || "", generation: 1, currentLeaderId: "leader", designatedHeirId: null, successionHistory: [], familyMilestones: [], lastSuccession: "" });
+const normalizeDynastyState = (g = {}) => ({ ...emptyDynastyState(g), ...(g.dynasty || {}) });
+const emptyVictoryState = () => ({ chosenPath: null, completedPaths: [], achievedAt: null, ending: null, lastEvaluation: {} });
+const normalizeVictoryState = (g = {}) => ({ ...emptyVictoryState(), ...(g.victory || {}) });
+const chooseVictoryPath = (g, key) => ({ ...g, victory: { ...normalizeVictoryState(g), chosenPath: key } });
+const evaluateVictory = (g) => g;
+const heirCandidates = () => [];
+const victoryProgress = () => Object.fromEntries(Object.keys(VICTORY_PATHS).map((key) => [key, { current: 0, complete: false, details: [] }]));
 `);
   source += `
 export { ${exportNames.join(", ")} };

@@ -6,13 +6,15 @@ import { createRngState } from "../engine/random.mjs";
 function validGame() {
   const resources = Object.fromEntries(["food","wood","stone","tools","herbs","hides","water","waterReserve","knowledge","fuel","ore","gold","feed","ironOre","coal","timber","bricks","textiles","salt","spices","influence","steel","luxuries","warhorses","manpower","siegeMaterials"].map((key) => [key, 0]));
   return {
-    version: "0.9.38", saveVersion: "0.9.38", schemaVersion: 4,
+    version: "0.9.39", saveVersion: "0.9.39", schemaVersion: 5,
     leaderName: "Nora", houseName: "Vaelen", origin: "builder", difficulty: "normal", year: 1, month: 1, stage: "ค่ายพักแรม",
     resources,
     metrics: { morale: 50, security: 50, trust: 50, health: 50, cohesion: 50, fairness: 50 },
     people: [{ id: "leader", name: "Nora", age: 30, health: 80, morale: 70, fatigue: 0, alive: true }],
     rng: createRngState("EOU-SCHEMA"),
     buildings: {}, researchDone: {}, labor: {}, flags: {}, locations: {}, buildingCondition: {},
+    dynasty: { founderName: "Nora", generation: 1, currentLeaderId: "leader", designatedHeirId: null, successionHistory: [], familyMilestones: [], lastSuccession: "ผู้ก่อตั้งยังนำตระกูลอยู่" },
+    victory: { chosenPath: null, completedPaths: [], achievedAt: null, ending: null, lastEvaluation: {} },
     logs: [], casualties: [], memories: [], rumors: [], notifications: [], pendingEvents: [], delayedEvents: [], recentEventIds: [], eventHistory: [], neighbors: [], outposts: [],
   };
 }

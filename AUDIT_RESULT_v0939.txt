@@ -1,0 +1,25 @@
+Evolution of Us v0.9.39 — Dynasty & Endgame
+ตรวจวันที่ 14 กรกฎาคม 2026
+
+PASS TypeScript
+PASS JSON/Data Schema — 40 files
+PASS Unit Tests — 21/21
+PASS Legacy Regression Audit
+PASS Stabilization Audit
+PASS Balance & UX Audit
+PASS Dynasty & Endgame Audit
+PASS Save Migration — Schema 5
+PASS Seed Determinism and Checksum
+PASS Production Build
+PASS HTTP / and /game — 200
+PASS Dependency Audit — 0 vulnerabilities
+PASS Starting Population — 15 people in 250 simulations
+PASS Buildings / Research — 31 / 41
+PASS Events / Choices — 338 / 1,017
+PASS Victory Paths — 6
+PASS Settings annual-settlers card removed
+PASS Responsive CSS and overflow safeguards
+
+ALL CHECKS PASSED — Evolution of Us v0.9.39
+
+หมายเหตุ: Headless Chromium ในสภาพแวดล้อมทดสอบไม่สามารถสร้างภาพหน้าจอจนจบ จึงควรตรวจภาพบนเบราว์เซอร์จริงอีกครั้งหลังติดตั้ง

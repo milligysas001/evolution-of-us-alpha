@@ -66,3 +66,47 @@ export type MonthlyReportRow<TKey extends string = string> = {
   after: number;
   delta: number;
 };
+
+// v0.9.39 dynasty and endgame contracts
+export type VictoryPathKey = "enduring" | "trade" | "peace" | "knowledge" | "legacy" | "guardian";
+
+export type SuccessionRecord = {
+  year: number;
+  month: number;
+  fromName: string;
+  toName: string;
+  reason: string;
+  generation: number;
+};
+
+export type DynastyState = {
+  founderName: string;
+  generation: number;
+  currentLeaderId: string;
+  designatedHeirId: string | null;
+  successionHistory: SuccessionRecord[];
+  familyMilestones: string[];
+  lastSuccession: string;
+};
+
+export type VictoryEnding = {
+  path: VictoryPathKey;
+  title: string;
+  subtitle: string;
+  achievedYear: number;
+  achievedMonth: number;
+  leaderName: string;
+  population: number;
+  stage: EraStage;
+  paragraphs: string[];
+  highlights: Array<{ title: string; year: number; month: number; text: string }>;
+  fallen: Array<{ name: string; age: number; cause: string }>;
+};
+
+export type VictoryState = {
+  chosenPath: VictoryPathKey | null;
+  completedPaths: VictoryPathKey[];
+  achievedAt: { year: number; month: number; path: VictoryPathKey } | null;
+  ending: VictoryEnding | null;
+  lastEvaluation: Record<string, { current: number; complete: boolean; details: string[] }>;
+};

@@ -13,7 +13,7 @@ type OriginCard = {
   detail: string;
 };
 
-const VERSION = "รุ่นทดสอบ v0.9.38";
+const VERSION = "รุ่นทดสอบ v0.9.39";
 const setupKey = "eou-current-setup";
 const saveKey = "eou-current-save";
 const saveSlotsKey = "eou-save-slots-v1";

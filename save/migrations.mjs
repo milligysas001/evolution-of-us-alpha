@@ -1,7 +1,8 @@
 import { createRngState, normalizeRngState } from "../engine/random.mjs";
+import { emptyDynastyState, emptyVictoryState, normalizeDynastyState, normalizeVictoryState } from "../logic/dynasty-endgame.mjs";
 
-export const CURRENT_GAME_VERSION = "0.9.38";
-export const CURRENT_SCHEMA_VERSION = 4;
+export const CURRENT_GAME_VERSION = "0.9.39";
+export const CURRENT_SCHEMA_VERSION = 5;
 export const SAVE_FORMAT = "evolution-of-us-save";
 
 export function stableStringify(value) {
@@ -91,6 +92,23 @@ export function migrateSavePayload(input) {
     game.eventHistory = Array.isArray(game.eventHistory) ? game.eventHistory : [];
     game.schemaVersion = 4;
   }
+
+  if (fromSchema < 5) {
+    game.people = Array.isArray(game.people) ? game.people.map((person) => ({
+      ...person,
+      houseName: person.houseName || (String(person.kin || "").includes(game.houseName || "") ? game.houseName : ""),
+      parentIds: Array.isArray(person.parentIds) ? person.parentIds : [],
+      spouseId: typeof person.spouseId === "string" ? person.spouseId : null,
+      childrenIds: Array.isArray(person.childrenIds) ? person.childrenIds : [],
+      familyRole: person.familyRole || (person.id === "leader" ? "ผู้ก่อตั้ง" : String(person.kin || "").includes(game.houseName || "") ? "สมาชิกตระกูล" : "ชาวเมือง"),
+    })) : [];
+    game.dynasty = normalizeDynastyState({ ...game, dynasty: game.dynasty || emptyDynastyState(game) });
+    game.victory = normalizeVictoryState({ ...game, victory: game.victory || emptyVictoryState() });
+    game.schemaVersion = 5;
+  }
+
+  game.dynasty = normalizeDynastyState(game);
+  game.victory = normalizeVictoryState(game);
 
   const fallbackSeed = `${game.houseName || "House"}-${game.leaderName || "Leader"}-${game.year || 1}-${game.month || 1}`;
   game.rng = normalizeRngState(game.rng || createRngState(fallbackSeed), fallbackSeed);
