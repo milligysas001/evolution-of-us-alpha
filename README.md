@@ -1,37 +1,62 @@
-# Evolution of Us v0.9.33
+# Evolution of Us v0.9.34
 
-Recovery · Leader Effects · 15 Settlers
+**Detailed Bug, Event & Thai Wording Audit**
 
-## ติดตั้ง
+เวอร์ชันนี้ตรวจระบบตั้งแต่การจัดแรงงาน การพักฟื้น เหตุการณ์ การรักษา การเกิด ประชากรย้ายเข้า รายงานจบเดือน และการบันทึกอัตโนมัติ พร้อมปรับข้อความภาษาไทยให้ชัดเจนและสอดคล้องกันทั้งเกม
+
+## ติดตั้ง/อัปเดต
+
+แตกไฟล์ ZIP แล้วเปิด PowerShell ในโฟลเดอร์ที่แตกไฟล์ จากนั้นรัน:
 
 ```powershell
-cd "C:\Users\phass\Desktop\game\New folder (2)"
-powershell -ExecutionPolicy Bypass -File .\apply-v0933-recovery-leader-population.ps1
+powershell -ExecutionPolicy Bypass -File .\apply-v0934-detailed-audit.ps1
 ```
 
-สคริปต์จะสำรองโฟลเดอร์ `app` เดิม คัดลอกไฟล์เวอร์ชันใหม่ และติดตั้ง dependency ที่ล็อก TypeScript ให้เข้ากับ Next.js
+ค่าเริ่มต้นจะอัปเดตโครงการที่:
 
-## ตรวจระบบ
+```text
+C:\Users\phass\evolution-of-us
+```
+
+กำหนดโฟลเดอร์อื่นได้ด้วย:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\apply-v0934-detailed-audit.ps1 -ProjectPath "D:\Projects\evolution-of-us"
+```
+
+สคริปต์จะสำรองไฟล์โครงการเดิมก่อนคัดลอกเวอร์ชันใหม่
+
+## ตรวจระบบหลังติดตั้ง
 
 ```powershell
 cd "C:\Users\phass\evolution-of-us"
 npm run typecheck
-npm run check
+npm run check:data
+npm run build
+npm audit --audit-level=moderate
 ```
+
+## ทดลองเล่นในเครื่อง
+
+```powershell
+npm run dev
+```
+
+จากนั้นเปิด `http://localhost:3000/game`
 
 ## อัปขึ้น Vercel
 
 ```powershell
 git add -A
-git commit -m "update v0.9.33 recovery leader effects population"
+git commit -m "update v0.9.34 detailed audit"
 git push
 ```
 
-## สิ่งที่เปลี่ยนใน v0.9.33
+## เอกสารตรวจสอบ
 
-- ย้ายสถานะงาน/ตัวเลือกงานไปคอลัมน์ขวาของรายชื่อคน
-- แสดงภาพรวมการพักของหมู่บ้านและแยกผลพักกลางแจ้ง/กองไฟ/ที่พัก
-- เกมใหม่เริ่มด้วยคนสุ่ม 15 คน
-- ผลการเลือกเหตุการณ์และการกระทำผู้นำแสดงเป็นค่าที่เปลี่ยนจริงในรายงานจบเดือน
-- ปรับเวลาก่อสร้างช่วงต้นเกม โดยกองไฟและที่พักชั่วคราวสร้างเร็วขึ้น
-- การรักษาใช้สมุนไพรตามจำนวนผู้ป่วยที่ได้รับการดูแลจริง
+- `AUDIT_REPORT_v0934.md` — รายงานตรวจระบบฉบับละเอียด
+- `docs/CHANGELOG_v0934.md` — รายการแก้ไขตามหมวด
+- `docs/QUALITY_CHECK_v0934.md` — ผลทดสอบและขอบเขตที่ตรวจ
+- `data/game/v0934_detailed_audit.json` — สรุปข้อมูลเวอร์ชันสำหรับอ้างอิง/พอร์ตระบบ
+
+> หมายเหตุ: ไฟล์ใน `data/game` เป็นข้อมูลอ้างอิงและเตรียมพอร์ตในอนาคต ส่วนกลไกเกมเว็บปัจจุบันยังทำงานจาก `app/game/page.tsx`

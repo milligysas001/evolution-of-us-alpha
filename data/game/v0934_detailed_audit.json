@@ -1,0 +1,45 @@
+{
+  "version": "0.9.34",
+  "title": "Detailed Bug, Event & Thai Wording Audit",
+  "runtimeSource": "app/game/page.tsx",
+  "dataFilesRole": "reference_and_future_portability",
+  "criticalFixes": [
+    "birth_adds_exactly_one_person",
+    "labor_risk_uses_assignment_load",
+    "autosave_persists_complete_game_state",
+    "herbs_follow_actual_patient_count",
+    "recovered_health_causes_are_cleared",
+    "event_rewards_scale_or_block_when_payment_is_incomplete",
+    "event_and_choice_ids_are_unique",
+    "annual_settlers_respect_capacity_and_food"
+  ],
+  "recovery": {
+    "outdoorPerMonth": 3,
+    "campfireMinimumPerMonth": 8,
+    "crowdingOnlyReducesShelterBenefit": true
+  },
+  "auditResults": {
+    "events": 336,
+    "uniqueEventIds": 336,
+    "choices": 1011,
+    "uniqueChoiceIds": 1011,
+    "eventReferencesChecked": 127,
+    "conditionAndWeightEvaluations": 1008,
+    "choiceRuntimeChecks": 1011,
+    "startingPopulation": 15,
+    "birthPopulationDelta": 1,
+    "dependencyVulnerabilitiesModerateOrHigher": 0
+  },
+  "simulation": {
+    "games": 100,
+    "totalMonths": 4743,
+    "averageMonths": 47.43,
+    "survivedFiveYears": 55,
+    "endedWithinFiveYears": 45,
+    "purpose": "runtime_integrity_not_final_balance"
+  },
+  "wording": {
+    "thaiTerminologyNormalized": true,
+    "remainingNecessaryTechnicalTerm": "JSON"
+  }
+}
