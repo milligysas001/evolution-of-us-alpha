@@ -12,10 +12,10 @@ const settingsEnd = page.indexOf("function estimateBuildMonths", settingsStart);
 const settingsView = page.slice(settingsStart, settingsEnd);
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.40");
-assert.equal(CURRENT_SCHEMA_VERSION, 5);
-assert.equal(pkg.version, "0.9.40");
-assert.equal(pkg.name, "evolution-of-us-v0940");
+assert.equal(CURRENT_GAME_VERSION, "0.9.41");
+assert.equal(CURRENT_SCHEMA_VERSION, 6);
+assert.equal(pkg.version, "0.9.41");
+assert.equal(pkg.name, "evolution-of-us-v0941");
 
 for (const token of [
   'type DynastyState =',
@@ -68,10 +68,11 @@ const progress = victoryProgress(fixture);
 assert.equal(progress.trade.complete, true);
 const completed = evaluateVictory(fixture);
 assert.ok(completed.victory.completedPaths.includes("trade"));
-assert.equal(completed.victory.ending.path, "trade");
+assert.ok(completed.victory.ending.path in VICTORY_PATHS);
+assert.equal(completed.victory.chosenPath, null);
 
 const migrated = migrateSavePayload({ version: "0.9.38", schemaVersion: 4, leaderName: "Old", houseName: "Save", people: [{ id: "leader", name: "Old", alive: true, kin: "ตระกูล Save" }] }).game;
-assert.equal(migrated.schemaVersion, 5);
+assert.equal(migrated.schemaVersion, 6);
 assert.equal(migrated.dynasty.generation, 1);
 assert.ok(Array.isArray(migrated.victory.completedPaths));
 

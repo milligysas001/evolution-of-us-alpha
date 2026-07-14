@@ -44,9 +44,9 @@ function gameFixture() {
   };
 }
 
-test("legacy saves migrate dynasty and victory state into schema 5", () => {
+test("legacy saves migrate dynasty, victory, and settlement naming into schema 6", () => {
   const result = migrateSavePayload({ version: "0.9.38", schemaVersion: 4, leaderName: "Elowen", houseName: "Vaelen", people: [{ id: "leader", name: "Elowen", alive: true, kin: "ตระกูล Vaelen" }] });
-  assert.equal(result.game.schemaVersion, 5);
+  assert.equal(result.game.schemaVersion, 6);
   assert.equal(result.game.dynasty.generation, 1);
   assert.deepEqual(result.game.victory.completedPaths, []);
   assert.equal(result.game.people[0].houseName, "Vaelen");
@@ -58,18 +58,21 @@ test("heir candidates prioritize healthy blood relatives", () => {
   assert.equal(candidates[0].blood, true);
 });
 
-test("victory path selection keeps other progress intact", () => {
+test("legacy path selection remains readable but current evaluation is automatic", () => {
   const game = gameFixture();
   const selected = chooseVictoryPath(game, "knowledge");
   assert.equal(selected.victory.chosenPath, "knowledge");
+  const evaluated = evaluateVictory(selected);
+  assert.equal(evaluated.victory.chosenPath, null);
   assert.ok(VICTORY_PATHS.knowledge.title.includes("ความรู้"));
 });
 
-test("completed selected path generates ending chronicle", () => {
+test("all completed paths are detected automatically and generate an ending chronicle", () => {
   const game = gameFixture();
   const evaluated = evaluateVictory(game);
   assert.ok(evaluated.victory.completedPaths.includes("trade"));
-  assert.equal(evaluated.victory.ending.path, "trade");
+  assert.ok(evaluated.victory.completedPaths.length > 1);
+  assert.ok(evaluated.victory.ending.path in VICTORY_PATHS);
   assert.equal(evaluated.victory.ending.population, 120);
 });
 

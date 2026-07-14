@@ -10,8 +10,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const page = fs.readFileSync(path.join(root, "app", "game", "page.tsx"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.40");
-assert.equal(CURRENT_SCHEMA_VERSION, 5);
+assert.equal(CURRENT_GAME_VERSION, "0.9.41");
+assert.equal(CURRENT_SCHEMA_VERSION, 6);
 assert.equal((page.match(/Math\.random/g) ?? []).length, 0, "app/game/page.tsx ยังมี Math.random");
 for (const token of [
   'from "../../engine/random.mjs"',
@@ -46,8 +46,8 @@ const fixture = {
   logs: [], casualties: [], memories: [], rumors: [], notifications: [], pendingEvents: [], delayedEvents: [], recentEventIds: [], eventHistory: [], neighbors: [], outposts: [],
 };
 const migrated = migrateSavePayload(fixture).game;
-assert.equal(migrated.version, "0.9.40");
-assert.equal(migrated.schemaVersion, 5);
+assert.equal(migrated.version, "0.9.41");
+assert.equal(migrated.schemaVersion, 6);
 assert.equal(validateGameSave(migrated, { strict: true }).ok, true);
 const envelope = createSaveEnvelope(migrated, { source: "audit" });
 assert.equal(verifySaveEnvelope(envelope).ok, true);

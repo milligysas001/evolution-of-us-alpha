@@ -9,11 +9,12 @@
     "audit:legacy": "node logic/audit-v0936.cjs",
     "audit:stabilization": "node logic/audit-v0937.mjs",
     "audit:systems": "npm run audit:legacy && npm run audit:stabilization && npm run audit:balance && npm run audit:dynasty",
-    "check": "node logic/run-checks-v0940.mjs",
-    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.40 narrative and interface polish\" && git push",
+    "check": "node logic/run-checks-v0941.mjs",
+    "deploy:push": "npm run check && git add -A && git commit -m \"update v0.9.41 wide layout and living chronicle\" && git push",
     "audit:balance": "node logic/audit-v0938.mjs",
     "audit:dynasty": "node logic/audit-v0939.mjs",
-    "audit:narrative": "node logic/audit-v0940.mjs"
+    "audit:narrative": "node logic/audit-v0940.mjs",
+    "audit:wide-layout": "node logic/audit-v0941.mjs"
   },
   "dependencies": {
     "@types/node": "26.1.1",
@@ -32,7 +33,7 @@
       "postcss": "8.5.19"
     }
   },
-  "name": "evolution-of-us-v0940",
-  "version": "0.9.40",
+  "name": "evolution-of-us-v0941",
+  "version": "0.9.41",
   "private": true
 }

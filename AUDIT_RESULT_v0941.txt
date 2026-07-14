@@ -1,0 +1,27 @@
+ALL CHECKS PASSED — Evolution of Us v0.9.41
+
+Game Version: 0.9.41
+Save Schema: 6
+JSON files: 42 PASS
+Unit tests: 21/21 PASS
+TypeScript: PASS
+Legacy regression: PASS
+Stabilization audit: PASS
+Balance & UX audit: PASS
+Dynasty & Endgame audit: PASS
+Narrative & Interface audit: PASS
+Wide Layout & Living Chronicle audit: PASS
+Production build: PASS
+Routes / and /game: HTTP 200
+Dependency vulnerabilities: 0
+
+Initial population simulations: 250
+Population each run: 15
+Duplicate names in starting roster: 0
+Distinct generated names observed: 176
+Buildings checked: 31
+Research checked: 41
+Events checked: 338
+Event choices applied: 1,017
+Animal no-pair simulations: 120
+Seeded values compared: 500

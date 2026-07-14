@@ -42,7 +42,7 @@ const runSeededTransition = (game, transition) => transition(game);
 `)
     .replace('import { formatValidationIssues, validateGameSave } from "../../save/schema.mjs";\n', `const formatValidationIssues = () => ""; const validateGameSave = () => ({ ok: true, issues: [] });
 `)
-    .replace('import { VICTORY_PATHS, chooseVictoryPath, emptyDynastyState, emptyVictoryState, evaluateVictory, heirCandidates, normalizeDynastyState, normalizeVictoryState, victoryProgress } from "../../logic/dynasty-endgame.mjs";\n', `const VICTORY_PATHS = { enduring: { title: "นครแห่งความอยู่รอด" }, trade: { title: "ศูนย์กลางการค้า" }, peace: { title: "สหพันธ์แห่งสันติ" }, knowledge: { title: "นครแห่งความรู้" }, legacy: { title: "ตระกูลยืนยาว" }, guardian: { title: "อาณาจักรผู้พิทักษ์" } };
+    .replace('import { VICTORY_PATHS, emptyDynastyState, emptyVictoryState, evaluateVictory, heirCandidates, normalizeDynastyState, normalizeVictoryState, victoryProgress } from "../../logic/dynasty-endgame.mjs";\n', `const VICTORY_PATHS = { enduring: { title: "นครแห่งความอยู่รอด" }, trade: { title: "ศูนย์กลางการค้า" }, peace: { title: "สหพันธ์แห่งสันติ" }, knowledge: { title: "นครแห่งความรู้" }, legacy: { title: "ตระกูลยืนยาว" }, guardian: { title: "อาณาจักรผู้พิทักษ์" } };
 const emptyDynastyState = (g = {}) => ({ founderName: g.leaderName || "", generation: 1, currentLeaderId: "leader", designatedHeirId: null, successionHistory: [], familyMilestones: [], lastSuccession: "" });
 const normalizeDynastyState = (g = {}) => ({ ...emptyDynastyState(g), ...(g.dynasty || {}) });
 const emptyVictoryState = () => ({ chosenPath: null, completedPaths: [], achievedAt: null, ending: null, lastEvaluation: {} });
@@ -83,10 +83,14 @@ try {
   const initialRuns = 250;
   let minFoodMonths = Infinity;
   let minRemainingWood = Infinity;
+  const generatedNames = new Set();
 
   for (let index = 0; index < initialRuns; index++) {
     let game = createInitialGame({ leaderName: `Audit${index}`, houseName: "Test", origin: origins[index % origins.length] });
     assert(game.people.length === 15, `initial population is ${game.people.length}, expected 15`);
+    const names = game.people.map((person) => person.name);
+    assert(new Set(names).size === names.length, `duplicate starting name in run ${index}: ${names.join(", ")}`);
+    names.slice(1).forEach((name) => generatedNames.add(name));
     const need = foodNeedFor(game);
     const months = game.resources.food / Math.max(1, need);
     minFoodMonths = Math.min(minFoodMonths, months);
@@ -106,6 +110,8 @@ try {
     minRemainingWood = Math.min(minRemainingWood, game.resources.wood);
     finiteObject(game.resources, "startingBundle.resources");
   }
+
+  assert(generatedNames.size >= 80, `name pool diversity too low: ${generatedNames.size} distinct generated names`);
 
   const buildingIds = Object.keys(buildingData);
   assert(buildingIds.length === 31, `expected 31 buildings, got ${buildingIds.length}`);
@@ -234,6 +240,8 @@ try {
     version: "0.9.36",
     initialRuns,
     populationEachRun: 15,
+    distinctGeneratedNames: generatedNames.size,
+    duplicateNamesPerStartingRoster: 0,
     minimumStartingFoodCoverageMonths: Number(minFoodMonths.toFixed(2)),
     minimumWoodAfterThreeSheltersCampfireStorage: minRemainingWood,
     buildingsChecked: buildingIds.length,

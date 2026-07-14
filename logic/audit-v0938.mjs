@@ -10,10 +10,10 @@ const home = fs.readFileSync(path.join(root, "app", "page.tsx"), "utf8");
 const css = fs.readFileSync(path.join(root, "app", "globals.css"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 
-assert.equal(CURRENT_GAME_VERSION, "0.9.40");
-assert.equal(CURRENT_SCHEMA_VERSION, 5);
-assert.equal(pkg.version, "0.9.40");
-assert.equal(pkg.name, "evolution-of-us-v0940");
+assert.equal(CURRENT_GAME_VERSION, "0.9.41");
+assert.equal(CURRENT_SCHEMA_VERSION, 6);
+assert.equal(pkg.version, "0.9.41");
+assert.equal(pkg.name, "evolution-of-us-v0941");
 
 for (const token of [
   'type Difficulty = "story" | "normal" | "survival" | "ironman"',
@@ -67,7 +67,7 @@ assert.ok(repeatedPacing < freshPacing, "Event pacing ไม่ลดเหต�
 const migrated = migrateSavePayload({ version: "0.9.37", leaderName: "Audit", houseName: "Balance", origin: "builder", year: 1, month: 1 }).game;
 assert.equal(migrated.difficulty, "normal");
 assert.ok(Array.isArray(migrated.eventHistory));
-assert.equal(migrated.schemaVersion, 5);
+assert.equal(migrated.schemaVersion, 6);
 
 console.log(JSON.stringify({
   status: "PASS",

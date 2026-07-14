@@ -1,8 +1,8 @@
 import { createRngState, normalizeRngState } from "../engine/random.mjs";
 import { emptyDynastyState, emptyVictoryState, normalizeDynastyState, normalizeVictoryState } from "../logic/dynasty-endgame.mjs";
 
-export const CURRENT_GAME_VERSION = "0.9.40";
-export const CURRENT_SCHEMA_VERSION = 5;
+export const CURRENT_GAME_VERSION = "0.9.41";
+export const CURRENT_SCHEMA_VERSION = 6;
 export const SAVE_FORMAT = "evolution-of-us-save";
 
 export function stableStringify(value) {
@@ -105,6 +105,17 @@ export function migrateSavePayload(input) {
     game.dynasty = normalizeDynastyState({ ...game, dynasty: game.dynasty || emptyDynastyState(game) });
     game.victory = normalizeVictoryState({ ...game, victory: game.victory || emptyVictoryState() });
     game.schemaVersion = 5;
+  }
+
+  if (fromSchema < 6) {
+    const stage = String(game.stage || "ค่ายพักแรม");
+    const prefix = stage === "ค่ายพักแรม" ? "ค่ายตระกูล" : stage === "ชุมชนแรกเริ่ม" ? "ชุมชน" : stage === "หมู่บ้านถาวร" ? "หมู่บ้าน" : stage.includes("เมือง") ? "เมือง" : stage === "นครรัฐ" ? "นครรัฐ" : "อาณาจักร";
+    game.settlementName = String(game.settlementName || `${prefix} ${game.houseName || "ไร้นาม"}`);
+    game.pendingSettlementRename = Boolean(game.pendingSettlementRename);
+    game.lastNamedStage = String(game.lastNamedStage || stage);
+    game.settlementNameHistory = Array.isArray(game.settlementNameHistory) ? game.settlementNameHistory.slice(0, 24) : [];
+    game.victory = { ...normalizeVictoryState(game), chosenPath: null };
+    game.schemaVersion = 6;
   }
 
   game.dynasty = normalizeDynastyState(game);

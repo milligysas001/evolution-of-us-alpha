@@ -91,7 +91,7 @@ export function emptyVictoryState() {
 export function normalizeVictoryState(game = {}) {
   const base = emptyVictoryState();
   const old = game.victory && typeof game.victory === "object" ? game.victory : {};
-  const chosenPath = Object.hasOwn(VICTORY_PATHS, old.chosenPath) ? old.chosenPath : null;
+  const chosenPath = null;
   return {
     ...base,
     ...old,
@@ -123,39 +123,52 @@ export function victoryProgress(game = {}) {
   const averageRelation = (game.neighbors ?? []).length
     ? (game.neighbors ?? []).reduce((sum, city) => sum + Number(city?.relation || 0), 0) / (game.neighbors ?? []).length
     : 0;
-  const progress = {
+  const scale = game.difficulty === "story" ? 0.85 : game.difficulty === "survival" ? 1.12 : game.difficulty === "ironman" ? 1.25 : 1;
+  const req = (value, floor = 1) => Math.max(floor, Math.round(value * scale));
+  const enduringFood = req(24, 12);
+  const tradeTreaties = req(3, 2);
+  const tradeGold = req(120, 80);
+  const peaceAlliances = req(2, 1);
+  const peaceCities = req(3, 2);
+  const peaceRelation = req(45, 35);
+  const knowledgeResearch = req(34, 26);
+  const knowledgeStock = req(180, 120);
+  const legacyGeneration = req(3, 2);
+  const legacyPopulation = req(120, 80);
+  const guardianPower = req(160, 110);
+  const guardianSecurity = req(85, 70);
+  return {
     enduring: {
-      current: Math.min(100, Math.round((game.crisis?.resolved ? 38 : 0) + Math.min(34, foodMonths(game) / 24 * 34) + Math.min(28, stageRank(game.stage) / 5 * 28))),
-      complete: !!game.crisis?.resolved && foodMonths(game) >= 24 && stageRank(game.stage) >= stageRank("เมืองเล็ก"),
-      details: [`ผ่านภัยใหญ่ ${game.crisis?.resolved ? "แล้ว" : "ยัง"}`, `เสบียงอาหาร ${foodMonths(game).toFixed(1)}/24 เดือน`, `ระดับเมือง ${game.stage || "ค่ายพักแรม"}`],
+      current: Math.min(100, Math.round((game.crisis?.resolved ? 38 : 0) + Math.min(34, foodMonths(game) / enduringFood * 34) + Math.min(28, stageRank(game.stage) / 5 * 28))),
+      complete: !!game.crisis?.resolved && foodMonths(game) >= enduringFood && stageRank(game.stage) >= stageRank("เมืองเล็ก"),
+      details: [`ผ่านภัยใหญ่ ${game.crisis?.resolved ? "แล้ว" : "ยัง"}`, `เสบียงอาหาร ${foodMonths(game).toFixed(1)}/${enduringFood} เดือน`, `ระดับเมือง ${game.stage || "ค่ายพักแรม"}`],
     },
     trade: {
-      current: Math.min(100, Math.round(Math.min(35, treatyCount(game) / 3 * 35) + Math.min(25, Number(game.resources?.gold || 0) / 120 * 25) + Math.min(20, stageRank(game.stage) / 4 * 20) + ((game.buildings?.marketSquare || game.buildings?.caravanPost) ? 20 : 0))),
-      complete: treatyCount(game) >= 3 && Number(game.resources?.gold || 0) >= 120 && stageRank(game.stage) >= stageRank("เมืองการค้า") && !!(game.buildings?.marketSquare || game.buildings?.caravanPost),
-      details: [`สนธิสัญญาการค้า ${treatyCount(game)}/3`, `ทอง ${Math.round(game.resources?.gold || 0)}/120`, `ตลาดหรือสถานีคาราวาน ${game.buildings?.marketSquare || game.buildings?.caravanPost ? "พร้อม" : "ยังไม่มี"}`],
+      current: Math.min(100, Math.round(Math.min(35, treatyCount(game) / tradeTreaties * 35) + Math.min(25, Number(game.resources?.gold || 0) / tradeGold * 25) + Math.min(20, stageRank(game.stage) / 4 * 20) + ((game.buildings?.marketSquare || game.buildings?.caravanPost) ? 20 : 0))),
+      complete: treatyCount(game) >= tradeTreaties && Number(game.resources?.gold || 0) >= tradeGold && stageRank(game.stage) >= stageRank("เมืองการค้า") && !!(game.buildings?.marketSquare || game.buildings?.caravanPost),
+      details: [`สนธิสัญญาการค้า ${treatyCount(game)}/${tradeTreaties}`, `ทอง ${Math.round(game.resources?.gold || 0)}/${tradeGold}`, `ตลาดหรือสถานีคาราวาน ${game.buildings?.marketSquare || game.buildings?.caravanPost ? "พร้อม" : "ยังไม่มี"}`],
     },
     peace: {
-      current: Math.min(100, Math.round(Math.min(38, allianceCount(game) / 2 * 38) + Math.min(22, (game.neighbors ?? []).length / 3 * 22) + (noWar ? 20 : 0) + Math.min(20, Math.max(0, averageRelation) / 70 * 20))),
-      complete: allianceCount(game) >= 2 && (game.neighbors ?? []).length >= 3 && noWar && averageRelation >= 45,
-      details: [`พันธมิตร ${allianceCount(game)}/2`, `รู้จักเมือง ${(game.neighbors ?? []).length}/3`, `สงคราม ${noWar ? "ไม่มี" : "ยังมี"}`, `สัมพันธ์เฉลี่ย ${Math.round(averageRelation)}`],
+      current: Math.min(100, Math.round(Math.min(38, allianceCount(game) / peaceAlliances * 38) + Math.min(22, (game.neighbors ?? []).length / peaceCities * 22) + (noWar ? 20 : 0) + Math.min(20, Math.max(0, averageRelation) / peaceRelation * 20))),
+      complete: allianceCount(game) >= peaceAlliances && (game.neighbors ?? []).length >= peaceCities && noWar && averageRelation >= peaceRelation,
+      details: [`พันธมิตร ${allianceCount(game)}/${peaceAlliances}`, `รู้จักเมือง ${(game.neighbors ?? []).length}/${peaceCities}`, `สงคราม ${noWar ? "ไม่มี" : "ยังมี"}`, `สัมพันธ์เฉลี่ย ${Math.round(averageRelation)}/${peaceRelation}`],
     },
     knowledge: {
-      current: Math.min(100, Math.round(Math.min(50, researchCount(game) / 34 * 50) + Math.min(25, Number(game.resources?.knowledge || 0) / 180 * 25) + Math.min(25, stageRank(game.stage) / 5 * 25))),
-      complete: researchCount(game) >= 34 && Number(game.resources?.knowledge || 0) >= 180 && stageRank(game.stage) >= stageRank("นครรัฐ"),
-      details: [`วิจัยสำเร็จ ${researchCount(game)}/34`, `ความรู้ ${Math.round(game.resources?.knowledge || 0)}/180`, `ระดับเมือง ${game.stage || "ค่ายพักแรม"}`],
+      current: Math.min(100, Math.round(Math.min(50, researchCount(game) / knowledgeResearch * 50) + Math.min(25, Number(game.resources?.knowledge || 0) / knowledgeStock * 25) + Math.min(25, stageRank(game.stage) / 5 * 25))),
+      complete: researchCount(game) >= knowledgeResearch && Number(game.resources?.knowledge || 0) >= knowledgeStock && stageRank(game.stage) >= stageRank("นครรัฐ"),
+      details: [`วิจัยสำเร็จ ${researchCount(game)}/${knowledgeResearch}`, `ความรู้ ${Math.round(game.resources?.knowledge || 0)}/${knowledgeStock}`, `ระดับเมือง ${game.stage || "ค่ายพักแรม"}`],
     },
     legacy: {
-      current: Math.min(100, Math.round(Math.min(50, dynasty.generation / 3 * 50) + Math.min(30, population / 120 * 30) + ((game.researchDone?.dynasticSuccession && game.researchDone?.familyRecords) ? 20 : 0))),
-      complete: dynasty.generation >= 3 && population >= 120 && !!game.researchDone?.dynasticSuccession && !!game.researchDone?.familyRecords,
-      details: [`ผู้นำรุ่นที่ ${dynasty.generation}/3`, `ประชากร ${population}/120`, `กฎหมายสืบทอด ${game.researchDone?.dynasticSuccession ? "พร้อม" : "ยังไม่พร้อม"}`],
+      current: Math.min(100, Math.round(Math.min(50, dynasty.generation / legacyGeneration * 50) + Math.min(30, population / legacyPopulation * 30) + ((game.researchDone?.dynasticSuccession && game.researchDone?.familyRecords) ? 20 : 0))),
+      complete: dynasty.generation >= legacyGeneration && population >= legacyPopulation && !!game.researchDone?.dynasticSuccession && !!game.researchDone?.familyRecords,
+      details: [`ผู้นำรุ่นที่ ${dynasty.generation}/${legacyGeneration}`, `ประชากร ${population}/${legacyPopulation}`, `กฎหมายสืบทอด ${game.researchDone?.dynasticSuccession ? "พร้อม" : "ยังไม่พร้อม"}`],
     },
     guardian: {
-      current: Math.min(100, Math.round(Math.min(45, militaryPowerApprox(game) / 160 * 45) + Math.min(25, Number(game.metrics?.security || 0) / 85 * 25) + Math.min(20, stageRank(game.stage) / 5 * 20) + (noWar ? 10 : 0))),
-      complete: militaryPowerApprox(game) >= 160 && Number(game.metrics?.security || 0) >= 85 && stageRank(game.stage) >= stageRank("นครรัฐ") && noWar,
-      details: [`พลังป้องกัน ${militaryPowerApprox(game)}/160`, `ความปลอดภัย ${Math.round(game.metrics?.security || 0)}/85`, `ชายแดน ${noWar ? "สงบ" : "มีสงคราม"}`],
+      current: Math.min(100, Math.round(Math.min(45, militaryPowerApprox(game) / guardianPower * 45) + Math.min(25, Number(game.metrics?.security || 0) / guardianSecurity * 25) + Math.min(20, stageRank(game.stage) / 5 * 20) + (noWar ? 10 : 0))),
+      complete: militaryPowerApprox(game) >= guardianPower && Number(game.metrics?.security || 0) >= guardianSecurity && stageRank(game.stage) >= stageRank("นครรัฐ") && noWar,
+      details: [`พลังป้องกัน ${militaryPowerApprox(game)}/${guardianPower}`, `ความปลอดภัย ${Math.round(game.metrics?.security || 0)}/${guardianSecurity}`, `ชายแดน ${noWar ? "สงบ" : "มีสงคราม"}`],
     },
   };
-  return progress;
 }
 
 export function chooseVictoryPath(game, key) {
@@ -191,17 +204,18 @@ export function createEndingChronicle(game, key) {
 export function evaluateVictory(game) {
   const victory = normalizeVictoryState(game);
   const progress = victoryProgress(game);
-  const chosen = victory.chosenPath;
-  if (!chosen || !progress[chosen]?.complete || victory.completedPaths.includes(chosen)) {
-    return { ...game, victory: { ...victory, lastEvaluation: progress } };
-  }
-  const ending = createEndingChronicle(game, chosen);
+  const newlyCompleted = Object.keys(VICTORY_PATHS).filter((key) => progress[key]?.complete && !victory.completedPaths.includes(key));
+  if (!newlyCompleted.length) return { ...game, victory: { ...victory, chosenPath: null, lastEvaluation: progress } };
+  const completedPaths = [...victory.completedPaths, ...newlyCompleted];
+  const latest = newlyCompleted[newlyCompleted.length - 1];
+  const ending = createEndingChronicle(game, latest);
   return {
     ...game,
     victory: {
       ...victory,
-      completedPaths: [...victory.completedPaths, chosen],
-      achievedAt: { year: game.year, month: game.month, path: chosen },
+      chosenPath: null,
+      completedPaths,
+      achievedAt: { year: game.year, month: game.month, path: latest },
       ending,
       lastEvaluation: progress,
     },

@@ -14,6 +14,9 @@ export function validateGameSave(value, options = {}) {
   if (!VALID_ORIGINS.has(value.origin)) issues.push(issue("origin", "ชนิดผู้นำไม่ถูกต้อง", "error"));
   if (!VALID_DIFFICULTIES.has(value.difficulty)) issues.push(issue("difficulty", "ระดับความยากไม่ถูกต้อง", strict ? "error" : "warning"));
   if (!VALID_STAGES.has(value.stage)) issues.push(issue("stage", "ยุคของเมืองไม่ถูกต้อง", "error"));
+  requiredString(value, "settlementName", issues);
+  if (typeof value.pendingSettlementRename !== "boolean") issues.push(issue("pendingSettlementRename", "สถานะรอตั้งชื่อถิ่นฐานต้องเป็น boolean", strict ? "error" : "warning"));
+  if (!Array.isArray(value.settlementNameHistory)) issues.push(issue("settlementNameHistory", "ประวัติชื่อถิ่นฐานต้องเป็น array", strict ? "error" : "warning"));
   integerRange(value.year, 1, 100000, "year", issues);
   integerRange(value.month, 1, 12, "month", issues);
   integerRange(value.schemaVersion ?? 0, 0, 999, "schemaVersion", issues, strict ? "error" : "warning");

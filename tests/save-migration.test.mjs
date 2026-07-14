@@ -23,6 +23,9 @@ test("legacy direct save migrates to current schema", () => {
   assert.ok(Array.isArray(result.game.pendingEvents));
   assert.equal(result.game.difficulty, "normal");
   assert.ok(Array.isArray(result.game.eventHistory));
+  assert.equal(result.game.settlementName, "ค่ายตระกูล Vaelen");
+  assert.equal(result.game.pendingSettlementRename, false);
+  assert.equal(result.game.victory.chosenPath, null);
 });
 
 test("save envelope checksum verifies", () => {
